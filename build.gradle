@@ -1,0 +1,181 @@
+import groovy.transform.Memoized
+
+buildscript {
+  repositories {
+    gradlePluginPortal()
+  }
+  dependencies {
+    classpath 'gradle.plugin.com.github.jengelman.gradle.plugins:shadow:7.0.0'
+    classpath 'com.palantir.baseline:gradle-baseline-java:4.42.0'
+    classpath 'gradle.plugin.org.inferred:gradle-processors:3.7.0'
+    classpath 'me.champeau.jmh:jmh-gradle-plugin:0.6.8'
+    classpath "com.github.alisiikh:gradle-scalastyle-plugin:3.4.1"
+    classpath 'com.palantir.gradle.revapi:gradle-revapi:1.7.0'
+    classpath 'com.gorylenko.gradle-git-properties:gradle-git-properties:2.4.1'
+    classpath 'com.palantir.gradle.gitversion:gradle-git-version:0.15.0'
+    classpath ('org.eclipse.jgit:org.eclipse.jgit:5.13.1.202206130422-r') {
+      // gradle-git-version automatically uses a jgit version that requires JDK11
+      // so we need to enforce the latest jgit version that works with JDK8
+      force = true
+    }
+  }
+}
+
+plugins {
+  id 'nebula.dependency-recommender' version '11.0.0'
+}
+
+
+if (JavaVersion.current() == JavaVersion.VERSION_1_8) {
+  project.ext.jdkVersion = '8'
+} else if (JavaVersion.current() == JavaVersion.VERSION_11) {
+  project.ext.jdkVersion = '11'
+} else {
+  throw new GradleException("This build must be run with JDK 8 or 11 but was executed with JDK " + JavaVersion.current())
+}
+
+apply plugin: 'com.gorylenko.gradle-git-properties'
+// git properties file for the root project for adding to the source tarball
+gitProperties {
+  gitPropertiesName = 'iceberg-build.properties'
+  gitPropertiesResourceDir = file("${rootDir}/build")
+  extProperty = 'gitProps'
+  failOnNoGitDirectory = true
+  keys = ['git.branch', 'git.build.version', 'git.closest.tag.name','git.commit.id.abbrev', 'git.commit.id',
+          'git.commit.message.short', 'git.commit.time', 'git.tags']
+}
+generateGitProperties.outputs.upToDateWhen { false }
+
+if (file("${rootDir}/iceberg-build.properties").exists()) {
+  tasks.register('buildInfo', Exec) {
+    project.logger.info('Using build info from iceberg-build.properties')
+    commandLine 'cp', "${rootDir}/iceberg-build.properties", 'build/iceberg-build.properties'
+  }
+} else {
+  tasks.register('buildInfo') {
+    project.logger.info('Generating iceberg-build.properties from git')
+    dependsOn generateGitProperties
+  }
+}
+
+dependencyRecommendations {
+  propertiesFile file: file('versions.props')
+}
+
+def projectVersion = getProjectVersion()
+
+allprojects {
+  group = "com.zetaris.lightning"
+  version = projectVersion
+  repositories {
+    mavenCentral()
+    mavenLocal()
+  }
+}
+
+subprojects {
+  apply plugin: 'nebula.dependency-recommender'
+  apply plugin: 'java-library'
+
+  configurations {
+    testImplementation.extendsFrom compileOnly
+
+    all {
+      exclude group: 'org.slf4j', module: 'slf4j-log4j12'
+      exclude group: 'org.mortbay.jetty'
+      exclude group: 'com.sun.jersey'
+      exclude group: 'com.sun.jersey.contribs'
+      exclude group: 'org.pentaho', module: 'pentaho-aggdesigner-algorithm'
+    }
+
+    testArtifacts
+  }
+
+  compileJava {
+    options.encoding = "UTF-8"
+  }
+
+  compileTestJava {
+    options.encoding = "UTF-8"
+  }
+
+  javadoc {
+    options.encoding = 'UTF-8'
+  }
+
+  sourceCompatibility = '1.8'
+  targetCompatibility = '1.8'
+
+  dependencies {
+    implementation 'org.slf4j:slf4j-api'
+    implementation 'com.github.stephenc.findbugs:findbugs-annotations'
+
+    testImplementation 'org.junit.vintage:junit-vintage-engine'
+    testImplementation 'org.junit.jupiter:junit-jupiter-engine'
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testImplementation 'org.slf4j:slf4j-simple'
+    testImplementation 'org.mockito:mockito-core'
+    testImplementation 'org.mockito:mockito-inline'
+    testImplementation 'org.assertj:assertj-core'
+  }
+
+  test {
+    def logDir = "${rootDir}/build/testlogs"
+    def logFile = "${logDir}/${project.name}.log"
+    mkdir("${logDir}")
+    delete("${logFile}")
+    def buildLog = new File(logFile)
+    addTestOutputListener(new TestOutputListener() {
+      def lastDescriptor
+      @Override
+      void onOutput(TestDescriptor testDescriptor, TestOutputEvent testOutputEvent) {
+        if (lastDescriptor != testDescriptor) {
+          buildLog << "--------\n- Test log for: "<< testDescriptor << "\n--------\n"
+          lastDescriptor = testDescriptor
+        }
+        buildLog << testOutputEvent.destination << " " << testOutputEvent.message
+      }
+    })
+
+    maxHeapSize = "1500m"
+
+    testLogging {
+      events "failed"
+      exceptionFormat "full"
+    }
+  }
+}
+
+@Memoized
+boolean versionFileExists() {
+  return file('version.txt').exists()
+}
+
+@Memoized
+String getVersionFromFile() {
+  return file('version.txt').text.trim()
+}
+
+String getProjectVersion() {
+  if (versionFileExists()) {
+    return getVersionFromFile()
+  }
+  return "o.1"
+}
+
+String getJavadocVersion() {
+  if (versionFileExists()) {
+    return getVersionFromFile()
+  }
+
+  try {
+    // use the branch name in place of version in Javadoc
+    return versionDetails().branchName
+  } catch (NullPointerException e) {
+    throw new Exception("Neither version.txt nor git version exists")
+  }
+}
+
+apply from: 'baseline.gradle'
+apply from: 'tasks.gradle'
+

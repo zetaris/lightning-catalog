@@ -1,0 +1,38 @@
+
+task aggregateJavadoc(type: Javadoc) {
+  dependsOn subprojects.javadoc
+  source subprojects.javadoc.source
+  destinationDir project.rootProject.file("site/docs/javadoc/${getJavadocVersion()}")
+  classpath = project.rootProject.files(subprojects.javadoc.classpath)
+
+  final JAVADOC_FIX_SEARCH_STR = '\n\n' +
+          'getURLPrefix = function(ui) {\n' +
+          '    return \'\';\n' +
+          '};\n'
+
+  doLast {
+    // Fix bug with search
+    if (JavaVersion.current() >= JavaVersion.VERSION_11) {
+      // Append the fix to the file
+      def searchScript = new File("site/docs/javadoc/${getJavadocVersion()}" + '/search.js')
+      searchScript.append JAVADOC_FIX_SEARCH_STR
+    }
+  }
+}
+
+task removeJavadoc(type: Exec) {
+  commandLine 'rm', '-rf', "site/docs/javadoc/${getJavadocVersion()}"
+}
+
+task refreshJavadoc(type: Exec) {
+  dependsOn aggregateJavadoc
+  dependsOn removeJavadoc
+  aggregateJavadoc.mustRunAfter removeJavadoc
+  commandLine 'git', 'add', "site/docs/javadoc/${getJavadocVersion()}"
+}
+
+task deploySite(type: Exec) {
+  workingDir 'site'
+  commandLine('./deploy.sh')
+}
+
