@@ -51,9 +51,9 @@ project(":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scal
     testImplementation "org.apache.parquet:parquet-hadoop"
     testImplementation 'com.h2database:h2:2.1.214'
 
-    implementation ("org.apache.iceberg:iceberg-spark-${sparkMajorVersion}_${scalaVersion}:1.4.2")
-    implementation ("org.apache.iceberg:iceberg-spark-extensions-${sparkMajorVersion}_${scalaVersion}:1.4.2")
-    implementation ("io.delta:delta-core_${scalaVersion}:2.3.0")
+    compileOnly ("org.apache.iceberg:iceberg-spark-${sparkMajorVersion}_${scalaVersion}:1.4.2")
+    compileOnly ("org.apache.iceberg:iceberg-spark-extensions-${sparkMajorVersion}_${scalaVersion}:1.4.2")
+    compileOnly ("io.delta:delta-core_${scalaVersion}:2.3.0")
 
     runtimeOnly "com.microsoft.sqlserver:mssql-jdbc:6.2.1.jre8"
     runtimeOnly "org.postgresql:postgresql:42.5.4"
