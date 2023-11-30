@@ -73,17 +73,17 @@
         <property name="format" value="Preconditions\.checkArgument\([^;]+%d[^;]+\);"/>
         <property name="message" value="Preconditions.checkArgument does not support %d. use %s instead"/>
     </module>
-    <module name="SuppressionFilter"> <!-- baseline-gradle: README.md -->
+    <module name="SuppressionFilter"> <!-- baseline-gradle: lightning-commands.md -->
         <property name="file" value="${config_loc}/checkstyle-suppressions.xml"/>
     </module>
-    <module name="SuppressionFilter"> <!-- baseline-gradle: README.md -->
+    <module name="SuppressionFilter"> <!-- baseline-gradle: lightning-commands.md -->
         <!-- custom-suppressions.xml allows users to specify suppresions that will not be overriden by baselineUpdateConfig -->
         <property name="file" value="${config_loc}/custom-suppressions.xml"/>
         <property name="optional" value="true"/>
     </module>
-    <module name="SuppressWarningsFilter"/> <!-- baseline-gradle: README.md -->
+    <module name="SuppressWarningsFilter"/> <!-- baseline-gradle: lightning-commands.md -->
     <module name="TreeWalker">
-        <module name="SuppressionCommentFilter"/> <!-- baseline-gradle: README.md -->
+        <module name="SuppressionCommentFilter"/> <!-- baseline-gradle: lightning-commands.md -->
         <module name="SuppressionCommentFilter">
             <property name="offCommentFormat" value="CHECKSTYLE.OFF\: ([\w\|]+)"/>
             <property name="onCommentFormat" value="CHECKSTYLE.ON\: ([\w\|]+)"/>
