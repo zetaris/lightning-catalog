@@ -19,29 +19,17 @@
 
 package com.zetaris.lightning.datasources.v2
 
-import com.zetaris.lightning.execution.command.CreateTableSpec
-import com.zetaris.lightning.model.LightningModel
 import org.apache.spark.sql.connector.catalog.SupportsRead
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.catalog.TableCapability
 import org.apache.spark.sql.connector.catalog.TableCapability.BATCH_READ
-import org.apache.spark.sql.types.StructField
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-case class LightningTable(createTableSpec: CreateTableSpec, registeredSql: String) extends Table with SupportsRead {
-  override def name(): String = LightningModel.toFqn(createTableSpec.fqn)
+case class LightningTable(override val name: String, override val schema: StructType) extends Table with SupportsRead {
 
-  override def schema(): StructType = {
-    val fields = createTableSpec.columnSpecs.map { colSpec =>
-      StructField(colSpec.name, colSpec.dataType, colSpec.notNull.isEmpty)
-    }
-
-    StructType(fields)
-  }
 
   override def capabilities(): java.util.Set[TableCapability] =  java.util.EnumSet.of(BATCH_READ)
 
-  override def newScanBuilder(options: CaseInsensitiveStringMap): LightningScanBuilder =
-    LightningScanBuilder(createTableSpec, registeredSql)
+  override def newScanBuilder(options: CaseInsensitiveStringMap): LightningScanBuilder = ???
 }

@@ -19,21 +19,11 @@
 
 package com.zetaris.lightning.datasources.v2
 
-import com.zetaris.lightning.execution.command.CreateTableSpec
 import org.apache.spark.sql.connector.read.Scan
 import org.apache.spark.sql.connector.read.ScanBuilder
-import org.apache.spark.sql.types.StructField
-import org.apache.spark.sql.types.StructType
 
-case class LightningScanBuilder(createTableSpec: CreateTableSpec, registeredSql: String) extends ScanBuilder {
+case class LightningScanBuilder() extends ScanBuilder {
   override def build(): Scan = {
-    val schema = {
-      val fields = createTableSpec.columnSpecs.map { colSpec =>
-        StructField(colSpec.name, colSpec.dataType, colSpec.notNull.isEmpty)
-      }
-      StructType(fields)
-    }
-
-    LightningScan(schema, registeredSql)
+    ???
   }
 }

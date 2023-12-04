@@ -19,11 +19,8 @@
 
 package com.zetaris.lightning.model
 
-import com.zetaris.lightning.analysis.{AccessControlProvider, NotAppliedAccessControlProvider}
-import com.zetaris.lightning.execution.command.{CreateTableSpec, RegisterTableSpec}
 import org.apache.spark.sql.types.{BooleanType, ByteType, CharType, DataType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, ShortType, StringType, TimestampType, VarcharType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
-import com.zetaris.lightning.execution.command.DataSourceType.DataSourceType
 import com.zetaris.lightning.model.serde.DataSource.DataSource
 
 object LightningModel {
@@ -36,7 +33,6 @@ object LightningModel {
   val DEFAULT_NAMESPACES = List("lightning.datasource", "lightning.metastore")
 
   var cached: LightningModel = null
-  var accessControlProvider: AccessControlProvider = new NotAppliedAccessControlProvider
 
   def toFqn(fqn: Seq[String]): String = fqn.mkString(".")
 
@@ -49,10 +45,6 @@ object LightningModel {
   def apply(prop: CaseInsensitiveStringMap): LightningModel = {
     if (!prop.containsKey(LIGHTNING_MODEL_TYPE_KEY)) {
       throw new RuntimeException(s"${LIGHTNING_MODEL_TYPE_KEY} is not set in spark conf")
-    }
-
-    Option(prop.get(LIGHTNING_ACCESS_CONTROL_KEY)).foreach { className =>
-      accessControlProvider = Class.forName(className).newInstance.asInstanceOf[AccessControlProvider]
     }
 
     val modelType = prop.get(LIGHTNING_MODEL_TYPE_KEY)
@@ -104,29 +96,11 @@ object LightningModel {
 
     def loadDataSources(namespace: Array[String], name: String = null): List[DataSource]
 
-    def saveCreateTable(lakehouse: String, createTableSpec: CreateTableSpec): String
-
-    def saveRegisterTable(registerTable: RegisterTableSpec, replace: Boolean): String
-
-    def loadRegisteredTable(lakehouse: String, table: String): RegisterTableSpec
-
-    def createLakeWarehouse(lakehouse: String): String
-
-    def dropLakeWarehouse(lakehouse: String): Unit
-
-    def listLakeHouse(): Seq[String]
-
-    def listLakeHouseTables(lakehouse: String): Seq[String]
-
-    def loadLakeHouseTable(lakehouse: String, table: String): CreateTableSpec
-
     def listNameSpaces(nameSpace: Seq[String]): Seq[String]
 
     def createNamespace(namespace: Array[String], metadata: java.util.Map[String, String]): Unit
 
     def dropNamespace(namespace: Array[String], cascade: Boolean): Unit
-
-    def loadTableSpec(lakehouse: String, fqn: Seq[String]): CreateTableSpec
 
   }
 }

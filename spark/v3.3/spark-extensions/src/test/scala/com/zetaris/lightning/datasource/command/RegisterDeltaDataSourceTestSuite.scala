@@ -23,7 +23,7 @@ package com.zetaris.lightning.datasource.command
 
 import com.zetaris.lightning.spark.SparkExtensionsTestBase
 import com.zetaris.lightning.util.FileSystemUtils
-import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.Row
 import org.junit.runner.RunWith
 import org.scalatestplus.junit.JUnitRunner
 
@@ -37,27 +37,24 @@ class RegisterDeltaDataSourceTestSuite extends SparkExtensionsTestBase {
     initRoootNamespace()
     sparkSession.sql(s"DROP NAMESPACE IF EXISTS lightning.datasource.delta")
     sparkSession.sql(s"CREATE NAMESPACE lightning.datasource.delta")
-
-    SparkSession.active.sessionState.catalogManager.v1SessionCatalog
   }
 
   override def beforeEach(): Unit = {
     dropDeltaNamespaces()
-    registerDataSource()
+    registerDataSource(dbName)
   }
 
   private def dropDeltaNamespaces() = {
     FileSystemUtils.deleteDirectory(lakehousePath)
   }
 
-  private def registerDataSource() = {
+  private def registerDataSource(database: String) = {
     sparkSession.sql(
       s"""
-         |REGISTER OR REPLACE DELTA DATASOURCE $dbName OPTIONS (
+         |REGISTER OR REPLACE DELTA DATASOURCE $database OPTIONS (
          |path "$lakehousePath"
          |) NAMESPACE lightning.datasource.delta
          |""".stripMargin)
-
   }
 
   test("should not support create, drop, list namespace") {
@@ -78,10 +75,10 @@ class RegisterDeltaDataSourceTestSuite extends SparkExtensionsTestBase {
     }
   }
 
-  test("should create, show, insert, select and drop table") {
+  private def createTable(database: String, table: String) = {
     sparkSession.sql(
       s"""
-         |CREATE TABLE lightning.datasource.delta.$dbName.taxis (
+         |CREATE TABLE lightning.datasource.delta.$database.$table (
          |vendor_id bigint,
          |trip_id bigint,
          |trip_distance float,
@@ -89,23 +86,78 @@ class RegisterDeltaDataSourceTestSuite extends SparkExtensionsTestBase {
          |store_and_fwd_flag string
          |) PARTITIONED BY (vendor_id)
          |""".stripMargin)
+  }
 
-    checkAnswer(sparkSession.sql(s"show tables in lightning.datasource.delta.$dbName"),
-      Seq(Row(s"$dbName", "taxis", false)))
-
+  private def insertRecords(database: String, table: String) = {
     sparkSession.sql(
       s"""
-         |INSERT INTO lightning.datasource.delta.$dbName.taxis
+         |INSERT INTO lightning.datasource.delta.$database.$table
          |VALUES (1, 1000371, 1.8, 15.32, "N"), (2, 1000372, 2.5, 22.15, "N"), (2, 1000373, 0.9, 9.01, "N"), (1, 1000374, 8.4, 42.13, "Y")
          |""".stripMargin)
+  }
 
-    checkAnswer(sparkSession.sql(s"select * from lightning.datasource.delta.$dbName.taxis order by trip_id"),
+  private def checkRecords(database: String, table: String) = {
+    checkAnswer(sparkSession.sql(s"select * from lightning.datasource.delta.$database.$table order by trip_id"),
       Seq(Row(1l, 1000371l, 1.8f, 15.32d, "N"),
         Row(2l, 1000372l, 2.5f, 22.15d, "N"),
         Row(2l, 1000373l, 0.9f, 9.01d, "N"),
         Row(1l, 1000374l, 8.4f, 42.13d, "Y")))
+  }
 
-    sparkSession.sql(s"drop table lightning.datasource.delta.$dbName.taxis")
+
+  test("should create, show, insert, select and drop table") {
+    val table = "taxis"
+    createTable(dbName, table)
+
+    checkAnswer(sparkSession.sql(s"show tables in lightning.datasource.delta.$dbName"),
+      Seq(Row(s"$dbName", table, false)))
+
+    insertRecords(dbName, table)
+    checkRecords(dbName, table)
+
+    sparkSession.sql(s"drop table lightning.datasource.delta.$dbName.$table")
     checkAnswer(sparkSession.sql(s"show tables in lightning.datasource.delta.$dbName"), Seq())
   }
+
+  test("should create multiple tables in a single namespace") {
+    val table1 = "taxis"
+    val table2 = "taxis2"
+
+    createTable(dbName, table1)
+
+    checkAnswer(sparkSession.sql(s"show tables in lightning.datasource.delta.$dbName"),
+      Seq(Row(dbName, table1, false)))
+
+    insertRecords(dbName, table1)
+    checkRecords(dbName, table1)
+
+    createTable(dbName, table2)
+
+    checkAnswer(sparkSession.sql(s"show tables in lightning.datasource.delta.$dbName"),
+      Seq(Row(dbName, table1, false), Row(dbName, table2, false)))
+
+    insertRecords(dbName, table2)
+    checkRecords(dbName, table2)
+  }
+
+  test("should register existing tables") {
+    val table1 = "taxis"
+    val table2 = "taxis2"
+
+    createTable(dbName, table1)
+    insertRecords(dbName, table1)
+
+    createTable(dbName, table2)
+    insertRecords(dbName, table2)
+
+    val anotherDb = "anotherDb"
+    registerDataSource(anotherDb)
+
+    checkAnswer(sparkSession.sql(s"show tables in lightning.datasource.delta.$anotherDb"),
+      Seq(Row(anotherDb, table1, false), Row(anotherDb, table2, false)))
+
+    checkRecords(anotherDb, table1)
+    checkRecords(anotherDb, table2)
+  }
+
 }

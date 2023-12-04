@@ -19,8 +19,7 @@
 
 package com.zetaris.lightning.parser
 
-import com.zetaris.lightning.execution.command.{AccessControl, Annotation, AnnotationStatement, ColumnConstraintException, ColumnSpec, DataQuality, ForeignKey, PrimaryKeyColumn, UniqueKeyColumn}
-import com.zetaris.lightning.model.LightningModel
+import com.zetaris.lightning.execution.command.{AccessControl, Annotation, AnnotationStatement, DataQuality}
 import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.Token
 import org.antlr.v4.runtime.misc.Interval
@@ -48,43 +47,6 @@ object LightningParserUtils {
   private[lightning] def command(ctx: ParserRuleContext): String = {
     val stream = ctx.getStart.getInputStream
     stream.getText(Interval.of(0, stream.size() - 1))
-  }
-
-  private[lightning] def validateTableConstraints(colSpecs: Seq[ColumnSpec],
-                                             primaryKey: Option[PrimaryKeyColumn],
-                                             uniques: Seq[UniqueKeyColumn],
-                                             foreignKeys: Seq[ForeignKey]): Unit = {
-    colSpecs.foreach { colSpec =>
-      if (colSpec.primaryKey.isDefined && primaryKey.isDefined) {
-        throw new ColumnConstraintException("duplicated primary key constraint")
-      }
-
-      if (colSpec.unique.isDefined) {
-        uniques.foreach { uni =>
-          if (colSpec.name.equalsIgnoreCase(uni.columns.mkString("."))) {
-            throw new ColumnConstraintException(s"duplicated unique constraint : ${colSpec.name}")
-          }
-        }
-      }
-
-      if (colSpec.foreignKey.isDefined) {
-        foreignKeys.foreach { fk =>
-          if (colSpec.name.equalsIgnoreCase(fk.columns.mkString("."))) {
-            throw new ColumnConstraintException(s"duplicated foreign key constraint : ${colSpec.name}")
-          }
-        }
-      }
-    }
-
-    uniques.groupBy(_.columns).collect {
-      case (columns, count) if count.size > 1 =>
-        throw new ColumnConstraintException(s"duplicated unique constraint : ${LightningModel.toFqn(columns)}")
-    }
-
-    foreignKeys.groupBy(_.columns).collect {
-      case (columns, count) if count.size > 1 =>
-        throw new ColumnConstraintException(s"duplicated foreign constraint : ${LightningModel.toFqn(columns)}")
-    }
   }
 
   private[lightning] def parseAnnotation(stmt: AnnotationStatement): Annotation = {

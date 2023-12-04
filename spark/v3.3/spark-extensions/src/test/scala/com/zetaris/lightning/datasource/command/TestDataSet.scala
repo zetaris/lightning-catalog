@@ -19,12 +19,22 @@
  *
  */
 
-package com.zetaris.lightning.analysis
+package com.zetaris.lightning.datasource.command
 
-trait AccessControlProvider {
-  def isLoggedUserAppliedTo(appliedUsers: Seq[String], appliedGroups: Seq[String]): Boolean
-}
+import com.zetaris.lightning.spark.SparkExtensionsTestBase
+import org.apache.spark.sql.SaveMode
 
-class NotAppliedAccessControlProvider extends AccessControlProvider {
-  override def isLoggedUserAppliedTo(appliedUsers: Seq[String], appliedGroups: Seq[String]): Boolean = false
+import scala.reflect.ClassTag
+
+trait TestDataSet {
+  self: SparkExtensionsTestBase =>
+  case class Taxis(vendor_id: Long,
+                   trip_id: Long,
+                   trip_distance: Float,
+                   fare_amount: Double,
+                   store_and_fwd_flag: String)
+
+  protected def createDataSourceFile[T <: Product : ClassTag](dataSets: Seq[Taxis], path: String, format: String) = {
+    sparkSession.createDataFrame(dataSets).write.mode(SaveMode.Overwrite).format(format).save(path)
+  }
 }

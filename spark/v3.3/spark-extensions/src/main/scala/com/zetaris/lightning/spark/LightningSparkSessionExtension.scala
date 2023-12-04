@@ -19,7 +19,6 @@
 
 package com.zetaris.lightning.spark
 
-import com.zetaris.lightning.analysis.{AccessControlImpl, DataQualityImpl}
 import org.apache.spark.sql.SparkSessionExtensions
 import com.zetaris.lightning.model.LightningModel.LightningModel
 import com.zetaris.lightning.parser.LightningExtendedParser

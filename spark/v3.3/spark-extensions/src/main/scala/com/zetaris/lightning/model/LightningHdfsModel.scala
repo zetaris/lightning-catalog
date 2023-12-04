@@ -19,21 +19,12 @@
 
 package com.zetaris.lightning.model
 
-import org.apache.commons.io.FileUtils
-import org.apache.spark.sql.util.CaseInsensitiveStringMap
-import com.zetaris.lightning.execution.command.DataSourceType.DataSourceType
 import com.zetaris.lightning.model.LightningModel.LightningModel
 import com.zetaris.lightning.model.serde.DataSource.DataSource
-import com.zetaris.lightning.model.serde.DataSource.simpleClassName
 import com.zetaris.lightning.model.serde.DataSource.toJson
-import com.zetaris.lightning.error.LightningException.LightningTableNotFoundException
-import com.zetaris.lightning.execution.command.{CreateTableSpec, DataSourceType, RegisterTableSpec}
-import com.zetaris.lightning.model.serde.{CreateTable, RegisterTable, mapToJson}
+import com.zetaris.lightning.model.serde.mapToJson
 import com.zetaris.lightning.util.FileSystemUtils
-
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 // TODO : Convert FileSystem API to HDFS API
 class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel{
@@ -88,55 +79,6 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel{
     }
   }
 
-  override def saveCreateTable(lakehouse: String, createTableSpec: CreateTableSpec): String = {
-    val json = CreateTable.toJson(createTableSpec)
-    val filePath = s"$modelDir/$METASTORE_DIR/$lakehouse/${LightningModel.toFqn(createTableSpec.fqn)}_table.json"
-    FileSystemUtils.saveFile(filePath, json, createTableSpec.ifNotExit)
-    filePath
-  }
-
-  override def saveRegisterTable(registerTable: RegisterTableSpec, replace: Boolean): String = {
-    val lakehouse = registerTable.fqn.dropRight(1)
-    val json = RegisterTable.toJson(registerTable)
-    val filePath = s"$modelDir/$METASTORE_DIR/${LightningModel.toFqn(lakehouse)}/${registerTable.fqn.last}_sql.json"
-    FileSystemUtils.saveFile(filePath, json, replace)
-    filePath
-  }
-
-  override def loadRegisteredTable(lakehouse: String, table: String): RegisterTableSpec = {
-    val filePath = s"$modelDir/$METASTORE_DIR/$lakehouse/${table}_sql.json"
-    val json = FileSystemUtils.readFile(filePath)
-    RegisterTable(json)
-  }
-
-  override def createLakeWarehouse(lakehouse: String): String = {
-    val dir = s"$modelDir/$METASTORE_DIR/$lakehouse"
-
-    if (FileSystemUtils.folderExist(dir)) {
-      throw new RuntimeException(s"lake warehouse: $dir is already created")
-    }
-    FileSystemUtils.createFolderIfNotExist(dir)
-    dir
-  }
-
-  override def listLakeHouse(): Seq[String] = {
-    val dir = s"$modelDir/$METASTORE_DIR"
-    FileSystemUtils.listDirectories(dir)
-  }
-
-  override def listLakeHouseTables(lakehouse: String): Seq[String] = {
-    val path = s"$modelDir/$METASTORE_DIR/$lakehouse"
-    FileSystemUtils.listFiles(path).filter(_.endsWith("_table.json")).map { withSuffix =>
-      withSuffix.substring(0, withSuffix.length - 11)
-    }
-  }
-
-  override def loadLakeHouseTable(lakehouse: String, table: String): CreateTableSpec = {
-    val path = s"$modelDir/$METASTORE_DIR/$lakehouse/${table}_table.json"
-    val json = FileSystemUtils.readFile(path)
-    CreateTable(json)
-  }
-
   override def listNameSpaces(nameSpace: Seq[String]): Seq[String] = {
     val subDir = nameSpaceToDir(nameSpace)
     val fullPath = s"$modelDir/$subDir"
@@ -165,21 +107,5 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel{
     }
 
     FileSystemUtils.deleteDirectory(fullPath)
-  }
-
-  override def loadTableSpec(lakehouse: String, fqn: Seq[String]): CreateTableSpec = {
-    val filePath = s"$modelDir/$METASTORE_DIR/$lakehouse/${LightningModel.toFqn(fqn)}_table.json"
-    Try {
-      FileSystemUtils.readFile(filePath)
-    } match {
-      case Success(json) => CreateTable(json)
-      case Failure(exception) => throw new LightningTableNotFoundException(LightningModel.toFqn(fqn), exception)
-    }
-  }
-
-  override def dropLakeWarehouse(lakehouse: String): Unit = {
-    val dir = s"$modelDir/$METASTORE_DIR/$lakehouse"
-    FileUtils.deleteDirectory(new java.io.File(dir))
-
   }
 }
