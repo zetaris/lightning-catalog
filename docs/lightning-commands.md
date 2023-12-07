@@ -103,6 +103,23 @@ Like the above, all the SPARK SQL is running on this `datasource` namespace
 
 [Spark SQL Guide](https://spark.apache.org/docs/latest/sql-ref-syntax.html)
 
+### Running federated query over source systems under `datasource` namespace
+```bash
+SELECT n_name, o_orderdate,  sum(l_extendedprice * (1 - l_discount)) as revenue
+FROM slwh.mssql.azure_mssql.tpch1.customer,
+ lightning.datasource.rdbms.azure_mssql.tpch1.orders,
+ lightning.datasource.rdbms.azure_mssql.tpch1.lineitem,
+ lightning.datasource.rdbms.azure_mssql.tpch1.supplier,
+ lightning.datasource.rdbms.azure_mssql.tpch1.nation,
+ lightning.datasource.rdbms.azure_mssql.tpch1.region
+WHERE c_custkey = o_custkey
+ and l_orderkey = o_orderkey
+ and l_suppkey = s_suppkey
+ and c_nationkey = s_nationkey
+ and s_nationkey = n_nationkey
+ and n_regionkey = r_regionkey
+GROUP BY n_name, o_orderdate
+```
 
 ### Register data sources to meta store
 Yet to be developed
