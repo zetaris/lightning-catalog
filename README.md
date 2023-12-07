@@ -17,22 +17,23 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 
-![Iceberg](https://iceberg.apache.org/docs/latest/img/Iceberg-logo.png)
+##Lightning Catalog
 
-Lightning Metastore is the first generated 3rd party metastore for ad-hoc analytics vis SQL, preparing your data to get quality of results.
+Lightning catalog is an open source data catalog for the preparing data at any scale in ad-hoc analytics, data warehouse, lake house and ML project
 
+## Key Capabilities
+* Lightning catalog manages an endpoint of source system providing unified access to them  through SQL and Apache SPARK API, which makes data discovery easy.
+* Lightning catalog allows to run ad-hoc query(SQL) over underlying heterogenous source systems in federate way, E,g Join between multiple source system without moving data.
+* Lightning catalog simplify the life cycle of data engineering pipe line, build, test and deploy by leveraging Data Flow Table, E,g Load data into lake house by fetching delta and transform all the way of SQL operation.
+* Lightning catalog can get rid of burden of data preparation workload for ML engineer, and help them focusing on building model. It supports to access to unstructured data.
 
-## Status
-
-Lightning Metastore is under active development under MIT license
-
-Add more~~~
+## Online Documentation
+The latest documentation is found on the [project web page](https://lightning.zetaris.com)
+[API Documentation](https://scala-doc.lightning.zetaris.com)
 
 ## Collaboration
 
 Lightning tracks issues in GitHub and prefers to receive contributions as pull requests.
-
-Add contribution guide~~~
 
 
 ### Building
@@ -44,8 +45,14 @@ Lightning is built using Gradle with Java 1.8 or Java 11.
 * To fix code style for default versions: `./gradlew spotlessApply`
 * To fix code style for all versions of Spark/Hive/Flink:`./gradlew spotlessApply -DallVersions`
 
-Add more~~~
 
-### Engine Compatibility
+### Major Features
 
-Add more~~~
+* Running catalog in file system( HDFS, Blob, and local file) which allows version control.
+* Support Apache Spark Plug-in architecture
+* Support running data pipeline at any scale by leveraging Apache Spark.
+* Support running ANSI SQL and Hive QL over underlying source systems.
+* Support multiple namespace.
+* Support data quality by integrating Amazon Deequ
+* Support data flow table, declarative ETL framework which define transforms your data.
+* Support processing unstructured data, accessing all files and their meta data recursively from an endpoint.

@@ -16,11 +16,94 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FO
 DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
+## namespaces.
+Lightning has 2 top level namespaces :
 
-## Register external data sources
+* datasource
+
+  All the external source systems is being registered in this namespace first.
+  It only keeps source endpoint and credentials, for example, JDBC URL, user and password 
 
 
-## Register data sources to meta store
+* metastore
+
+  Once the external source is registered then user can register specific tables in this namespace.
+  Unlikely datasource namespace, it keeps as much information as possible for source system, 
+  for example column name, data type, and all database constraints. These meta information will be used for query optimization
 
 
-Add more~~~
+### create name space
+```bash
+CREATE NAMESPACE lightning.datasource.identifier
+```
+There is no limitation of multi level of identifier like:
+```bash
+-- Spark SQL command
+CREATE NAMESPACE lightning.datasource.parent1.parent2.parent3...
+```
+
+### drop name space
+```bash
+-- Spark SQL command
+DROP NAMESPACE lightning.datasource.identifier
+```
+
+
+### Register rdbms data sources
+```bash
+-- Lightning command
+REGISTER [OR REPLACE] JDBC DATASOURCE h2 OPTIONS(
+url "jdbc:h2:mem:dbname;DB_CLOSE_DELAY=-1"
+user "admin"
+password ""
+) NAMESPACE lightning.datasource.rdbms
+```
+
+once registered, user can navigate source system:
+
+```bash
+-- Spark SQL command
+SHOW NAMESPACES IN lightning.datasource.rdbms.h2
+```
+will display all schemas under that database.
+
+```bash
+-- Spark SQL command
+SHOW TABLES in lightning.datasource.rdbms.h2.public
+```
+will display all tables under public schema
+
+```bash
+-- Spark SQL command
+DESCRIBE TABLE lightning.datasource.rdbms.h2.public.test_users
+```
+will display column name and data type
+
+```bash
+-- Spark SQL command
+CREATE TABLE lightning.datasource.rdbms.h2.nyc.taxis (
+vendor_id bigint,
+trip_id bigint,
+trip_distance float,
+fare_amount double,
+store_and_fwd_flag string
+)
+```
+will create table `taxis` table under `nyc` schema
+
+```bash
+-- Spark SQL command
+INSERT INTO lightning.datasource.rdbms.h2.nyc.taxis
+VALUES (1, 1000371, 1.8, 15.32, "N"), (2, 1000372, 2.5, 22.15, "N"), (2, 1000373, 0.9, 9.01, "N"), (1, 1000374, 8.4, 42.13, "Y")
+```
+will insert 2 records into `taxis` table
+
+
+Like the above, all the SPARK SQL is running on this `datasource` namespace
+
+[Spark SQL Guide](https://spark.apache.org/docs/latest/sql-ref-syntax.html)
+
+
+### Register data sources to meta store
+Yet to be developed
+
