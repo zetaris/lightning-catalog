@@ -28,6 +28,8 @@ object FileSystemUtils {
 
   def folderExist(folderPath: String): Boolean = new File(folderPath).exists()
 
+  def fileExists(filePath: String): Boolean = folderExist(filePath)
+
   /**
    * create folder if not exist
    * @param folderPath folderPath

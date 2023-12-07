@@ -96,7 +96,9 @@ object LightningModel {
 
     def loadDataSources(namespace: Array[String], name: String = null): List[DataSource]
 
-    def listNameSpaces(nameSpace: Seq[String]): Seq[String]
+    def listNameSpaces(namespace: Seq[String]): Seq[String]
+
+    def listTables(namespace: Array[String]): Seq[String]
 
     def createNamespace(namespace: Array[String], metadata: java.util.Map[String, String]): Unit
 

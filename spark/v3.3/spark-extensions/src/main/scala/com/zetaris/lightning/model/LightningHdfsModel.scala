@@ -19,6 +19,7 @@
 
 package com.zetaris.lightning.model
 
+import com.zetaris.lightning.execution.command.DataSourceType.FileTypeSource
 import com.zetaris.lightning.model.LightningModel.LightningModel
 import com.zetaris.lightning.model.serde.DataSource.DataSource
 import com.zetaris.lightning.model.serde.DataSource.toJson
@@ -60,7 +61,13 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel{
   override def saveDataSource(dataSource: DataSource, replace: Boolean): String = {
     val json = toJson(dataSource)
     val dir = nameSpaceToDir(dataSource.namespace)
-    val filePath = s"$modelDir/$dir/${dataSource.name}.json"
+    val filePath = dataSource.dataSourceType match {
+      case _: FileTypeSource =>
+        s"$modelDir/$dir/${dataSource.name}_fs.json"
+      case _ =>
+        s"$modelDir/$dir/${dataSource.name}.json"
+    }
+
     FileSystemUtils.saveFile(filePath, json, replace)
     filePath
   }
@@ -73,20 +80,36 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel{
         serde.DataSource(json)
       }.toList
     } else {
-      val filePath = s"$modelDir/$subDir/$name.json"
-      val json = FileSystemUtils.readFile(filePath)
-      List(serde.DataSource(json))
+      val dataSourcePath = s"$modelDir/$subDir/$name.json"
+      val fileSourcePath = s"$modelDir/$subDir/${name}_fs.json"
+
+      if (FileSystemUtils.fileExists(dataSourcePath)) {
+        val json = FileSystemUtils.readFile(dataSourcePath)
+        List(serde.DataSource(json))
+      } else if (FileSystemUtils.fileExists(fileSourcePath)) {
+        val json = FileSystemUtils.readFile(fileSourcePath)
+        List(serde.DataSource(json))
+      } else {
+        List.empty
+      }
     }
   }
 
-  override def listNameSpaces(nameSpace: Seq[String]): Seq[String] = {
-    val subDir = nameSpaceToDir(nameSpace)
+  override def listNameSpaces(namespace: Seq[String]): Seq[String] = {
+    val subDir = nameSpaceToDir(namespace)
     val fullPath = s"$modelDir/$subDir"
     FileSystemUtils.listDirectories(fullPath) ++
-      FileSystemUtils.listFiles(fullPath).filter(_.endsWith(".json")).map(_.dropRight(5))
+      FileSystemUtils.listFiles(fullPath).filter(file => file.endsWith(".json") && !file.endsWith("_fs.json"))
+        .map(_.dropRight(5))
 
   }
 
+  override def listTables(namespace: Array[String]): Seq[String] = {
+    val subDir = nameSpaceToDir(namespace)
+    val fullPath = s"$modelDir/$subDir"
+    FileSystemUtils.listFiles(fullPath).filter(file => file.endsWith("_fs.json"))
+      .map(_.dropRight(8))
+  }
 
   override def createNamespace(namespace: Array[String], metadata: java.util.Map[String, String]): Unit = {
     import scala.collection.JavaConverters.mapAsScalaMap

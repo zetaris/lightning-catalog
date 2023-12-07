@@ -19,26 +19,11 @@
  *
  */
 
-package com.zetaris.lightning.datasource.command
+package org.apache.spark.sql
 
-import com.zetaris.lightning.spark.SparkExtensionsTestBase
-import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.avro.AvroFileFormat
+import org.apache.spark.sql.execution.datasources.FileFormat
 
-import scala.reflect.ClassTag
-
-trait TestDataSet {
-  self: SparkExtensionsTestBase =>
-  case class Taxis(vendor_id: Long,
-                   trip_id: Long,
-                   trip_distance: Float,
-                   fare_amount: Double,
-                   store_and_fwd_flag: String)
-
-  protected def createDataSourceFile[T <: Product : ClassTag](dataSets: Seq[Taxis], path: String, format: String) = {
-    val writer = sparkSession.createDataFrame(dataSets).write.mode(SaveMode.Overwrite).format(format)
-    if (format.toLowerCase == "csv") {
-      writer.option("header", "true")
-    }
-    writer.save(path)
-  }
+object SparkSQLBridge {
+  def fallbackAvroFileFormat: Class[_ <: FileFormat] = classOf[AvroFileFormat]
 }

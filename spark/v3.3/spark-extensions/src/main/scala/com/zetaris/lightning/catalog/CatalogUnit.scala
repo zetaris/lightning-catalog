@@ -19,7 +19,8 @@
 
 package com.zetaris.lightning.catalog
 
-import com.zetaris.lightning.execution.command.DataSourceType.{DELTA, ICEBERG, JDBC}
+import com.zetaris.lightning.execution.command.DataSourceType.{AVRO, CSV, DELTA, ICEBERG, JDBC, JSON, ORC, PARQUET}
+import com.zetaris.lightning.model.LightningModel
 import com.zetaris.lightning.model.serde.DataSource.DataSource
 import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.Table
@@ -36,6 +37,7 @@ object CatalogUnit {
       case JDBC => JDBCDataSourceCatalogUnit(dataSource.name, properties)
       case ICEBERG => IcebergCatalogUnit(dataSource.name, properties)
       case DELTA => DeltaCatalogUnit(dataSource.name, properties)
+      case PARQUET | ORC | AVRO | CSV | JSON => FileCatalogUnit(dataSource, LightningModel.cached)
       case _ => ???
     }
   }

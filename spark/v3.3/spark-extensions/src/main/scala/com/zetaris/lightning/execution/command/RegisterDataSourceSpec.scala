@@ -22,8 +22,7 @@
 
 package com.zetaris.lightning.execution.command
 
-import com.zetaris.lightning
-import com.zetaris.lightning.execution.command.DataSourceType.{DELTA, ICEBERG, JDBC}
+import com.zetaris.lightning.execution.command.DataSourceType.{AVRO, CSV, DELTA, ICEBERG, JDBC, JSON, ORC, PARQUET, XML}
 import com.zetaris.lightning.model.LightningModel
 import com.zetaris.lightning.model.serde.DataSource
 import org.apache.spark.sql.Row
@@ -47,6 +46,7 @@ object DataSourceType {
       case "ORC" => ORC
       case "PARQUET" => PARQUET
       case "DELTA" => DELTA
+      case "AVRO" => AVRO
       case "CSV" => CSV
       case "JSON" => JSON
       case "XML" => XML
@@ -59,14 +59,16 @@ object DataSourceType {
   case object JDBC extends DataSourceType
 
   case object ICEBERG extends DataSourceType
-
-  case object ORC extends DataSourceType
-  case object PARQUET extends DataSourceType
   case object DELTA extends DataSourceType
 
-  case object CSV extends DataSourceType
-  case object XML extends DataSourceType
-  case object JSON extends DataSourceType
+  sealed trait FileTypeSource extends DataSourceType
+  case object ORC extends FileTypeSource
+  case object AVRO extends FileTypeSource
+  case object PARQUET extends FileTypeSource
+
+  case object CSV extends FileTypeSource
+  case object XML extends FileTypeSource
+  case object JSON extends FileTypeSource
 
   case object REST extends DataSourceType
 }
@@ -80,6 +82,7 @@ case class RegisterDataSourceSpec(namespace: Array[String],
     case JDBC => validateJDBCParams()
     case ICEBERG => validateIcebergParams()
     case DELTA => validateDeltaParams()
+    case PARQUET | ORC | AVRO | XML | CSV | JSON => validateFileParams()
     case _ =>
   }
 
@@ -96,6 +99,13 @@ case class RegisterDataSourceSpec(namespace: Array[String],
         if (matcher.matches && matcher.groupCount > 0) options.put(matcher.group(1), value)
     }
     new CaseInsensitiveStringMap(options)
+  }
+
+  private def validateFileParams(): Unit = {
+    opts.getOrElse("path", {
+      opts.getOrElse("paths",
+        throw new IllegalArgumentException(s"path option is not provided"))
+    })
   }
 
   private def validateDeltaParams(): Unit = {
@@ -120,7 +130,7 @@ case class RegisterDataSourceSpec(namespace: Array[String],
   }
 
   override def runCommand(sparkSession: SparkSession): Seq[Row] = {
-    val model = lightning.model.LightningModel(dataSourceConfigMap(s"${LightningModel.LIGHTNING_CATALOG}.",
+    val model = LightningModel(dataSourceConfigMap(s"${LightningModel.LIGHTNING_CATALOG}.",
       sparkSession))
     val withoutCatalog = namespace.drop(1)
     val parentNamespace = withoutCatalog.dropRight(1)
