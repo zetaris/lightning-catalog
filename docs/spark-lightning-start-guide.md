@@ -31,10 +31,18 @@ To plugin Lightning catalog, 4 custom parameters need to be provided to SPARK.
 * spark.sql.catalog.lightning.warehouse=/tmp/lightning-model
   hadoop(local file system or any blob storage) endpoint for catalog repository 
 
+Library that need to run
+* apache iceberg: ver 1.4.2 with spark 3.3 and scala 2.12 is tested
+  org.apache.iceberg:iceberg-spark-3.3_2.12:1.4.2
+  org.apache.iceberg:iceberg-spark-extensions-3.3_2.12:1.4.2
+* delta lake: ver 2.3.0 with scala 2.12 is tested
+  io.delta:delta-core_2.12:2.3.0
+  
+
 ```bash
-./spark-sql --conf spark.sql.extensions=com.zetaris.lightning.spark.LightningSparkSessionExtension \
+./spark-sql --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension,org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,com.zetaris.lightning.spark.LightningSparkSessionExtension \
     --conf spark.sql.catalog.lightning=com.zetaris.lightning.catalog.LightningCatalog \
     --conf spark.sql.catalog.lightning.type=hadoop \
     --conf spark.sql.catalog.lightning.warehouse=/tmp/lightning-model \
-    --jars /Users/Applications/lightning-metastore/spark/v3.3/spark-extensions/build/libs/lightning-spark-extensions-3.3_2.12-0.1.jar 
+    --jars /Users/Applications/lightning-metastore/libs/*;/Users/Applications/lightning-metastore/lightning-spark-extensions-3.3_2.12-0.1.jar 
 ```
