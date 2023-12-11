@@ -12,7 +12,7 @@ statement
     ;
 
 ddlStatement
-    : registerDataSource
+    : registerDataSource | registerCatalog
     ;
 
 registerDataSource
@@ -74,6 +74,12 @@ booleanValue
 
 restOfInput
     : .*?
+    ;
+registerCatalog
+    : REGISTER (OR REPLACE)? CATALOG identifier (OPTIONS options=propertyList)?
+      SOURCE source = multipartIdentifier
+      (NAME LIKE pattern = STRING)?
+      NAMESPACE namespace = multipartIdentifier
     ;
 
 nonReserved

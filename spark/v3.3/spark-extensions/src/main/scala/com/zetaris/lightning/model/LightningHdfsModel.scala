@@ -25,6 +25,7 @@ import com.zetaris.lightning.model.serde.DataSource.DataSource
 import com.zetaris.lightning.model.serde.DataSource.toJson
 import com.zetaris.lightning.model.serde.mapToJson
 import com.zetaris.lightning.util.FileSystemUtils
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 // TODO : Convert FileSystem API to HDFS API
@@ -95,7 +96,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel{
     }
   }
 
-  override def listNameSpaces(namespace: Seq[String]): Seq[String] = {
+  override def listNamespaces(namespace: Seq[String]): Seq[String] = {
     val subDir = nameSpaceToDir(namespace)
     val fullPath = s"$modelDir/$subDir"
     FileSystemUtils.listDirectories(fullPath) ++
@@ -130,5 +131,18 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel{
     }
 
     FileSystemUtils.deleteDirectory(fullPath)
+  }
+
+  /**
+   * save table under the given namespace
+   *
+   * @param namespace
+   * @param name
+   * @param schema
+   */
+  override def saveTable(namespace: Array[String], name: String, schema: StructType): Unit = {
+    val subDir = nameSpaceToDir(namespace)
+    val fullPath = s"$modelDir/$subDir/$name.json"
+    FileSystemUtils.saveFile(fullPath, schema.json)
   }
 }

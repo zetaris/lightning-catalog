@@ -45,8 +45,7 @@ class RegisterIcebergDataSourceTestSuite extends SparkExtensionsTestBase {
       sparkSession.sql(
         s"""
            |REGISTER OR REPLACE ICEBERG DATASOURCE $dbName OPTIONS(
-           |  spark.sql.catalog.$dbName.type "hadoop",
-           |  spark.sql.catalog.$dbName.warehouse "/tmp/iceberg-warehouse"
+           |  warehouse "/tmp/iceberg-warehouse"
            |) NAMESPACE lightning.datasource.iceberg
            |""".stripMargin)
     }
@@ -55,18 +54,7 @@ class RegisterIcebergDataSourceTestSuite extends SparkExtensionsTestBase {
       sparkSession.sql(
         s"""
            |REGISTER OR REPLACE ICEBERG DATASOURCE $dbName OPTIONS(
-           |  spark.sql.catalog.$dbName "org.apache.iceberg.spark.SparkCatalog",
-           |  spark.sql.catalog.$dbName.warehouse "/tmp/iceberg-warehouse"
-           |) NAMESPACE lightning.datasource.iceberg
-           |""".stripMargin)
-    }
-
-    intercept[IllegalArgumentException] {
-      sparkSession.sql(
-        s"""
-           |REGISTER OR REPLACE ICEBERG DATASOURCE $dbName OPTIONS(
-           |  spark.sql.catalog.$dbName "org.apache.iceberg.spark.SparkCatalog",
-           |  spark.sql.catalog.$dbName.type "hadoop"
+           |  type "hadoop"
            |) NAMESPACE lightning.datasource.iceberg
            |""".stripMargin)
     }
@@ -95,9 +83,8 @@ class RegisterIcebergDataSourceTestSuite extends SparkExtensionsTestBase {
     sparkSession.sql(
       s"""
          |REGISTER OR REPLACE ICEBERG DATASOURCE $dbName OPTIONS(
-         |  spark.sql.catalog.$dbName "org.apache.iceberg.spark.SparkCatalog",
-         |  spark.sql.catalog.$dbName.type "hadoop",
-         |  spark.sql.catalog.$dbName.warehouse "$lakehousePath"
+         |  type "hadoop",
+         |  warehouse "$lakehousePath"
          |) NAMESPACE lightning.datasource.iceberg
          |""".stripMargin)
 

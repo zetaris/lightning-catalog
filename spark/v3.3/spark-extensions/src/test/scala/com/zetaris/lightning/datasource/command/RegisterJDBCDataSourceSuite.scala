@@ -42,7 +42,8 @@ class RegisterJDBCDataSourceSuite extends SparkExtensionsTestBase with H2TestBas
 
     sparkSession.sql(s"""
                         |REGISTER OR REPLACE JDBC DATASOURCE $dbName OPTIONS(
-                        | url "jdbc:h2:mem:$dbName;DB_CLOSE_DELAY=-1"
+                        | url "jdbc:h2:mem:$dbName;DB_CLOSE_DELAY=-1",
+                        | user ""
                         |) NAMESPACE lightning.datasource.h2
                         |""".stripMargin)
   }

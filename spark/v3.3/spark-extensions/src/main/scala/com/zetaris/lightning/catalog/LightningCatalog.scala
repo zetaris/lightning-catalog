@@ -35,12 +35,17 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import scala.collection.mutable.ArrayBuilder
 import scala.collection.mutable.Map
 
+object LightningCatalogCache {
+  var catalog: LightningCatalog = null;
+}
+
 class LightningCatalog extends TableCatalog with SupportsNamespaces {
   override val name = LightningModel.LIGHTNING_CATALOG_NAME
   private var model: LightningModel.LightningModel = null
 
   override def initialize(name: String, options: CaseInsensitiveStringMap): Unit = {
     model = LightningModel(options)
+    LightningCatalogCache.catalog = this
   }
 
   private def loadDataSource(namespace: Array[String], name: String): Option[DataSource] = {
@@ -67,7 +72,7 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces {
     var found: Option[DataSource] = None
 
     while (found.isEmpty && parent.length > 1) {
-      found = loadDataSource(parent, name)
+      found = loadDataSource(parent, dsName)
       dsName = parent.last
       parent = parent.dropRight(1)
     }
@@ -166,7 +171,7 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces {
         catalog.listNamespaces(sourceNamespace)
       case None =>
         val nameSpacesBuilder = ArrayBuilder.make[Array[String]]
-        model.listNameSpaces(namespace).foreach { ns =>
+        model.listNamespaces(namespace).foreach { ns =>
           nameSpacesBuilder += Array(ns)
         }
         nameSpacesBuilder.result()
@@ -186,7 +191,7 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces {
         catalog.namespaceExists(sourceNamespace)
       case None =>
         val parent = namespace.dropRight(1)
-        return model.listNameSpaces(parent).exists(_.equalsIgnoreCase(namespace.last))
+        return model.listNamespaces(parent).exists(_.equalsIgnoreCase(namespace.last))
     }
   }
 

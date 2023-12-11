@@ -31,6 +31,15 @@ trait H2TestBase {
   }
 
   def createSimpleTable(conn: Connection, schema: String): Unit = {
+    try{conn.prepareStatement(s"""DROP TABLE IF EXISTS "$schema"."test_users"""").executeUpdate()}
+    catch {case _: Throwable =>}
+
+    try{conn.prepareStatement(s"""DROP TABLE IF EXISTS "$schema"."test_jobs"""").executeUpdate()}
+    catch {case _: Throwable =>}
+
+
+    conn.prepareStatement(s"""DROP SCHEMA IF EXISTS "$schema"""").executeUpdate()
+
     conn.prepareStatement(s"""CREATE SCHEMA "$schema"""").executeUpdate()
     conn.prepareStatement(s"""create table "$schema"."test_users" (uid INTEGER primary key, jid integer)""").executeUpdate()
     conn.prepareStatement(s"""create table "$schema"."test_jobs" (jid INTEGER primary key, name CHAR(10))""").executeUpdate()

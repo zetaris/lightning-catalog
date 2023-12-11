@@ -32,14 +32,9 @@ import scala.collection.JavaConverters._
 
 case class IcebergCatalogUnit(dsName: String, properties: Map[String, String]) extends CatalogUnit {
   val icebergSparkCatalog = {
-    val withoutPrefix = properties.filter(_._1.toLowerCase != s"spark.sql.catalog.$dsName" ).map{ prop =>
-      val index = prop._1.indexOf(dsName) + dsName.length + 1
-      prop._1.substring(index) -> prop._2
-    }
-
-    val className = properties(s"spark.sql.catalog.$dsName")
+    val className = "org.apache.iceberg.spark.SparkCatalog"
     val catalog = Class.forName(className).newInstance.asInstanceOf[org.apache.iceberg.spark.SparkCatalog]
-    catalog.initialize(dsName, new CaseInsensitiveStringMap(mapAsJavaMap(withoutPrefix)))
+    catalog.initialize(dsName, new CaseInsensitiveStringMap(mapAsJavaMap(properties)))
     catalog
   }
 

@@ -19,10 +19,13 @@
 
 package com.zetaris.lightning.model
 
-import org.apache.spark.sql.types.{BooleanType, ByteType, CharType, DataType, DateType, DecimalType, DoubleType, FloatType, IntegerType, LongType, ShortType, StringType, TimestampType, VarcharType}
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import com.zetaris.lightning.model.serde.DataSource.DataSource
 
+/**
+ * Lightning model object encapsulating implementation details
+ */
 object LightningModel {
   val LIGHTNING_CATALOG_NAME = "lightning"
   val LIGHTNING_CATALOG = s"spark.sql.catalog.$LIGHTNING_CATALOG_NAME"
@@ -34,14 +37,29 @@ object LightningModel {
 
   var cached: LightningModel = null
 
-  def toFqn(fqn: Seq[String]): String = fqn.mkString(".")
+  /**
+   * convert namespace to fully qualified name connected by dot
+   * @param namespace
+   * @return
+   */
+  def toFqn(namespace: Seq[String]): String = namespace.mkString(".")
 
+  /**
+   * convert fully qualified name into multi part identifer, array of string
+   * @param fqn
+   * @return
+   */
   def toMultiPartIdentifier(fqn: String): Seq[String] = if (fqn.indexOf(".") > 0) {
     fqn.split(".")
   } else {
     Seq(fqn)
   }
 
+  /**
+   * factory instantiating concrete lightning model
+   * @param prop
+   * @return concrete model
+   */
   def apply(prop: CaseInsensitiveStringMap): LightningModel = {
     if (!prop.containsKey(LIGHTNING_MODEL_TYPE_KEY)) {
       throw new RuntimeException(s"${LIGHTNING_MODEL_TYPE_KEY} is not set in spark conf")
@@ -59,7 +77,6 @@ object LightningModel {
     }
     cached
   }
-
 
   /**
    * true as long as queried type is bigger than defined type
@@ -83,6 +100,9 @@ object LightningModel {
     }
   }
 
+  /**
+   * Interface of lightning model managing CRUD of entity in metastore
+   */
   trait LightningModel {
 
     /**
@@ -94,14 +114,48 @@ object LightningModel {
      */
     def saveDataSource(dataSource: DataSource, replace: Boolean): String
 
+    /**
+     * load data sources under the given namespace
+     * @param namespace
+     * @param name
+     * @return list of namespace
+     */
     def loadDataSources(namespace: Array[String], name: String = null): List[DataSource]
 
-    def listNameSpaces(namespace: Seq[String]): Seq[String]
+    /**
+     * list namespaces under the given namespace
+     * @param namespace
+     * @return namespaces
+     */
+    def listNamespaces(namespace: Seq[String]): Seq[String]
 
+    /**
+     * list tables under the given namesapce
+     * @param namespace
+     * @return table names
+     */
     def listTables(namespace: Array[String]): Seq[String]
 
+    /**
+     * save table under the given namespace
+     * @param namespace
+     * @param name
+     * @param schema
+     */
+    def saveTable(namespace: Array[String], name: String, schema: StructType): Unit
+
+    /**
+     * Create child namespace under the given namespace
+     * @param namespace
+     * @param metadata
+     */
     def createNamespace(namespace: Array[String], metadata: java.util.Map[String, String]): Unit
 
+    /**
+     * drop namespace
+     * @param namespace
+     * @param cascade delete cascade if true
+     */
     def dropNamespace(namespace: Array[String], cascade: Boolean): Unit
 
   }

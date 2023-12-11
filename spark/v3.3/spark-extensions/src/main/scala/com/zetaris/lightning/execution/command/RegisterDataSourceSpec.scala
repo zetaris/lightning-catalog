@@ -22,7 +22,7 @@
 
 package com.zetaris.lightning.execution.command
 
-import com.zetaris.lightning.execution.command.DataSourceType.{AVRO, CSV, DELTA, ICEBERG, JDBC, JSON, ORC, PARQUET, XML}
+import com.zetaris.lightning.execution.command.DataSourceType._
 import com.zetaris.lightning.model.LightningModel
 import com.zetaris.lightning.model.serde.DataSource
 import org.apache.spark.sql.Row
@@ -32,9 +32,7 @@ import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-import java.util
 import java.util.regex.Pattern
-
 
 object DataSourceType {
   val allTypes = Seq("JDBC", "ICEBERG", "DELTA", "ORC", "PARQUET", "CSV", "JSON", "XML", "REST")
@@ -92,7 +90,7 @@ case class RegisterDataSourceSpec(namespace: Array[String],
 
   private def catalogOptions(conf: SQLConf) = {
     val prefix = Pattern.compile("^spark\\.sql\\.catalog\\." + name + "\\.(.+)")
-    val options = new util.HashMap[String, String]
+    val options = new java.util.HashMap[String, String]
     conf.getAllConfs.foreach {
       case (key, value) =>
         val matcher = prefix.matcher(key)
@@ -113,14 +111,12 @@ case class RegisterDataSourceSpec(namespace: Array[String],
   }
 
   private def validateIcebergParams(): Unit = {
-    opts.getOrElse(s"spark.sql.catalog.$name",
-      throw new IllegalArgumentException(s"catalog name : spark.sql.catalog.$name is not provided"))
-    val warehousetype = opts.getOrElse(s"spark.sql.catalog.$name.type",
-      throw new IllegalArgumentException(s"catalog type : spark.sql.catalog.$name.type is not provided"))
+    val warehousetype = opts.getOrElse("type",
+      throw new IllegalArgumentException(s"iceberg type(type) is not provided"))
 
     if (warehousetype.toLowerCase == "hadoop") {
-      opts.getOrElse(s"spark.sql.catalog.$name.warehouse",
-        throw new IllegalArgumentException(s"warehouse path : spark.sql.catalog.$name.warehouse is not provided"))
+      opts.getOrElse(s"warehouse",
+        throw new IllegalArgumentException(s"warehouse path(warehouse) is not provided"))
     }
   }
 
@@ -136,7 +132,7 @@ case class RegisterDataSourceSpec(namespace: Array[String],
     val parentNamespace = withoutCatalog.dropRight(1)
     val lastNamespace = namespace.last
 
-    if (!model.listNameSpaces(parentNamespace).exists(_.equalsIgnoreCase(lastNamespace))) {
+    if (!model.listNamespaces(parentNamespace).exists(_.equalsIgnoreCase(lastNamespace))) {
       throw new RuntimeException(s"parent namespace: ${namespace.mkString(".")} is not existing")
     }
 

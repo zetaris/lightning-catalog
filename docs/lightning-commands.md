@@ -51,10 +51,13 @@ DROP NAMESPACE lightning.datasource.identifier
 
 ### Register rdbms data sources
 ```bash
--- Lightning command
+-- Spark SQL command to create rdbms namespace
+CREATE NAMESPACE lightning.datasource.rdbms
+
+-- Lightning command to register h2 database under rdbms
 REGISTER [OR REPLACE] JDBC DATASOURCE h2 OPTIONS(
-url "jdbc:h2:mem:dbname;DB_CLOSE_DELAY=-1"
-user "admin"
+url "jdbc:h2:mem:dbname;DB_CLOSE_DELAY=-1",
+user "admin",
 password ""
 ) NAMESPACE lightning.datasource.rdbms
 ```
@@ -120,6 +123,44 @@ WHERE c_custkey = o_custkey
  and n_regionkey = r_regionkey
 GROUP BY n_name, o_orderdate
 ```
+
+### Register iceberg lakehouse
+```bash
+-- Spark SQL command to create iceberg namespace
+CREATE NAMESPACE lightning.datasource.iceberg
+
+-- Lightning command
+REGISTER [OR REPLACE] JDBC DATASOURCE icebergdb OPTIONS(
+type "hadoop",
+warehouse "/tmp/iceberg-warehouse"
+) NAMESPACE lightning.datasource.iceberg
+```
+
+once registered, user can navigate source system:
+
+```bash
+-- Spark SQL command to create nytaxis dabase
+CREATE NAMESPACE lightning.datasource.iceberg.icebergdb.nytaxis
+```
+will create namespace(database) under the ingested iceberg lakehouse
+
+```bash
+CREATE TABLE lightning.datasource.iceberg.icerbergdb.nytaxis.taxis (
+vendor_id bigint,
+trip_id bigint,
+trip_distance float,
+fare_amount double,
+store_and_fwd_flag string
+) PARTITIONED BY (vendor_id)
+```
+will create taxis table under nytaxis database in iceberg, partitioned by vendor_id colum
+
+```bash
+INSERT INTO lightning.datasource.iceberg.icebergdb.nytaxis.taxis
+VALUES (1, 1000371, 1.8, 15.32, "N"), (2, 1000372, 2.5, 22.15, "N"), (2, 1000373, 0.9, 9.01, "N"), (1, 1000374, 8.4, 42.13, "Y")
+```
+will insert 3 records into taxis table.
+
 
 ### Register data sources to meta store
 Yet to be developed

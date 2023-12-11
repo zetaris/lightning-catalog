@@ -19,8 +19,7 @@
 
 package com.zetaris.lightning.parser
 
-import com.zetaris.lightning.execution.command.DataSourceType
-import com.zetaris.lightning.execution.command.RegisterDataSourceSpec
+import com.zetaris.lightning.execution.command.{DataSourceType, RegisterCatalogSpec, RegisterDataSourceSpec}
 import com.zetaris.lightning.model.LightningModel
 import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.misc.Interval
@@ -57,14 +56,7 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
     ctx.parts.asScala.map(_.getText)
   }
 
-  override def visitRegisterDataSource(ctx: RegisterDataSourceContext)
-  : RegisterDataSourceSpec = withOrigin(ctx) {
-    val replace = ctx.REPLACE() != null
-    val dataSourceType = DataSourceType(ctx.dataSourceType.getText)
-    val options = Option(ctx.options).map(visitPropertyKeyValues).getOrElse(Map.empty)
-    val name = ctx.identifier().getText
-    val namespace = visitMultipartIdentifier(ctx.multipartIdentifier())
-
+  private def validateNamespace(namespace: Seq[String]): Unit = {
     if (namespace.size < 3) {
       throw new IllegalArgumentException(s"namespace must have at least three namespace : lightning.datasource|metastore.namespace")
     } else {
@@ -73,6 +65,16 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
         throw new IllegalArgumentException(s"name space must be formed : lightning.datasource|metastore(.namespace)*")
       }
     }
+  }
+
+  override def visitRegisterDataSource(ctx: RegisterDataSourceContext)
+  : RegisterDataSourceSpec = withOrigin(ctx) {
+    val replace = ctx.REPLACE() != null
+    val dataSourceType = DataSourceType(ctx.dataSourceType.getText)
+    val options = Option(ctx.options).map(visitPropertyKeyValues).getOrElse(Map.empty)
+    val name = ctx.identifier().getText
+    val namespace = visitMultipartIdentifier(ctx.multipartIdentifier())
+    validateNamespace(namespace)
 
     RegisterDataSourceSpec(namespace.toArray, name, dataSourceType, options, replace)
   }
@@ -128,6 +130,26 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
     } else {
       ctx.start.getInputStream.getText(Interval.of(ctx.start.getStartIndex, ctx.stop.getStopIndex))
     }
+  }
+
+  override def visitRegisterCatalog(ctx: RegisterCatalogContext): RegisterCatalogSpec = withOrigin(ctx) {
+    val replace = ctx.REPLACE() != null
+    val options = Option(ctx.options).map(visitPropertyKeyValues).getOrElse(Map.empty)
+    val name = ctx.identifier().getText
+    val source = visitMultipartIdentifier(ctx.source)
+    val namespace = visitMultipartIdentifier(ctx.namespace)
+    val pattern = if (ctx.LIKE() != null) {
+      Some(ctx.pattern.getText)
+    } else {
+      None
+    }
+
+    validateNamespace(namespace)
+    if (!namespace(1).equalsIgnoreCase("metastore")) {
+      throw new IllegalArgumentException("invalid target namespace. target name space should be under lightning.metastore")
+    }
+
+    RegisterCatalogSpec(namespace.toArray, name, options, source.toArray, pattern, replace)
   }
 
 }
