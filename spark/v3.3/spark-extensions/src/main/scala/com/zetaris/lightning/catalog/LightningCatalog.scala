@@ -105,7 +105,7 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces {
     }
 
     namespace(0).toLowerCase match {
-      case "lightning" =>
+      case "metastore" =>
         LightningCatalogUnit(namespace(0), model).loadTable(ident)
       case "datasource" =>
         findParentDataSource(ident.namespace(), ident.name()) match {
@@ -117,6 +117,7 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces {
             throw new RuntimeException(s"namespace(${ident.namespace().mkString(".")}) is not defined")
           case _ => throw new RuntimeException(s"invalid namespace : ${namespace(0)}")
         }
+      case _ => throw new RuntimeException(s"namespace : ${ident.namespace()} doesn't exist")
     }
   }
 

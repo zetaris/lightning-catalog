@@ -23,7 +23,10 @@ package org.apache.spark.sql
 
 import org.apache.spark.sql.avro.AvroFileFormat
 import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.types.StructType
 
 object SparkSQLBridge {
   def fallbackAvroFileFormat: Class[_ <: FileFormat] = classOf[AvroFileFormat]
+
+  def schemaFromJson(json: String): StructType = StructType.fromString(json)
 }

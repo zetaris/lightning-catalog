@@ -138,11 +138,12 @@ object LightningModel {
 
     /**
      * save table under the given namespace
+     * @param dsNamespace namespace of data source definition
      * @param namespace
      * @param name
      * @param schema
      */
-    def saveTable(namespace: Array[String], name: String, schema: StructType): Unit
+    def saveTable(dsNamespace: Array[String], namespace: Array[String], name: String, schema: StructType): Unit
 
     /**
      * Create child namespace under the given namespace

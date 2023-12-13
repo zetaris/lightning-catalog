@@ -21,7 +21,6 @@ package com.zetaris.lightning.catalog
 
 import com.zetaris.lightning.spark.H2TestBase
 import com.zetaris.lightning.spark.SparkExtensionsTestBase
-import com.zetaris.lightning.util.FileSystemUtils
 import org.apache.spark.sql.Row
 import org.junit.runner.RunWith
 import org.scalatestplus.junit.JUnitRunner
@@ -33,19 +32,10 @@ class LightningCatalogTestSuite extends SparkExtensionsTestBase with H2TestBase 
   val schema = "testschem"
 
   override def beforeEach(): Unit = {
-    val conn = buildConnection(dbName)
-    createSimpleTable(conn, schema)
+    createH2SimpleTable(dbName, schema)
 
     initRoootNamespace()
-
-    sparkSession.sql(s"DROP NAMESPACE IF EXISTS lightning.datasource.h2")
-    sparkSession.sql(s"CREATE NAMESPACE lightning.datasource.h2")
-
-    sparkSession.sql(s"""
-                        |REGISTER OR REPLACE JDBC DATASOURCE $dbName OPTIONS(
-                        | url "jdbc:h2:mem:$dbName;DB_CLOSE_DELAY=-1"
-                        |) NAMESPACE lightning.datasource.h2
-                        |""".stripMargin)
+    registerH2DataSource(dbName)
   }
 
   test("should show datasource namespaces") {
@@ -59,8 +49,6 @@ class LightningCatalogTestSuite extends SparkExtensionsTestBase with H2TestBase 
       Seq(Row(s"$dbName")))
 
     sparkSession.sql(s"SHOW NAMESPACES in lightning.datasource.h2.$dbName").show()
-    //val allSchema = sparkSession.sql(s"SHOW NAMESPACES in lightning.datasource.h2.$dbName").collect()
-    //assert(allSchema.find(_.getString(0) == schema).isDefined)
   }
 
   test("should drop namespace in datasource") {

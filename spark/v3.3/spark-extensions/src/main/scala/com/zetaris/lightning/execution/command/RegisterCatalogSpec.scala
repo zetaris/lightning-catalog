@@ -26,12 +26,13 @@ import com.zetaris.lightning.model.LightningModel
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.types.StringType
 
 import java.util.regex.Pattern
 
 case class RegisterCatalogSpec(namespace: Array[String],
-                               name:String,
+                               catalog:String,
                                opts: Map[String, String],
                                source: Array[String],
                                tablePattern: Option[String],
@@ -43,24 +44,26 @@ case class RegisterCatalogSpec(namespace: Array[String],
   val javaRegEx = {
     tablePattern.map { pattern =>
       val regPattern = Pattern.quote(pattern)
-      regPattern.replace("\\%", ".*")
+      regPattern.replace("%", ".*")
     }
   }
 
   override def runCommand(sparkSession: SparkSession): Seq[Row] = {
+    val sourceNamespace = source.drop(1)
+    val targetNamespace = namespace.drop(1) :+ catalog
     val withFiltered = if (javaRegEx.isDefined) {
-      LightningCatalogCache.catalog.listTables(namespace)
+      LightningCatalogCache.catalog.listTables(sourceNamespace)
         .filter(ident => Pattern.matches(javaRegEx.get, ident.name()))
     } else {
-      LightningCatalogCache.catalog.listTables(namespace)
+      LightningCatalogCache.catalog.listTables(sourceNamespace)
     }
 
     val nameAndSchema = withFiltered.map { ident =>
-        val table = LightningCatalogCache.catalog.loadTable(ident)
-        (table.name(), table.schema())
+        val table = LightningCatalogCache.catalog.loadTable(Identifier.of(sourceNamespace, ident.name()))
+        (ident.name(), table.schema())
     }
 
-    val existing = LightningModel.cached.listTables(namespace)
+    val existing = LightningModel.cached.listTables(targetNamespace)
     nameAndSchema.foreach { case (name, _) =>
       if(existing.find(_.equalsIgnoreCase(name)).isDefined && !replace) {
         throw new RuntimeException(s"table : $name is already registered. Add REPLACE option to overwrite")
@@ -68,8 +71,8 @@ case class RegisterCatalogSpec(namespace: Array[String],
     }
 
     nameAndSchema.map { case (name, schema) =>
-      LightningModel.cached.saveTable(namespace, name, schema)
-      Row(s"${LightningModel.toFqn(namespace)}.$name")
+      LightningModel.cached.saveTable(sourceNamespace, targetNamespace, name, schema)
+      Row(s"${LightningModel.toFqn(targetNamespace)}.$name")
     }
   }
 }

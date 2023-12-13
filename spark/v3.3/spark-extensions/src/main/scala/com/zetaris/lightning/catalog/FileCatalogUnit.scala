@@ -23,7 +23,7 @@ package com.zetaris.lightning.catalog
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.zetaris.lightning.catalog.CatalogUnit.CatalogUnit
-import com.zetaris.lightning.execution.command.DataSourceType.{AVRO, CSV, FileTypeSource, JSON, ORC, PARQUET}
+import com.zetaris.lightning.execution.command.DataSourceType.{AVRO, CSV, JSON, ORC, PARQUET}
 import com.zetaris.lightning.model.LightningModel.LightningModel
 import com.zetaris.lightning.model.serde.DataSource.DataSource
 import com.zetaris.lightning.util.FileSystemUtils
@@ -37,7 +37,8 @@ import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
 import org.apache.spark.sql.execution.datasources.json.JsonFileFormat
 import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
-import org.apache.spark.sql.execution.datasources.v2.csv.{CSVScanBuilder, CSVTable}
+import org.apache.spark.sql.execution.datasources.v2.csv.CSVScanBuilder
+import org.apache.spark.sql.execution.datasources.v2.csv.CSVTable
 import org.apache.spark.sql.execution.datasources.v2.json.JsonTable
 import org.apache.spark.sql.execution.datasources.v2.orc.OrcTable
 import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetTable

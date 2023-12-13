@@ -36,16 +36,46 @@ import org.apache.spark.sql.catalyst.trees.Origin
 import org.apache.spark.sql.types.DataType
 import org.apache.spark.sql.types.StructType
 
+import java.util.Locale
+
 class LightningExtendedParser(delegate: ParserInterface) extends ParserInterface {
   private lazy val astBuilder = new LightningExtensionAstBuilder(delegate)
 
-  private def isSemanticLWHCommand(sqlText: String): Boolean = {
-    try {
-      delegate.parsePlan(sqlText)
-      false
-    } catch {
-      case _: Throwable => true
+  private def isLightningCommand(sqlText: String): Boolean = {
+    val normalized = sqlText.toLowerCase(Locale.ROOT).trim()
+      // Strip simple SQL comments that terminate a line, e.g. comments starting with `--` .
+      .replaceAll("--.*?\\n", " ")
+      // Strip newlines.
+      .replaceAll("\\s+", " ")
+      // Strip comments of the form  /* ... */. This must come after stripping newlines so that
+      // comments that span multiple lines are caught.
+      .replaceAll("/\\*.*?\\*/", " ")
+      .trim()
+
+    def checkDataSource(normalisedText: String): Boolean = {
+      normalisedText.contains("jdbc datasource") ||
+        normalisedText.contains("iceberg datasource") ||
+        normalisedText.contains("orc datasource") ||
+        normalisedText.contains("parquet datasource") ||
+        normalisedText.contains("delta datasource") ||
+        normalisedText.contains("avro datasource") ||
+        normalisedText.contains("csv datasource") ||
+        normalisedText.contains("xml datasource") ||
+        normalisedText.contains("json datasource")
     }
+
+    def checkNamespace(normalisedText: String): Boolean = {
+      normalisedText.contains("namespace")
+    }
+
+    def checkSource(normalisedText: String): Boolean = {
+      normalisedText.contains("source")
+    }
+
+    (normalized.startsWith("register") && checkDataSource(normalized) && checkNamespace(normalized))  ||
+      (normalized.startsWith("register or replace") && checkDataSource(normalized) && checkNamespace(normalized)) ||
+      (normalized.startsWith("register catalog") && checkSource(normalized) && checkNamespace(normalized)) ||
+      (normalized.startsWith("register or replace catalog") && checkSource(normalized) && checkNamespace(normalized))
   }
 
   def parseLightning(sqlText: String): LogicalPlan = {
@@ -86,7 +116,7 @@ class LightningExtendedParser(delegate: ParserInterface) extends ParserInterface
   }
 
   override def parsePlan(sqlText: String): LogicalPlan = {
-    if (isSemanticLWHCommand(sqlText)) {
+    if (isLightningCommand(sqlText)) {
       parseLightning(sqlText)
     } else {
       delegate.parsePlan(sqlText)

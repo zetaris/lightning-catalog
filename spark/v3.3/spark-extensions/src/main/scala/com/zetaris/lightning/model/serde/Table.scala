@@ -19,25 +19,33 @@
  *
  */
 
-package com.zetaris.lightning.datasource.command
+package com.zetaris.lightning.model.serde
 
-import com.zetaris.lightning.spark.SparkExtensionsTestBase
-import org.apache.spark.sql.SaveMode
+import org.apache.spark.sql.SparkSQLBridge
+import org.apache.spark.sql.types.StructType
+import org.json4s.jackson.JsonMethods.parse
+import org.json4s.jackson.Serialization
+import org.json4s.jackson.Serialization.write
+import org.json4s.{CustomSerializer, Formats, JString, NoTypeHints}
 
-import scala.reflect.ClassTag
+object Table {
+  case class Table(dsNamespace: String, schema: StructType)
 
-trait TestDataSet { self: SparkExtensionsTestBase =>
-  case class Taxis(vendor_id: Long,
-                   trip_id: Long,
-                   trip_distance: Float,
-                   fare_amount: Double,
-                   store_and_fwd_flag: String)
+  private class SchemaSerializer
+    extends CustomSerializer[StructType](_ =>
+      (
+        { case JString(json) => SparkSQLBridge.schemaFromJson(json) },
+        { case schema: StructType => JString(schema.json)}
+      )
+    )
 
-  protected def createDataSourceFile[T <: Product : ClassTag](dataSets: Seq[Taxis], path: String, format: String) = {
-    val writer = sparkSession.createDataFrame(dataSets).write.mode(SaveMode.Overwrite).format(format)
-    if (format.toLowerCase == "csv") {
-      writer.option("header", "true")
-    }
-    writer.save(path)
+  implicit val formats: Formats = Serialization.formats(NoTypeHints) + new SchemaSerializer
+
+  def toJson(table: Table): String = {
+    write(table)
+  }
+
+  def apply(json: String): Table = {
+    parse(json).extract[Table]
   }
 }

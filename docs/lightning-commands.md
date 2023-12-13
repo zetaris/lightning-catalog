@@ -130,7 +130,7 @@ GROUP BY n_name, o_orderdate
 CREATE NAMESPACE lightning.datasource.iceberg
 
 -- Lightning command
-REGISTER [OR REPLACE] JDBC DATASOURCE icebergdb OPTIONS(
+REGISTER [OR REPLACE] ICEBERG DATASOURCE icebergdb OPTIONS(
 type "hadoop",
 warehouse "/tmp/iceberg-warehouse"
 ) NAMESPACE lightning.datasource.iceberg

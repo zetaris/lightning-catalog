@@ -38,6 +38,7 @@ object DataSource {
                         name: String,
                         properties: List[Property])
 
+  // todo : check with java version other than 1.8
   def simpleClassName(clazz: Class[_]): String = {
     val simpleName = clazz.getSimpleName
     simpleName.substring(0, simpleName.length - 1)

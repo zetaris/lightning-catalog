@@ -35,8 +35,14 @@ Library that need to run
 * apache iceberg: ver 1.4.2 with spark 3.3 and scala 2.12 is tested
   org.apache.iceberg:iceberg-spark-3.3_2.12:1.4.2
   org.apache.iceberg:iceberg-spark-extensions-3.3_2.12:1.4.2
+  org.apache.iceberg:iceberg-common:1.4.2
+  org.apache.iceberg:iceberg-bundled-guava:1.4.2
+  org.apache.iceberg:iceberg-api:1.4.2
+  org.apache.iceberg:iceberg-core:1.4.2
 * delta lake: ver 2.3.0 with scala 2.12 is tested
   io.delta:delta-core_2.12:2.3.0
+* caffeine cache
+  com.github.ben-manes.caffeine:caffeine:2.9.3
   
 
 ```bash
@@ -44,5 +50,5 @@ Library that need to run
     --conf spark.sql.catalog.lightning=com.zetaris.lightning.catalog.LightningCatalog \
     --conf spark.sql.catalog.lightning.type=hadoop \
     --conf spark.sql.catalog.lightning.warehouse=/tmp/lightning-model \
-    --jars /Users/Applications/lightning-metastore/libs/*;/Users/Applications/lightning-metastore/lightning-spark-extensions-3.3_2.12-0.1.jar 
+    --jars /Users/Applications/lightning-metastore/libs/*,/Users/Applications/lightning-metastore/lightning-spark-extensions-3.3_2.12-0.1.jar 
 ```

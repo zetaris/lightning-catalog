@@ -21,13 +21,42 @@
 
 package com.zetaris.lightning.datasource.command
 
-import com.zetaris.lightning.spark.SparkExtensionsTestBase
+import com.zetaris.lightning.spark.{H2TestBase, SparkExtensionsTestBase}
+import org.apache.spark.sql.Row
 import org.junit.runner.RunWith
 import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class RegisterCatalogTestSuite extends SparkExtensionsTestBase {
-  test("should register all files from rdbms") {
+class RegisterCatalogTestSuite extends SparkExtensionsTestBase with H2TestBase {
+  val dbName = "registerDb"
+  val schema = "testschema"
 
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+
+    createH2SimpleTable(dbName, schema)
+    initRoootNamespace()
+    registerH2DataSource(dbName)
+  }
+
+  test("should create namespace") {
+    sparkSession.sql(s"CREATE NAMESPACE lightning.metastore.h2")
+    checkAnswer(sparkSession.sql("SHOW NAMESPACES IN lightning.datasource"), Seq(Row("h2")))
+  }
+
+
+  test("should register all tables from a schema") {
+    sparkSession.sql(
+      s"""
+         |REGISTER CATALOG $schema
+         |SOURCE lightning.datasource.h2.$dbName.$schema
+         |NAMESPACE lightning.metastore.h2
+         |""".stripMargin)
+
+    checkAnswer(sparkSession.sql(s"SHOW NAMESPACES IN lightning.metastore.h2"), Seq(Row(schema)))
+    checkAnswer(sparkSession.sql(s"SHOW TABLES IN lightning.metastore.h2.$schema"),
+      Seq(Row(schema, "test_jobs", false), Row(schema, "test_users", false)))
+
+    sparkSession.sql(s"DESCRIBE lightning.metastore.h2.test_jobs").show()
   }
 }

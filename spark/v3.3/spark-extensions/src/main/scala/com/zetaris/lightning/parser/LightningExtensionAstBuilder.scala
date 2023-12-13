@@ -135,7 +135,7 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
   override def visitRegisterCatalog(ctx: RegisterCatalogContext): RegisterCatalogSpec = withOrigin(ctx) {
     val replace = ctx.REPLACE() != null
     val options = Option(ctx.options).map(visitPropertyKeyValues).getOrElse(Map.empty)
-    val name = ctx.identifier().getText
+    val catalog = ctx.identifier().getText
     val source = visitMultipartIdentifier(ctx.source)
     val namespace = visitMultipartIdentifier(ctx.namespace)
     val pattern = if (ctx.LIKE() != null) {
@@ -149,7 +149,7 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
       throw new IllegalArgumentException("invalid target namespace. target name space should be under lightning.metastore")
     }
 
-    RegisterCatalogSpec(namespace.toArray, name, options, source.toArray, pattern, replace)
+    RegisterCatalogSpec(namespace.toArray, catalog, options, source.toArray, pattern, replace)
   }
 
 }

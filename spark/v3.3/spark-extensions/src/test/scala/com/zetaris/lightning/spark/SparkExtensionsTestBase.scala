@@ -52,7 +52,7 @@ abstract class SparkExtensionsTestBase extends AnyFunSuite with BeforeAndAfterAl
       .config("spark.testing", "true")
       .config(SQLConf.PARTITION_OVERWRITE_MODE.key, "dynamic")
       .config("spark.sql.extensions",
-        "io.delta.sql.DeltaSparkSessionExtension,com.zetaris.lightning.spark.LightningSparkSessionExtension")
+        "spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension,org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,com.zetaris.lightning.spark.LightningSparkSessionExtension")
       .config(LightningModel.LIGHTNING_CATALOG, "com.zetaris.lightning.catalog.LightningCatalog")
       .config(LIGHTNING_MODEL_TYPE_KEY, MODEL_TYPE)
       .config(LIGHTNING_MODEL_WAREHOUSE_KEY, MODEL_DIR)

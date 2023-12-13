@@ -32,20 +32,10 @@ class RegisterJDBCDataSourceSuite extends SparkExtensionsTestBase with H2TestBas
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-    val conn = buildConnection(dbName)
-    createSimpleTable(conn, schema)
 
+    createH2SimpleTable(dbName, schema)
     initRoootNamespace()
-
-    sparkSession.sql(s"DROP NAMESPACE IF EXISTS lightning.datasource.h2")
-    sparkSession.sql(s"CREATE NAMESPACE lightning.datasource.h2")
-
-    sparkSession.sql(s"""
-                        |REGISTER OR REPLACE JDBC DATASOURCE $dbName OPTIONS(
-                        | url "jdbc:h2:mem:$dbName;DB_CLOSE_DELAY=-1",
-                        | user ""
-                        |) NAMESPACE lightning.datasource.h2
-                        |""".stripMargin)
+    registerH2DataSource(dbName)
   }
 
   test("should create namespace") {

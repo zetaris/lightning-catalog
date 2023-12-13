@@ -22,15 +22,18 @@ package com.zetaris.lightning.spark
 import java.sql.Connection
 import java.sql.DriverManager
 
-trait H2TestBase {
+trait H2TestBase { self: SparkExtensionsTestBase =>
+
   val h2Driver = "org.h2.Driver"
 
-  def buildConnection(db: String): java.sql.Connection = {
+  def buildH2Connection(db: String): java.sql.Connection = {
     val h2Url = s"jdbc:h2:mem:$db;DB_CLOSE_DELAY=-1"
     DriverManager.getConnection(h2Url)
   }
 
-  def createSimpleTable(conn: Connection, schema: String): Unit = {
+  def createH2SimpleTable(db: String, schema: String): Unit = {
+    val conn = buildH2Connection(db)
+
     try{conn.prepareStatement(s"""DROP TABLE IF EXISTS "$schema"."test_users"""").executeUpdate()}
     catch {case _: Throwable =>}
 
@@ -89,4 +92,15 @@ trait H2TestBase {
 
   }
 
+  protected def registerH2DataSource(dbName: String): Unit = {
+    sparkSession.sql(s"DROP NAMESPACE IF EXISTS lightning.datasource.h2")
+    sparkSession.sql(s"CREATE NAMESPACE lightning.datasource.h2")
+
+    sparkSession.sql(s"""
+                        |REGISTER OR REPLACE JDBC DATASOURCE $dbName OPTIONS(
+                        | url "jdbc:h2:mem:$dbName;DB_CLOSE_DELAY=-1",
+                        | user ""
+                        |) NAMESPACE lightning.datasource.h2
+                        |""".stripMargin)
+  }
 }
