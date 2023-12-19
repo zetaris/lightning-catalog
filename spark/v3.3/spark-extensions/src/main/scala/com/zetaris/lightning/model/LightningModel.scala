@@ -22,6 +22,7 @@ package com.zetaris.lightning.model
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import com.zetaris.lightning.model.serde.DataSource.DataSource
+import org.apache.spark.sql.connector.catalog.{Identifier, Table}
 
 /**
  * Lightning model object encapsulating implementation details
@@ -50,7 +51,7 @@ object LightningModel {
    * @return
    */
   def toMultiPartIdentifier(fqn: String): Seq[String] = if (fqn.indexOf(".") > 0) {
-    fqn.split(".")
+    fqn.split("\\.")
   } else {
     Seq(fqn)
   }
@@ -158,6 +159,13 @@ object LightningModel {
      * @param cascade delete cascade if true
      */
     def dropNamespace(namespace: Array[String], cascade: Boolean): Unit
+
+    /**
+     * load table
+     * @param ident
+     * @return
+     */
+    def loadTable(ident: Identifier): Table
 
   }
 }

@@ -44,8 +44,6 @@ if (!knownScalaVersions.contains(scalaVersion)) {
 if (sparkVersions.contains("3.2")) {
   include ":lightning-spark:spark-extensions-3.2_${scalaVersion}"
   include ":lightning-spark:spark-runtime-3.2_${scalaVersion}"
-  project(":lightning-spark:spark-3.2_${scalaVersion}").projectDir = file('spark/v3.2/spark')
-  project(":lightning-spark:spark-3.2_${scalaVersion}").name = "lightning-spark-3.2_${scalaVersion}"
   project(":lightning-spark:spark-extensions-3.2_${scalaVersion}").projectDir = file('spark/v3.2/spark-extensions')
   project(":lightning-spark:spark-extensions-3.2_${scalaVersion}").name = "lightning-spark-extensions-3.2_${scalaVersion}"
   project(":lightning-spark:spark-runtime-3.2_${scalaVersion}").projectDir = file('spark/v3.2/spark-runtime')

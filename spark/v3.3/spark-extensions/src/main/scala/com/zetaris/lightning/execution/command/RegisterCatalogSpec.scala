@@ -27,9 +27,7 @@ import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.connector.catalog.Identifier
-import org.apache.spark.sql.types.StringType
-
-import java.util.regex.Pattern
+import org.apache.spark.sql.types.IntegerType
 
 case class RegisterCatalogSpec(namespace: Array[String],
                                catalog:String,
@@ -38,41 +36,57 @@ case class RegisterCatalogSpec(namespace: Array[String],
                                tablePattern: Option[String],
                                replace: Boolean) extends LightningCommandBase {
   override val output: Seq[AttributeReference] = Seq(
-    AttributeReference("registered", StringType, false)()
+    AttributeReference("table_count", IntegerType, false)()
   )
 
   val javaRegEx = {
-    tablePattern.map { pattern =>
-      val regPattern = Pattern.quote(pattern)
-      regPattern.replace("%", ".*")
+    tablePattern.map { sqlPattern =>
+      sqlPattern.replace(".", "\\.")
+        .replace("_", ".")
+        .replace("%", ".*")
+    }
+  }
+
+  def sqlLike(table: String): Boolean = javaRegEx.map( regEx => table.matches(regEx)).getOrElse(true)
+
+  private def registerTable(sourceNamespace: Array[String]): Int = {
+    val parentNamespace = LightningCatalogCache.catalog.listNamespaces(sourceNamespace)
+    if (parentNamespace.nonEmpty) {
+      parentNamespace.map { ns =>
+        registerTable(sourceNamespace ++ ns)
+      }.sum
+    } else {
+      val withFiltered = LightningCatalogCache.catalog.listTables(sourceNamespace)
+        .filter(ident => sqlLike(ident.name()))
+      val nameAndSchema = withFiltered.flatMap { ident =>
+        try {
+          val table = LightningCatalogCache.catalog.loadTable(Identifier.of(sourceNamespace, ident.name()))
+          Some((ident.name(), table.schema()))
+        } catch {
+          case th: Throwable => None
+        }
+      }
+
+      val baseNamespace = namespace.drop(1) :+ catalog
+      val namespaceIngesting = sourceNamespace.diff(source)
+      val targetNamespace = baseNamespace ++ namespaceIngesting
+      val existing = LightningModel.cached.listTables(targetNamespace ++ namespaceIngesting)
+      nameAndSchema.foreach { case (name, _) =>
+        if(existing.find(_.equalsIgnoreCase(name)).isDefined && !replace) {
+          throw new RuntimeException(s"table : $name is already registered. Add REPLACE option to overwrite")
+        }
+      }
+
+      nameAndSchema.map { case (name, schema) =>
+        LightningModel.cached.saveTable(sourceNamespace, targetNamespace, name, schema)
+        1
+      }.sum
     }
   }
 
   override def runCommand(sparkSession: SparkSession): Seq[Row] = {
     val sourceNamespace = source.drop(1)
-    val targetNamespace = namespace.drop(1) :+ catalog
-    val withFiltered = if (javaRegEx.isDefined) {
-      LightningCatalogCache.catalog.listTables(sourceNamespace)
-        .filter(ident => Pattern.matches(javaRegEx.get, ident.name()))
-    } else {
-      LightningCatalogCache.catalog.listTables(sourceNamespace)
-    }
-
-    val nameAndSchema = withFiltered.map { ident =>
-        val table = LightningCatalogCache.catalog.loadTable(Identifier.of(sourceNamespace, ident.name()))
-        (ident.name(), table.schema())
-    }
-
-    val existing = LightningModel.cached.listTables(targetNamespace)
-    nameAndSchema.foreach { case (name, _) =>
-      if(existing.find(_.equalsIgnoreCase(name)).isDefined && !replace) {
-        throw new RuntimeException(s"table : $name is already registered. Add REPLACE option to overwrite")
-      }
-    }
-
-    nameAndSchema.map { case (name, schema) =>
-      LightningModel.cached.saveTable(sourceNamespace, targetNamespace, name, schema)
-      Row(s"${LightningModel.toFqn(targetNamespace)}.$name")
-    }
+    val tableCount = registerTable(sourceNamespace)
+    Row(tableCount) :: Nil
   }
 }

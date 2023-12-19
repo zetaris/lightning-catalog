@@ -48,7 +48,9 @@ class LightningCatalogTestSuite extends SparkExtensionsTestBase with H2TestBase 
     checkAnswer(sparkSession.sql("SHOW NAMESPACES in lightning.datasource.h2"),
       Seq(Row(s"$dbName")))
 
-    sparkSession.sql(s"SHOW NAMESPACES in lightning.datasource.h2.$dbName").show()
+    checkAnswer(sparkSession.sql(s"SHOW NAMESPACES in lightning.datasource.h2.$dbName"),
+      Seq(Row("INFORMATION_SCHEMA"), Row("PUBLIC"), Row(schema)))
+    checkAnswer(sparkSession.sql(s"SHOW NAMESPACES in lightning.datasource.h2.$dbName.$schema"), Seq())
   }
 
   test("should drop namespace in datasource") {

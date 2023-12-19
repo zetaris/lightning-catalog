@@ -21,53 +21,10 @@
 
 package com.zetaris.lightning.catalog
 
-import com.zetaris.lightning.catalog.CatalogUnit.CatalogUnit
-import com.zetaris.lightning.datasources.v2.LightningTable
-import com.zetaris.lightning.model.LightningModel.LightningModel
 import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.Table
-import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.types.StructType
 
-import java.util
-
-case class LightningCatalogUnit(lakehouse: String, model: LightningModel) extends CatalogUnit {
-
-  override def listNamespaces(namespace: Array[String]): Array[Array[String]] = ???
-
-  override def listTables(namespace: Array[String]): Array[Identifier] = {
-    ???
-  }
-
-  override def loadTable(ident: Identifier): Table = {
-    model.loadTable(ident)
-  }
-
-  override def createNamespace(namespace: Array[String], metadata: util.Map[String, String]): Unit = {
-    ???
-  }
-
-  override def namespaceExists(namespace: Array[String]): Boolean = {
-    ???
-  }
-
-  override def dropNamespace(namespace: Array[String], cascade: Boolean): Boolean = {
-    ???
-  }
-
-  override def createTable(ident: Identifier,
-                           schema: StructType,
-                           partitions: Array[Transform],
-                           properties: java.util.Map[String, String]): Table = {
-    ???
-  }
-
-  override def dropTable(ident: Identifier): Boolean = {
-    ???
-  }
-
-  override def tableExists(ident: Identifier): Boolean = {
-    ???
-  }
-
+trait MetaDataCatalog {
+  def loadTable(ingestedSchema: StructType, ident: Identifier) : Table
 }

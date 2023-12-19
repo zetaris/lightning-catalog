@@ -21,7 +21,6 @@ package com.zetaris.lightning.catalog
 
 import com.zetaris.lightning.model.LightningModel
 import com.zetaris.lightning.model.serde.DataSource.DataSource
-
 import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.NamespaceChange
 import org.apache.spark.sql.connector.catalog.SupportsNamespaces
@@ -29,6 +28,7 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.catalog.TableCatalog
 import org.apache.spark.sql.connector.catalog.TableChange
 import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.execution.datasources.v2.jdbc.JDBCTable
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
@@ -39,7 +39,7 @@ object LightningCatalogCache {
   var catalog: LightningCatalog = null;
 }
 
-class LightningCatalog extends TableCatalog with SupportsNamespaces {
+class LightningCatalog extends TableCatalog with SupportsNamespaces with MetaDataCatalog {
   override val name = LightningModel.LIGHTNING_CATALOG_NAME
   private var model: LightningModel.LightningModel = null
 
@@ -101,7 +101,7 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces {
     val namespace = ident.namespace()
 
     if (namespace.isEmpty) {
-      throw new RuntimeException("namespace is not provided")
+      throw new RuntimeException(s"namespace: [${LightningModel.toFqn(namespace)}] is not provided")
     }
 
     namespace(0).toLowerCase match {
@@ -239,6 +239,13 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces {
         catalog.tableExists(Identifier.of(sourceNamespace, ident.name()))
       case None =>
         false
+    }
+  }
+
+  override def loadTable(ingestedSchema: StructType, ident: Identifier) : Table = {
+    loadTable(ident) match {
+      case jdbcTable : JDBCTable =>jdbcTable.copy(schema = ingestedSchema)
+      case other => other
     }
   }
 

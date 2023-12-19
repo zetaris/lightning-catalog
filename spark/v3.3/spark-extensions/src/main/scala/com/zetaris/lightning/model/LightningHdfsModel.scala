@@ -19,6 +19,7 @@
 
 package com.zetaris.lightning.model
 
+import com.zetaris.lightning.catalog.LightningCatalogCache
 import com.zetaris.lightning.execution.command.DataSourceType.FileTypeSource
 import com.zetaris.lightning.model.LightningModel.LightningModel
 import com.zetaris.lightning.model.LightningModel.toFqn
@@ -26,11 +27,12 @@ import com.zetaris.lightning.model.serde.DataSource.DataSource
 import com.zetaris.lightning.model.serde.DataSource.toJson
 import com.zetaris.lightning.model.serde.mapToJson
 import com.zetaris.lightning.util.FileSystemUtils
+import org.apache.spark.sql.connector.catalog.{Identifier, Table}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 // TODO : Convert FileSystem API to HDFS API
-class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel{
+class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel {
   if (!prop.containsKey(LightningModel.LIGHTNING_MODEL_WAREHOUSE_KEY)) {
     throw new RuntimeException(s"${LightningModel.LIGHTNING_MODEL_WAREHOUSE_KEY} is not set in spark conf")
   }
@@ -77,9 +79,10 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel{
   /**
    * load data source, data source definition json file.
    * _fs.json suffix is for file source and _ds.json suffix is for other type of data source
+   *
    * @param namespace
    * @param name
-   *  @return list of namespace
+   * @return list of namespace
    */
   override def loadDataSources(namespace: Array[String], name: String = null): List[DataSource] = {
     val subDir = nameSpaceToDir(namespace)
@@ -107,35 +110,45 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel{
   }
 
   /**
-   *  list namespace, sub directories or data source definition under the given namespace
+   * list namespace, sub directories or data source definition under the given namespace
    * _fs.json suffix is for file source and _ds.json suffix is for other type of data source
+   *
    * @param namespace
-   *  @return namespaces
+   * @return namespaces
    */
   override def listNamespaces(namespace: Seq[String]): Seq[String] = {
     val subDir = nameSpaceToDir(namespace)
     val fullPath = s"$modelDir/$subDir"
     FileSystemUtils.listDirectories(fullPath) ++
       FileSystemUtils.listFiles(fullPath).filter { file =>
-        file.endsWith("_ds.json") || file.endsWith("_fs.json")
+        file.endsWith("_ds.json")
       }.map(_.dropRight(8))
 
   }
 
   /**
    * list tables under the given namespace, table definition should have _table.json suffix
+   *
    * @param namespace
-   *  @return table names
+   * @return table names
    */
   override def listTables(namespace: Array[String]): Seq[String] = {
     val subDir = nameSpaceToDir(namespace)
     val fullPath = s"$modelDir/$subDir"
-    FileSystemUtils.listFiles(fullPath).filter(file => file.endsWith("_table.json"))
-      .map(_.dropRight(11))
+    FileSystemUtils.listFiles(fullPath).filter(file =>
+      file.endsWith("_table.json") || file.endsWith("_fs.json"))
+      .map { file =>
+        if (file.endsWith("_table.json")) {
+          file.dropRight(11)
+        } else {
+          file.dropRight(8)
+        }
+      }
   }
 
   /**
    * create namespace, create sub directory as well as saving metadata into .properties file
+   *
    * @param namespace
    * @param metadata
    */
@@ -151,6 +164,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel{
 
   /**
    * delete namespace dir
+   *
    * @param namespace
    * @param cascade delete cascade if true
    */
@@ -167,6 +181,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel{
 
   /**
    * save table under the given namespace
+   *
    * @param dsNamespace
    * @param namespace
    * @param name
@@ -184,5 +199,20 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel{
 
     val fullPath = s"$modelDir/$subDir/${name}_table.json"
     FileSystemUtils.saveFile(fullPath, json)
+  }
+
+  /**
+   * load table
+   *
+   * @param ident
+   * @return
+   */
+  def loadTable(ident: Identifier): Table = {
+    val subDir = nameSpaceToDir(ident.namespace())
+    val fullPath = s"$modelDir/$subDir/${ident.name()}_table.json"
+    val json = FileSystemUtils.readFile(fullPath)
+    val table = serde.Table(json)
+    val targetNamespace = LightningModel.toMultiPartIdentifier(table.dsNamespace).toArray
+    LightningCatalogCache.catalog.loadTable(table.schema, Identifier.of(targetNamespace, ident.name()))
   }
 }

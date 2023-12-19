@@ -145,7 +145,7 @@ CREATE NAMESPACE lightning.datasource.iceberg.icebergdb.nytaxis
 will create namespace(database) under the ingested iceberg lakehouse
 
 ```bash
-CREATE TABLE lightning.datasource.iceberg.icerbergdb.nytaxis.taxis (
+CREATE TABLE lightning.datasource.iceberg.icebergdb.nytaxis.taxis (
 vendor_id bigint,
 trip_id bigint,
 trip_distance float,

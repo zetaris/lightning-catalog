@@ -47,7 +47,7 @@ case class JDBCDataSourceCatalogUnit(catalog: String, properties: Map[String, St
 
   override def listNamespaces(namespace: Array[String]): Array[Array[String]] = {
     val jdbcTableCatalog = buildJDBCTableCatalog(namespace)
-    jdbcTableCatalog.listNamespaces()
+    jdbcTableCatalog.listNamespaces(namespace)
   }
 
   override def createNamespace(namespace: Array[String], metadata: java.util.Map[String, String]): Unit = {
@@ -56,9 +56,13 @@ case class JDBCDataSourceCatalogUnit(catalog: String, properties: Map[String, St
   }
 
   override def listTables(namespace: Array[String]): Array[Identifier] = {
-    val fromSchema = Array(namespace.last)
-    val jdbcTableCatalog = buildJDBCTableCatalog(namespace)
-    jdbcTableCatalog.listTables(fromSchema)
+    if (namespace.isEmpty) {
+      Array()
+    } else {
+      val fromSchema = Array(namespace.last)
+      val jdbcTableCatalog = buildJDBCTableCatalog(namespace)
+      jdbcTableCatalog.listTables(fromSchema)
+    }
   }
 
   override def loadTable(ident: Identifier): Table = {

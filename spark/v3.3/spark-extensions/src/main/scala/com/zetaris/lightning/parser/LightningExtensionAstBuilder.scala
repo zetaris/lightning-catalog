@@ -139,7 +139,7 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
     val source = visitMultipartIdentifier(ctx.source)
     val namespace = visitMultipartIdentifier(ctx.namespace)
     val pattern = if (ctx.LIKE() != null) {
-      Some(ctx.pattern.getText)
+      Some(string(ctx.pattern))
     } else {
       None
     }
