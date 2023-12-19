@@ -163,5 +163,22 @@ will insert 3 records into taxis table.
 
 
 ### Register data sources to meta store
-Yet to be developed
+```bash
+-- Spark SQL command to create rdbms namespace
+CREATE NAMESPACE lightning.datasource.h2
+
+-- Lightning command to register h2 database under rdbms
+REGISTER CATALOG all_schema
+SOURCE lightning.datasource.h2.$dbName
+NAMESPACE lightning.metastore.h2
+```
+This will ingest all schema and their tables under lightning.metastore.h2.all_schema
+
+```bash
+REGISTER CATALOG $testschema
+SOURCE lightning.datasource.h2.$dbName.$testschema
+NAMESPACE lightning.metastore.h2
+```
+This will ingest all tables from $testschema schema under lightning.metastore.h2.$testschema
+
 
