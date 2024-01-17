@@ -50,7 +50,8 @@ project(":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scal
     testImplementation "org.apache.avro:avro"
     testImplementation "org.apache.orc:orc-core"
     testImplementation "org.apache.parquet:parquet-hadoop"
-    testImplementation 'com.h2database:h2:2.1.214'
+    testImplementation "com.h2database:h2:2.1.214"
+    testImplementation "net.snowflake:snowflake-jdbc:3.14.4"
 
     //compileOnly ("org.apache.iceberg:iceberg-spark-${sparkMajorVersion}_${scalaVersion}:1.4.2")
     //compileOnly ("org.apache.iceberg:iceberg-spark-extensions-${sparkMajorVersion}_${scalaVersion}:1.4.2")

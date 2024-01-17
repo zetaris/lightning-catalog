@@ -20,9 +20,14 @@
 package com.zetaris.lightning.catalog
 
 import CatalogUnit.CatalogUnit
+import com.zetaris.lightning.model.LightningModel
+import org.apache.spark.sql.catalyst.analysis.NoSuchNamespaceException
+import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
+import org.apache.spark.sql.errors.QueryCompilationErrors
+import org.apache.spark.sql.execution.datasources.jdbc.{JDBCOptions, JdbcUtils}
 import org.apache.spark.sql.execution.datasources.v2.jdbc.JDBCTableCatalog
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -31,7 +36,8 @@ import scala.collection.JavaConverters.mapAsJavaMap
 
 case class JDBCDataSourceCatalogUnit(catalog: String, properties: Map[String, String]) extends CatalogUnit {
 
-  private def buildJDBCTableCatalog(namespace: Array[String]): JDBCTableCatalog = {
+  private def buildJDBCTableCatalog(namespace: Array[String],
+                                    extra: Map[String, String] = Map.empty): JDBCTableCatalog = {
     val schema = if (namespace.isEmpty) {
       catalog
     } else {
@@ -39,15 +45,40 @@ case class JDBCDataSourceCatalogUnit(catalog: String, properties: Map[String, St
     }
 
     val jdbcTableCatalog = new JDBCTableCatalog()
-    val ciMap = new CaseInsensitiveStringMap(mapAsJavaMap(properties))
+    val ciMap = new CaseInsensitiveStringMap(mapAsJavaMap(properties ++ extra))
     jdbcTableCatalog.initialize(schema, ciMap)
 
     jdbcTableCatalog
   }
 
   override def listNamespaces(namespace: Array[String]): Array[Array[String]] = {
-    val jdbcTableCatalog = buildJDBCTableCatalog(namespace)
-    jdbcTableCatalog.listNamespaces(namespace)
+    if (properties("url").toLowerCase.startsWith("jdbc:snowflake")) {
+      val namespaceMap = scala.collection.mutable.Map.empty[String, String]
+      val jdbcTableCatalog = if (namespace.isEmpty) {
+        namespaceMap += "namespace" -> "/"
+        buildJDBCTableCatalog(namespace, namespaceMap.toMap)
+      } else {
+        namespaceMap += "namespace" -> LightningModel.toFqn(namespace)
+        buildJDBCTableCatalog(namespace, namespaceMap.toMap)
+      }
+
+      namespace match {
+        case Array() =>
+          jdbcTableCatalog.listNamespaces()
+        case Array(_) if jdbcTableCatalog.namespaceExists(namespace) =>
+          val options = new JDBCOptions(CaseInsensitiveMap(
+            properties ++ namespaceMap ++ Map(JDBCOptions.JDBC_TABLE_NAME -> "__invalid_dbtable")))
+
+          JdbcUtils.withConnection(options) { conn =>
+            JdbcUtils.listSchemas(conn, options)
+          }
+        case _ =>
+          throw new NoSuchNamespaceException(namespace)
+      }
+    } else {
+      val jdbcTableCatalog = buildJDBCTableCatalog(namespace)
+      jdbcTableCatalog.listNamespaces(namespace)
+    }
   }
 
   override def createNamespace(namespace: Array[String], metadata: java.util.Map[String, String]): Unit = {

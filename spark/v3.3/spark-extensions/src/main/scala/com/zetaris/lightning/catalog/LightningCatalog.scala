@@ -29,6 +29,7 @@ import org.apache.spark.sql.connector.catalog.TableCatalog
 import org.apache.spark.sql.connector.catalog.TableChange
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.datasources.v2.jdbc.JDBCTable
+import org.apache.spark.sql.jdbc.{JdbcDialects, SnowflakeDialect}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
@@ -46,6 +47,7 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces with MetaDat
   override def initialize(name: String, options: CaseInsensitiveStringMap): Unit = {
     model = LightningModel(options)
     LightningCatalogCache.catalog = this
+    JdbcDialects.registerDialect(SnowflakeDialect)
   }
 
   private def loadDataSource(namespace: Array[String], name: String): Option[DataSource] = {
