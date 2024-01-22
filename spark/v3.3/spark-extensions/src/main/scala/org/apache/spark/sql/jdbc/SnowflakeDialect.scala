@@ -28,6 +28,19 @@ import java.sql.Connection
 object SnowflakeDialect extends JdbcDialect {
   override def canHandle(url: String): Boolean = true
 
+  def schemasExists(conn: Connection, database: String, schema: String): Boolean = {
+    val rs = conn.getMetaData.getSchemas()
+
+    while (rs.next()) {
+      val srcDb = rs.getString(2)
+      val srcSchema = rs.getString(1)
+
+      if (database == srcDb &&  schema == srcSchema) return true;
+    }
+    false
+  }
+
+
   override def schemasExists(conn: Connection, options: JDBCOptions, database: String): Boolean = {
     val rs = conn.getMetaData.getSchemas()
 

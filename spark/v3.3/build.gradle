@@ -52,9 +52,8 @@ project(":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scal
     testImplementation "org.apache.parquet:parquet-hadoop"
     testImplementation "com.h2database:h2:2.1.214"
     testImplementation "net.snowflake:snowflake-jdbc:3.14.4"
+    testImplementation "com.amazon.redshift:redshift-jdbc42:2.1.0.25"
 
-    //compileOnly ("org.apache.iceberg:iceberg-spark-${sparkMajorVersion}_${scalaVersion}:1.4.2")
-    //compileOnly ("org.apache.iceberg:iceberg-spark-extensions-${sparkMajorVersion}_${scalaVersion}:1.4.2")
     compileOnly ("org.apache.iceberg:iceberg-spark-${sparkMajorVersion}_${scalaVersion}:1.4.2")
     compileOnly ("org.apache.iceberg:iceberg-spark-extensions-${sparkMajorVersion}_${scalaVersion}:1.4.2")
     compileOnly ("io.delta:delta-core_${scalaVersion}:2.3.0")
