@@ -259,3 +259,108 @@ SHOW Tables IN lightning.datasource.iceberg.<datasourcename>.<Schemaname>;
 ```bash
 select * from lightning.datasource.iceberg.<datasourcename>.<Schemaname>.<Tablename>;
 ```
+
+## Steps to ingest File Source
+
+## Prerequisite
+Data should be stored on same environment where Zetaris Lightinig is running is running.
+
+### CSV
+Create a namespace where csv will get register
+   
+```bash 
+CREATE NAMESPACE lightning.datasource.file.csv;
+ ```
+
+Register CSV file source.
+```bash
+REGISTER OR REPLACE CSV DATASOURCE customers OPTIONS (
+header "true",
+inferSchema "true",
+path "/home/zetaris/data/csv/customer.csv"
+) NAMESPACE lightning.datasource.file.csv
+```
+Run select on registered csv table
+```bash
+Select * from lightning.datasource.file.csv.customers;
+```
+
+### PARQUET
+Create a namespace where parquet will get register
+   
+```bash 
+CREATE NAMESPACE lightning.datasource.file.parquet;
+ ```
+
+Register CSV file source.
+```bash
+REGISTER OR REPLACE CSV DATASOURCE customers OPTIONS (
+header "true",
+inferSchema "true",
+path "/home/zetaris/data/paquet/customer.parquet"
+) NAMESPACE lightning.datasource.file.parquet
+```
+Run select on registered parquet table
+```bash
+Select * from lightning.datasource.file.parquet.customers;
+```
+
+### ORC
+Create a namespace where orc will get register
+   
+```bash 
+CREATE NAMESPACE lightning.datasource.file.orc;
+ ```
+
+Register orc file source.
+```bash
+REGISTER OR REPLACE ORC DATASOURCE customers OPTIONS (
+header "true",
+inferSchema "true",
+path "/home/zetaris/data/orc/customer.orc"
+) NAMESPACE lightning.datasource.file.orc
+```
+Run select on registered orc table
+```bash
+Select * from lightning.datasource.file.orc.customers;
+```
+
+### JSON
+Create a namespace where json will get register
+   
+```bash 
+CREATE NAMESPACE lightning.datasource.file.json;
+ ```
+
+Register orc file source.
+```bash
+REGISTER OR REPLACE JSON DATASOURCE customers OPTIONS (
+header "true",
+inferSchema "true",
+path "/home/zetaris/data/json/customer.json"
+) NAMESPACE lightning.datasource.file.json
+```
+Run select on registered json table
+```bash
+Select * from lightning.datasource.file.json.customers;
+```
+
+### AVRO
+Create a namespace where avro will get register
+   
+```bash 
+CREATE NAMESPACE lightning.datasource.file.avro;
+ ```
+
+Register avro file source.
+```bash
+REGISTER OR REPLACE AVRO DATASOURCE customers OPTIONS (
+header "true",
+inferSchema "true",
+path "/home/zetaris/data/avro/customer.avro"
+) NAMESPACE lightning.datasource.file.avro
+```
+Run select on registered avro table
+```bash
+Select * from lightning.datasource.file.avro.customers;
+```
