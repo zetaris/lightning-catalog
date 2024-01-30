@@ -1,0 +1,122 @@
+How to run queries on different file sources
+This document show how we can run queries on different file source Via Zetaris open source. 
+
+Prerequisites
+1.	Zetaris open source should be running.
+2.	Data should be stored on same environment where Zetaris open source is running.
+
+CSV
+1.	Copy the exact path where the CSV is stored.
+  a.	For Example: /home/zetaris/zetaris_open_source/files/csv
+2.	Open Zetaris open-source code editor. Follow document “how to run Zetaris open-source code.
+3.	To read data from the csv. Run the query: use exact path of data in query.
+  a.	SELECT * FROM csv.`/home/zetaris/zetaris_open_source/files/csv/customer.csv`;
+4.	You can migrate the data from csv file source to iceberg data lake. Run query:
+Query 1: Create a Namespace
+CREATE NAMESPACE lightning.datasource.file.csv;
+Query 2: Register CSV Table
+REGISTER OR REPLACE CSV DATASOURCE customers OPTIONS (
+header "true",
+inferSchema "true",
+path "/home/zetaris/data/csv/customer.csv"
+) NAMESPACE lightning.datasource.file.csv
+Query 3: Run select on registered csv table
+Select * from lightning.datasource.file.csv.customers;
+5.	You can also do incremental updates to the table.
+MERGE INTO lightning.datasource.iceberg.icebergdb.nytaxis.csv_customer t   -- a target table
+USING (SELECT * FROM lightning.datasource.file.csv. customers) s          -- the source updates
+ON t.customer_id = s.customer_id                -- condition to find updates for target rows
+WHEN NOT MATCHED THEN INSERT *;
+
+Parquet
+1.	Copy the exact path where the PARQUET is stored.
+  a.	For Example: /home/zetaris/zetaris_open_source/files/parquet
+2.	Open Zetaris open-source code editor. Follow document “how to run Zetaris open-source code.
+3.	To read data from the csv. Run the query: use exact path of data in query.
+  a.	SELECT * FROM parquet.`/home/zetaris/zetaris_open_source/files/parquet/customer.parquet`;
+4.	You can migrate the data from csv file source to iceberg data lake. Run query:
+Query 1:Create a Namespace
+CREATE NAMESPACE lightning.datasource.file.parquet;
+	
+Query 2: Register Parquet Table
+REGISTER OR REPLACE parquet DATASOURCE orders OPTIONS (
+header "true",
+inferSchema "true",
+path "/home/zetaris/data/parquet/orders.snappy.parquet"
+) NAMESPACE lightning.datasource.file.parquet;
+
+Query 3: Run select on registered parquet table
+select * from lightning.datasource.file.parquet.customers;
+5.	You can also do incremental updates to the table.
+MERGE INTO lightning.datasource.iceberg.icebergdb.nytaxis.parquet_orders t   -- a target table
+USING (SELECT * FROM lightning.datasource.file.parquet. orders) s          -- the source updates
+ON t.customer_id = s.customer_id                -- condition to find updates for target rows
+WHEN NOT MATCHED THEN INSERT *;
+
+
+Orc
+1.	Copy the exact path where the ORC is stored.
+  a.	For Example: /home/zetaris/zetaris_open_source/files/orc
+2.	Open Zetaris open-source code editor. Follow document “how to run Zetaris open-source code.
+3.	To read data from the csv. Run the query: use exact path of data in query.
+  a.	SELECT * FROM orc.`/home/zetaris/zetaris_open_source/files/orc/customer.orc`;
+4.	You can migrate the data from csv file source to iceberg data lake. Run query:
+Query 1:Create a Namespace
+CREATE NAMESPACE lightning.datasource.file.orc;
+
+Query 2: Register ORC Table
+REGISTER OR REPLACE ORC DATASOURCE customer OPTIONS (
+header "true",
+inferSchema "true",
+path "/home/zetaris/data/orc/customer.snappy.orc"
+) NAMESPACE lightning.datasource.file.orc;
+
+Query 3: Run select on registered orc table
+select * from lightning.datasource.file.orc.customers;
+5.	You can also do incremental updates to the table.
+MERGE INTO lightning.datasource.iceberg.icebergdb.nytaxis.orc_customer t   -- a target table
+USING (SELECT * FROM lightning.datasource.file.orc.customer) s          -- the source updates
+ON t.customer_id = s.customer_id                -- condition to find updates for target rows
+WHEN NOT MATCHED THEN INSERT *;
+
+Avro
+1.	Copy the exact path where the ORC is stored.
+  a.	For Example: /home/zetaris/zetaris_open_source/files/avro
+2.	Open Zetaris open-source code editor. Follow document “how to run Zetaris open-source code.
+3.	To read data from the csv. Run the query: use exact path of data in query.
+  a.	SELECT * FROM avro.`/home/zetaris/zetaris_open_source/files/avro/customer.avro`;
+4.	You can migrate the data from csv file source to iceberg data lake. Run query:
+Query 1: Create a Namespace
+CREATE NAMESPACE lightning.datasource.file.avro;
+Query 2: Register Avro Table
+REGISTER OR REPLACE AVRO DATASOURCE customer OPTIONS (
+path "/home/zetaris/data/avro/customer.avro"
+) NAMESPACE lightning.datasource.file.avro;
+Query 3: Run select on registered avro table
+select * from lightning.datasource.file.avro.customers;
+5.	You can also do incremental updates to the table.
+MERGE INTO lightning.datasource.iceberg.icebergdb.nytaxis.avro_customer t   -- a target table
+USING (SELECT * FROM lightning.datasource.file.avro.customer) s          -- the source updates
+ON t.customer_id = s.customer_id                -- condition to find updates for target rows
+WHEN NOT MATCHED THEN INSERT *;
+
+JSON
+1.	Copy the exact path where the ORC is stored.
+  a.	For Example: /home/zetaris/zetaris_open_source/files/avro
+2.	Open Zetaris open-source code editor. Follow document “how to run Zetaris open-source code.
+3.	To read data from the csv. Run the query: use exact path of data in query.
+  a.	SELECT * FROM JSON.`/home/zetaris/zetaris_open_source/files/json/customer.avro`;
+4.	You can migrate the data from csv file source to iceberg data lake. Run query:
+Query 1:Create a Namespace
+CREATE NAMESPACE lightning.datasource.file.json;
+Query 2: Register json Table
+REGISTER OR REPLACE AVRO DATASOURCE customer OPTIONS (
+path "/home/zetaris/data/json/customer.json"
+) NAMESPACE lightning.datasource.file.json;
+Query 3: Run select on registered json table
+select * from lightning.datasource.file.json.customers;
+5.	You can also do incremental updates to the table.
+MERGE INTO lightning.datasource.iceberg.icebergdb.nytaxis.json_customer t   -- a target table
+USING (SELECT * FROM lightning.datasource.file.json.customer) s          -- the source updates
+ON t.customer_id = s.customer_id                -- condition to find updates for target rows
+WHEN NOT MATCHED THEN INSERT *;
