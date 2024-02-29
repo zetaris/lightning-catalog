@@ -21,7 +21,6 @@
 
 package com.zetaris.lightning.catalog
 
-import com.zetaris.lightning.catalog.CatalogUnit.CatalogUnit
 import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
@@ -30,6 +29,7 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import scala.collection.JavaConverters._
 
+// we're using different iceberg version along with spark version.
 case class IcebergCatalogUnit(dsName: String, properties: Map[String, String]) extends CatalogUnit {
   val icebergSparkCatalog = {
     val className = "org.apache.iceberg.spark.SparkCatalog"

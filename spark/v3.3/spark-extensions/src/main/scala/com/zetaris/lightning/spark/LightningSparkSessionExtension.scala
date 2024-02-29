@@ -19,16 +19,25 @@
 
 package com.zetaris.lightning.spark
 
-import org.apache.spark.sql.SparkSessionExtensions
-import com.zetaris.lightning.model.LightningModel.LightningModel
 import com.zetaris.lightning.parser.LightningExtendedParser
+import org.apache.spark.sql.SparkSessionExtensions
 
 class LightningSparkSessionExtension extends (SparkSessionExtensions => Unit){
   override def apply(extensions: SparkSessionExtensions): Unit = {
+
+    val deltaExtension = new io.delta.sql.DeltaSparkSessionExtension
+    deltaExtension(extensions)
+
+    // This should be done in CLI
+//    val icebergExtension = new org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
+//    icebergExtension(extensions)
+
     extensions.injectParser {
       case (sc, parser) => new LightningExtendedParser(parser)
     }
 
+
+    // TODO : Access control & DQ in roadmap
 //    extensions.injectOptimizerRule { _ => AccessControlImpl }
 //    extensions.injectOptimizerRule { _ => DataQualityImpl }
   }

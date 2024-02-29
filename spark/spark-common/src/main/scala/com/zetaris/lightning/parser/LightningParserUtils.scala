@@ -19,7 +19,6 @@
 
 package com.zetaris.lightning.parser
 
-import com.zetaris.lightning.execution.command.{AccessControl, Annotation, AnnotationStatement, DataQuality}
 import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.Token
 import org.antlr.v4.runtime.misc.Interval
@@ -47,53 +46,5 @@ object LightningParserUtils {
   private[lightning] def command(ctx: ParserRuleContext): String = {
     val stream = ctx.getStart.getInputStream
     stream.getText(Interval.of(0, stream.size() - 1))
-  }
-
-  private[lightning] def parseAnnotation(stmt: AnnotationStatement): Annotation = {
-    stmt.name.toLowerCase match {
-      case "dataquality" =>
-        val name = stmt.params.find(_.key == "name")
-        if (name.isEmpty) {
-          throw new IllegalArgumentException("Data Quality name is not provided")
-        }
-        val expression = stmt.params.find(_.key.toLowerCase == "expression")
-        if (expression.isEmpty) {
-          throw new IllegalArgumentException("Data Quality expression is not provided")
-        }
-        DataQuality(name.get.value, expression.get.value)
-
-      case "accesscontrol" =>
-        val name = stmt.params.find(_.key == "accessType")
-        if (name.isEmpty) {
-          throw new IllegalArgumentException("accessType is not provided")
-        }
-        val accessType = name.get.value.toLowerCase
-        List("deny", "regex").find(_ == accessType).orElse(
-          throw new IllegalArgumentException("deny | regex are supported accessType"))
-
-        val regExParam = if (accessType == "regex") {
-          val regex = stmt.params.find(_.key.toLowerCase == "regex")
-          if (regex.isEmpty) {
-            throw new IllegalArgumentException("regex is not provided")
-          }
-          Some(regex.get.value)
-        } else {
-          None
-        }
-
-        var values = stmt.params.find(_.key.toLowerCase == "users")
-        if (values.isEmpty) {
-          throw new IllegalArgumentException("users is not provided")
-        }
-        val users = values.get.value.split(",")
-
-        values = stmt.params.find(_.key.toLowerCase == "groups")
-        if (values.isEmpty) {
-          throw new IllegalArgumentException("users is not provided")
-        }
-        val groups = values.get.value.split(",")
-
-        AccessControl(name.get.value, regExParam, users, groups)
-    }
   }
 }

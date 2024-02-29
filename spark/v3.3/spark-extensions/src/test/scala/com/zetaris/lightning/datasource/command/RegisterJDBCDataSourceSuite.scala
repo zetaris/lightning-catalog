@@ -59,6 +59,26 @@ class RegisterJDBCDataSourceSuite extends SparkExtensionsTestBase with H2TestBas
     assert(schemas.find(_.getString(0) == "subspace2").isEmpty)
   }
 
+  test("should drop datasource itself") {
+    val dropping = "dropping"
+    sparkSession.sql(s"""
+                        |REGISTER OR REPLACE JDBC DATASOURCE $dropping OPTIONS(
+                        | url "jdbc:h2:mem:$dropping;DB_CLOSE_DELAY=-1",
+                        | user ""
+                        |) NAMESPACE lightning.datasource.h2
+                        |""".stripMargin)
+
+    checkAnswer(sparkSession.sql(s"SHOW NAMESPACES in lightning.datasource.h2"),
+      Seq(Row(dbName), Row(dropping)))
+
+    sparkSession.sql(s"DROP NAMESPACE lightning.datasource.h2.$dropping")
+
+    checkAnswer(sparkSession.sql(s"SHOW NAMESPACES in lightning.datasource.h2"),
+      Seq(Row(dbName)))
+
+    sparkSession.sql(s"SHOW NAMESPACES in lightning.datasource.h2.$dropping")
+  }
+
   test("should create, show, insert, select and drop table") {
     sparkSession.sql(s"CREATE NAMESPACE lightning.datasource.h2.$dbName.nyc")
     sparkSession.sql(
@@ -100,50 +120,4 @@ class RegisterJDBCDataSourceSuite extends SparkExtensionsTestBase with H2TestBas
     checkAnswer(sparkSession.sql(s"select * from lightning.datasource.h2.${dbName}.${schema}.test_users"),
       Seq(Row(1, 1), Row(2, 2), Row(3, 3), Row(4, 4), Row(5, 5)))
   }
-
-//  test("should register snowflake dw") {
-//    sparkSession.sql(s"DROP NAMESPACE IF EXISTS lightning.datasource.rdbms")
-//    sparkSession.sql(s"CREATE NAMESPACE lightning.datasource.rdbms")
-//
-//    sparkSession.sql(
-//      s"""
-//         |REGISTER OR REPLACE JDBC DATASOURCE qa_snowflake OPTIONS (
-//         |  url "jdbc:snowflake://te78713.ap-southeast-2.snowflakecomputing.com/?warehouse=WH_SMALL&db=SQL_DBM_IMPORT",
-//         |  driver "com.snowflake.client.jdbc.SnowflakeDriver",
-//         |  user "zdemo",
-//         |  password "P@404word!"
-//         |) NAMESPACE lightning.datasource.rdbms
-//         |""".stripMargin)
-//
-//    sparkSession.sql(s"show namespaces in lightning.datasource.rdbms.qa_snowflake").show(1000)
-//    sparkSession.sql(s"show namespaces in lightning.datasource.rdbms.qa_snowflake.DEMO_DB").show(1000)
-//    sparkSession.sql(s"show namespaces in lightning.datasource.rdbms.qa_snowflake.DEMO_DB.NYC").show(1000)
-//    sparkSession.sql(s"show tables in lightning.datasource.rdbms.qa_snowflake.DEMO_DB.BANKING").show(1000)
-//    sparkSession.sql(s"select * from lightning.datasource.rdbms.qa_snowflake.DEMO_DB.BANKING.CARD").show(1000)
-//  }
-
-  test("should register redshift dw") {
-    sparkSession.sql(s"DROP NAMESPACE IF EXISTS lightning.datasource.rdbms")
-    sparkSession.sql(s"CREATE NAMESPACE lightning.datasource.rdbms")
-
-    sparkSession.sql(
-      s"""
-         |REGISTER OR REPLACE JDBC DATASOURCE qa_redshift OPTIONS (
-         |  url "jdbc:redshift://zetaris.cyzoanxzdpje.ap-southeast-2.redshift.amazonaws.com:5439/zetredshift",
-         |  driver "com.amazon.redshift.Driver",
-         |  user "zetaris",
-         |  password "GE29rvqoCbcGsgJTfLmL"
-         |) NAMESPACE lightning.datasource.rdbms
-         |""".stripMargin)
-
-    sparkSession.sql(s"show namespaces in lightning.datasource.rdbms.qa_redshift").show(1000)
-    sparkSession.sql(s"show namespaces in lightning.datasource.rdbms.qa_redshift.zetredshift").show(1000)
-    sparkSession.sql(s"show namespaces in lightning.datasource.rdbms.qa_redshift.zetredshift.mcri_redcap").show(1000)
-    sparkSession.sql(s"show tables in lightning.datasource.rdbms.qa_redshift.zetredshift.mcri_redcap").show(1000)
-    sparkSession.sql(s"select * from lightning.datasource.rdbms.qa_redshift.zetredshift.mcri_redcap.observation_variable").show(1000)
-
-    sparkSession.sql(s"show tables in lightning.datasource.rdbms.qa_redshift.zetredshift.source_data2").show(1000)
-    sparkSession.sql(s"select * from lightning.datasource.rdbms.qa_redshift.zetredshift.source_data2.market_share").show(1000)
-  }
-
 }

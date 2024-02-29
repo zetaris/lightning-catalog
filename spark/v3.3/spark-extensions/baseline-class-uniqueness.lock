@@ -1,0 +1,6 @@
+# Danger! Multiple jars contain identically named classes. This may cause different behaviour depending on classpath ordering.
+# Run ./gradlew checkClassUniqueness --write-locks to update this file
+
+## runtimeClasspath
+[org.apache.spark:spark-avro_2.12, org.apache.spark:spark-tags_2.12, org.spark-project.spark:unused]
+  - org.apache.spark.unused.UnusedStubClass

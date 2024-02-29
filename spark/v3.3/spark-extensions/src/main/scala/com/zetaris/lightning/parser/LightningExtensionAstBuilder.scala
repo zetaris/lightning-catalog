@@ -20,7 +20,7 @@
 package com.zetaris.lightning.parser
 
 import com.zetaris.lightning.execution.command.{DataSourceType, RegisterCatalogSpec, RegisterDataSourceSpec}
-import com.zetaris.lightning.model.LightningModel
+import com.zetaris.lightning.model.LightningModelFactory
 import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.misc.Interval
 import org.antlr.v4.runtime.tree.ParseTree
@@ -61,7 +61,7 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
       throw new IllegalArgumentException(s"namespace must have at least three namespace : lightning.datasource|metastore.namespace")
     } else {
       val fqn = namespace.take(2).mkString(".").toLowerCase
-      if (!LightningModel.DEFAULT_NAMESPACES.exists(_.equals(fqn))) {
+      if (!LightningModelFactory.DEFAULT_NAMESPACES.exists(_.equals(fqn))) {
         throw new IllegalArgumentException(s"name space must be formed : lightning.datasource|metastore(.namespace)*")
       }
     }

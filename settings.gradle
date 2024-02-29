@@ -1,6 +1,5 @@
 rootProject.name = 'lightning-metastore'
 include 'spark'
-
 project(':spark').name = 'lightning-spark'
 
 
@@ -27,7 +26,7 @@ if (!knownHiveVersions.containsAll(hiveVersions)) {
 }
 
 List<String> knownSparkVersions = System.getProperty("knownSparkVersions").split(",")
-String sparkVersionsString = System.getProperty("sparkVersions") != null ? System.getProperty("sparkVersions") : System.getProperty("defaultSparkVersions")
+String sparkVersionsString = System.getProperty("sparkVersions") != null ? System.getProperty("sparkVersions") : System.getProperty("defaultSparkMajorVersion")
 List<String> sparkVersions = sparkVersionsString != null && !sparkVersionsString.isEmpty() ? sparkVersionsString.split(",") : []
 
 if (!knownSparkVersions.containsAll(sparkVersions)) {
@@ -41,14 +40,9 @@ if (!knownScalaVersions.contains(scalaVersion)) {
   throw new GradleException("Found unsupported Scala version: " + scalaVersion)
 }
 
-if (sparkVersions.contains("3.2")) {
-  include ":lightning-spark:spark-extensions-3.2_${scalaVersion}"
-  include ":lightning-spark:spark-runtime-3.2_${scalaVersion}"
-  project(":lightning-spark:spark-extensions-3.2_${scalaVersion}").projectDir = file('spark/v3.2/spark-extensions')
-  project(":lightning-spark:spark-extensions-3.2_${scalaVersion}").name = "lightning-spark-extensions-3.2_${scalaVersion}"
-  project(":lightning-spark:spark-runtime-3.2_${scalaVersion}").projectDir = file('spark/v3.2/spark-runtime')
-  project(":lightning-spark:spark-runtime-3.2_${scalaVersion}").name = "lightning-spark-runtime-3.2_${scalaVersion}"
-}
+include ":lightning-spark:spark-common_${scalaVersion}"
+project(":lightning-spark:spark-common_${scalaVersion}").projectDir = file("spark/spark-common")
+project(":lightning-spark:spark-common_${scalaVersion}").name = "lightning-spark-common_${scalaVersion}"
 
 if (sparkVersions.contains("3.3")) {
   include ":lightning-spark:spark-extensions-3.3_${scalaVersion}"
@@ -57,5 +51,14 @@ if (sparkVersions.contains("3.3")) {
   project(":lightning-spark:spark-extensions-3.3_${scalaVersion}").name = "lightning-spark-extensions-3.3_${scalaVersion}"
   project(":lightning-spark:spark-runtime-3.3_${scalaVersion}").projectDir = file('spark/v3.3/spark-runtime')
   project(":lightning-spark:spark-runtime-3.3_${scalaVersion}").name = "lightning-spark-runtime-3.3_${scalaVersion}"
+}
+
+if (sparkVersions.contains("3.5")) {
+  include ":lightning-spark:spark-extensions-3.5_${scalaVersion}"
+  include ":lightning-spark:spark-runtime-3.5_${scalaVersion}"
+  project(":lightning-spark:spark-extensions-3.5_${scalaVersion}").projectDir = file('spark/v3.5/spark-extensions')
+  project(":lightning-spark:spark-extensions-3.5_${scalaVersion}").name = "lightning-spark-extensions-3.5_${scalaVersion}"
+  project(":lightning-spark:spark-runtime-3.5_${scalaVersion}").projectDir = file('spark/v3.5/spark-runtime')
+  project(":lightning-spark:spark-runtime-3.5_${scalaVersion}").name = "lightning-spark-runtime-3.5_${scalaVersion}"
 }
 

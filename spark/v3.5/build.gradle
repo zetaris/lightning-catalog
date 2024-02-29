@@ -1,0 +1,170 @@
+String sparkVersion = '3.5.0'
+String sparkMajorVersion = '3.5'
+String scalaVersion = System.getProperty("scalaVersion") != null ? System.getProperty("scalaVersion") : System.getProperty("defaultScalaVersion")
+
+def sparkProjects = [
+    project(":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scalaVersion}"),
+    project(":lightning-spark:lightning-spark-runtime-${sparkMajorVersion}_${scalaVersion}"),
+]
+
+configure(sparkProjects) {
+  configurations {
+    all {
+      resolutionStrategy {
+        force 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+      }
+    }
+  }
+}
+
+project(":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scalaVersion}") {
+  apply plugin: 'java-library'
+  apply plugin: 'scala'
+  //apply plugin: 'com.github.alisiikh.scalastyle'
+  apply plugin: 'antlr'
+
+  configurations {
+    /*
+     The Gradle Antlr plugin erroneously adds both antlr-build and runtime dependencies to the runtime path. This
+     bug https://github.com/gradle/gradle/issues/820 exists because older versions of Antlr do not have separate
+     runtime and implementation dependencies and they do not want to break backwards compatibility. So to only end up with
+     the runtime dependency on the runtime classpath we remove the dependencies added by the plugin here. Then add
+     the runtime dependency back to only the runtime configuration manually.
+    */
+    implementation {
+      extendsFrom = extendsFrom.findAll { it != configurations.antlr }
+    }
+  }
+
+  dependencies {
+    implementation("org.scala-lang.modules:scala-collection-compat_${scalaVersion}")
+
+    compileOnly "org.scala-lang:scala-library:${scalaVersion}"
+    compileOnly("org.apache.spark:spark-hive_${scalaVersion}:${sparkVersion}")
+    compileOnly project(":lightning-spark:lightning-spark-common_${scalaVersion}")
+
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "org.scalatest:scalatest_${scalaVersion}:3.2.15"
+    testImplementation "org.scalatest:scalatest-matchers-core_${scalaVersion}:3.2.15"
+    testImplementation "org.scalatestplus:junit-4-13_${scalaVersion}:3.2.2.0"
+
+    testImplementation "org.apache.avro:avro"
+    testImplementation "org.apache.orc:orc-core"
+    testImplementation "org.apache.parquet:parquet-hadoop"
+    testImplementation "com.h2database:h2:2.1.214"
+    testImplementation "net.snowflake:snowflake-jdbc:3.14.4"
+    testImplementation "com.amazon.redshift:redshift-jdbc42:2.1.0.25"
+
+    compileOnly ("org.apache.iceberg:iceberg-spark-${sparkMajorVersion}_${scalaVersion}:1.4.3")
+    compileOnly ("org.apache.iceberg:iceberg-spark-extensions-${sparkMajorVersion}_${scalaVersion}:1.4.3")
+    compileOnly ("io.delta:delta-spark_${scalaVersion}:3.0.0")
+    compileOnly ("org.apache.spark:spark-avro_${scalaVersion}:${sparkVersion}")
+    implementation("com.databricks:spark-xml_${scalaVersion}:0.17.0")
+
+    // Required because we remove antlr plugin dependencies from the compile configuration, see note above
+    runtimeOnly "org.antlr:antlr4-runtime:4.8"
+    antlr "org.antlr:antlr4:4.8"
+  }
+
+  generateGrammarSource {
+    maxHeapSize = "2048m"
+    arguments += ['-visitor']
+    //arguments += ['-visitor', '-package', 'org.apache.spark.sql.catalyst.parser.extensions']
+  }
+}
+
+project(":lightning-spark:lightning-spark-runtime-${sparkMajorVersion}_${scalaVersion}") {
+  apply plugin: 'com.github.johnrengelman.shadow'
+
+  tasks.jar.dependsOn tasks.shadowJar
+
+  sourceSets {
+    integration {
+      java.srcDir "$projectDir/src/integration/java"
+      resources.srcDir "$projectDir/src/integration/resources"
+    }
+  }
+
+  configurations {
+    implementation {
+      exclude group: 'org.apache.spark'
+      // included in Spark
+      exclude group: 'org.slf4j'
+      exclude group: 'org.apache.commons'
+      exclude group: 'commons-pool'
+      exclude group: 'commons-codec'
+      exclude group: 'org.xerial.snappy'
+      exclude group: 'javax.xml.bind'
+      exclude group: 'javax.annotation'
+      exclude group: 'com.github.luben'
+      exclude group: 'com.ibm.icu'
+      exclude group: 'org.glassfish'
+      exclude group: 'org.abego.treelayout'
+      exclude group: 'org.antlr'
+      exclude group: 'org.scala-lang'
+      exclude group: 'org.scala-lang.modules'
+    }
+  }
+
+  dependencies {
+    implementation project(":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scalaVersion}")
+    implementation 'com.github.ben-manes.caffeine:caffeine:2.9.3'
+
+    integrationImplementation "org.scala-lang.modules:scala-collection-compat_${scalaVersion}"
+    integrationImplementation "org.apache.spark:spark-hive_${scalaVersion}:${sparkVersion}"
+    integrationImplementation 'org.junit.vintage:junit-vintage-engine'
+    integrationImplementation 'org.slf4j:slf4j-simple'
+    integrationImplementation project(path: ":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scalaVersion}", configuration: 'testArtifacts')
+    // Not allowed on our classpath, only the runtime jar is allowed
+    integrationCompileOnly project(":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scalaVersion}")
+  }
+
+  shadowJar {
+    configurations = [project.configurations.runtimeClasspath]
+
+    zip64 true
+
+    // include the LICENSE and NOTICE files for the shaded Jar
+    from(projectDir) {
+      include 'LICENSE'
+      include 'NOTICE'
+    }
+
+    // Relocate dependencies to avoid conflicts
+//    relocate 'com.google', 'com.zetaris.shaded.com.google'
+//    relocate 'com.fasterxml', 'com.zetaris.shaded.com.fasterxml'
+//    relocate 'com.github.benmanes', 'com.zetaris.shaded.com.github.benmanes'
+//    relocate 'org.checkerframework', 'com.zetaris.shaded.org.checkerframework'
+//    relocate 'org.apache.avro', 'com.zetaris.shaded.org.apache.avro'
+//    relocate 'avro.shaded', 'com.zetaris.shaded.org.apache.avro.shaded'
+//    relocate 'com.thoughtworks.paranamer', 'com.zetaris.shaded.com.thoughtworks.paranamer'
+//    relocate 'org.apache.parquet', 'com.zetaris.shaded.org.apache.parquet'
+//    relocate 'shaded.parquet', 'com.zetaris.shaded.org.apache.parquet.shaded'
+//    relocate 'org.apache.orc', 'com.zetaris.shaded.org.apache.orc'
+//    relocate 'io.airlift', 'com.zetaris.shaded.io.airlift'
+//    relocate 'org.apache.httpcomponents.client5', 'com.zetaris.shaded.org.apache.httpcomponents.client5'
+//    // relocate Arrow and related deps to shade Iceberg specific version
+//    relocate 'io.netty', 'com.zetaris.shaded.io.netty'
+//    relocate 'org.apache.arrow', 'com.zetaris.shaded.org.apache.arrow'
+//    relocate 'com.carrotsearch', 'com.zetaris.shaded.com.carrotsearch'
+//    relocate 'org.threeten.extra', 'com.zetaris.shaded.org.threeten.extra'
+//    relocate 'org.roaringbitmap', 'com.zetaris.shaded.org.roaringbitmap'
+
+    classifier null
+  }
+
+  task integrationTest(type: Test) {
+    description = "Test Spark3 Runtime Jar against Spark ${sparkMajorVersion}"
+    group = "verification"
+    testClassesDirs = sourceSets.integration.output.classesDirs
+    classpath = sourceSets.integration.runtimeClasspath + files(shadowJar.archiveFile.get().asFile.path)
+    inputs.file(shadowJar.archiveFile.get().asFile.path)
+  }
+  integrationTest.dependsOn shadowJar
+  check.dependsOn integrationTest
+
+  jar {
+    enabled = false
+  }
+}
+

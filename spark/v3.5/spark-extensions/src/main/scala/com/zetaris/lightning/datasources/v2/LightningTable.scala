@@ -17,37 +17,19 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package com.zetaris.lightning.execution.command
+package com.zetaris.lightning.datasources.v2
 
-import com.zetaris.lightning.model.LightningModel
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.execution.command.LeafRunnableCommand
-import org.apache.spark.sql.Row
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.connector.catalog.SupportsRead
+import org.apache.spark.sql.connector.catalog.Table
+import org.apache.spark.sql.connector.catalog.TableCapability
+import org.apache.spark.sql.connector.catalog.TableCapability.BATCH_READ
+import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-import scala.collection.JavaConverters.mapAsJavaMap
+case class LightningTable(override val name: String, override val schema: StructType) extends Table with SupportsRead {
 
-abstract class LightningCommandBase extends LeafRunnableCommand {
-  override def makeCopy(newArgs: Array[AnyRef]): LogicalPlan = this
 
-  def beforeRun(sparkSession: SparkSession): Unit = {}
+  override def capabilities(): java.util.Set[TableCapability] =  java.util.EnumSet.of(BATCH_READ)
 
-  def afterRun(sparkSession: SparkSession, results: Seq[Row]): Seq[Row] = {
-    results
-  }
-
-  def runCommand(sparkSession: SparkSession): Seq[Row]
-
-  protected def dataSourceConfigMap(prefix: String, sparkSession: SparkSession): CaseInsensitiveStringMap = {
-    val sparkConf = sparkSession.sparkContext.getConf
-    new CaseInsensitiveStringMap(
-      mapAsJavaMap(sparkConf.getAllWithPrefix(s"${LightningModel.LIGHTNING_CATALOG}.").toMap)
-    )
-  }
-
-  override def run(sparkSession: SparkSession): Seq[Row] = {
-    beforeRun(sparkSession)
-    afterRun(sparkSession, runCommand(sparkSession))
-  }
+  override def newScanBuilder(options: CaseInsensitiveStringMap): LightningScanBuilder = ???
 }

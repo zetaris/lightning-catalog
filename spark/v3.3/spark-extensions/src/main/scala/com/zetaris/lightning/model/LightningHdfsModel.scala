@@ -21,8 +21,6 @@ package com.zetaris.lightning.model
 
 import com.zetaris.lightning.catalog.LightningCatalogCache
 import com.zetaris.lightning.execution.command.DataSourceType.FileTypeSource
-import com.zetaris.lightning.model.LightningModel.LightningModel
-import com.zetaris.lightning.model.LightningModel.toFqn
 import com.zetaris.lightning.model.serde.DataSource.DataSource
 import com.zetaris.lightning.model.serde.DataSource.toJson
 import com.zetaris.lightning.model.serde.mapToJson
@@ -33,11 +31,11 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 // TODO : Convert FileSystem API to HDFS API
 class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel {
-  if (!prop.containsKey(LightningModel.LIGHTNING_MODEL_WAREHOUSE_KEY)) {
-    throw new RuntimeException(s"${LightningModel.LIGHTNING_MODEL_WAREHOUSE_KEY} is not set in spark conf")
+  if (!prop.containsKey(LightningModelFactory.LIGHTNING_MODEL_WAREHOUSE_KEY)) {
+    throw new RuntimeException(s"${LightningModelFactory.LIGHTNING_MODEL_WAREHOUSE_KEY} is not set in spark conf")
   }
 
-  private val modelDir = prop.get(LightningModel.LIGHTNING_MODEL_WAREHOUSE_KEY)
+  private val modelDir = prop.get(LightningModelFactory.LIGHTNING_MODEL_WAREHOUSE_KEY)
   val DATASOURCE_DIR = "datasource"
   val METASTORE_DIR = "metastore"
 
@@ -110,6 +108,18 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
   }
 
   /**
+   * Drop datasource definition json file in the given namespace
+   * @param namespace
+   * @param name
+   */
+  def dropDataSource(namespace: Array[String], name: String): Unit = {
+    val subDir = nameSpaceToDir(namespace)
+    val fullPath = s"$modelDir/$subDir/${name}_ds.json"
+
+    FileSystemUtils.deleteFile(fullPath)
+  }
+
+  /**
    * list namespace, sub directories or data source definition under the given namespace
    * _fs.json suffix is for file source and _ds.json suffix is for other type of data source
    *
@@ -173,7 +183,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
     val fullPath = s"$modelDir/$subDir"
     val subNamespaces = FileSystemUtils.listDirectories(fullPath)
     if (!cascade && subNamespaces.nonEmpty) {
-      throw new RuntimeException(s"${LightningModel.toFqn(namespace)} has sub namespaces")
+      throw new RuntimeException(s"${LightningModelFactory.toFqn(namespace)} has sub namespaces")
     }
 
     FileSystemUtils.deleteDirectory(fullPath)
@@ -194,7 +204,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
     val subDir = nameSpaceToDir(namespace)
     FileSystemUtils.createFolderIfNotExist(s"$modelDir/$subDir")
 
-    val table = serde.Table.Table(toFqn(dsNamespace), schema)
+    val table = serde.Table.Table(LightningModelFactory.toFqn(dsNamespace), schema)
     val json = serde.Table.toJson(table)
 
     val fullPath = s"$modelDir/$subDir/${name}_table.json"
@@ -212,7 +222,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
     val fullPath = s"$modelDir/$subDir/${ident.name()}_table.json"
     val json = FileSystemUtils.readFile(fullPath)
     val table = serde.Table(json)
-    val targetNamespace = LightningModel.toMultiPartIdentifier(table.dsNamespace).toArray
+    val targetNamespace = LightningModelFactory.toMultiPartIdentifier(table.dsNamespace).toArray
     LightningCatalogCache.catalog.loadTable(table.schema, Identifier.of(targetNamespace, ident.name()))
   }
 }

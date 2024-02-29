@@ -176,4 +176,59 @@ class RegisterFileDataSourceTestSuite extends SparkExtensionsTestBase with TestD
       Seq())
   }
 
+  test("should run query over multiline json file") {
+    val tableName = "json_taxis"
+    //registerFileDataSource(tableName, "json")
+
+//    sparkSession.sql(
+//      s"""
+//         |REGISTER OR REPLACE JSON DATASOURCE nation OPTIONS (
+//         |path "/tmp/ligt-test/nation.json",
+//         |multiLine "true",
+//         |allowUnquotedFieldNames "true",
+//         |dropFieldIfAllNull "true"
+//         |) NAMESPACE lightning.datasource.file
+//         |""".stripMargin)
+//
+//
+//    sparkSession.sql("select * from lightning.datasource.file.nation").show()
+
+    sparkSession.sql(
+      s"""
+         |create temporary view nation using json options (
+         |path "/tmp/ligt-test/nation.json",
+         |multiLine "true"
+         |)
+         |""".stripMargin)
+
+    sparkSession.sql("select * from nation").show()
+
+
+//    val df = sparkSession.read.option("multiline","true").json("/tmp/ligt-test/nation.json")
+//    df.show()
+  }
+
+  private def registerDataSource(sourceType: String, namespace: String): Unit = {
+    sparkSession.sql(s"CREATE NAMESPACE lightning.datasource.file.$namespace")
+    sparkSession.sql(
+      s"""
+         |REGISTER OR REPLACE $sourceType DATASOURCE nation_avro OPTIONS (
+         |path "dummy"
+         |) NAMESPACE lightning.datasource.file.$namespace
+         |""".stripMargin)
+
+  }
+
+  test("should register table over namespace having reserved keyword") {
+    registerDataSource("avro", "avro")
+    registerDataSource("json", "json")
+    registerDataSource("csv", "csv")
+    registerDataSource("xml", "xml")
+    registerDataSource("parquet", "parquet")
+    registerDataSource("orc", "orc")
+    registerDataSource("orc", "jdbc")
+    registerDataSource("orc", "iceberg")
+    registerDataSource("delta", "delta")
+  }
+
 }

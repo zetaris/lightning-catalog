@@ -23,7 +23,7 @@
 package com.zetaris.lightning.execution.command
 
 import com.zetaris.lightning.execution.command.DataSourceType._
-import com.zetaris.lightning.model.LightningModel
+import com.zetaris.lightning.model.LightningModelFactory
 import com.zetaris.lightning.model.serde.DataSource
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
@@ -33,43 +33,6 @@ import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import java.util.regex.Pattern
-
-object DataSourceType {
-  val allTypes = Seq("JDBC", "ICEBERG", "DELTA", "ORC", "PARQUET", "CSV", "JSON", "XML", "REST")
-
-  def apply(value: String): DataSourceType = {
-    value.toUpperCase match {
-      case "JDBC" => JDBC
-      case "ICEBERG" => ICEBERG
-      case "ORC" => ORC
-      case "PARQUET" => PARQUET
-      case "DELTA" => DELTA
-      case "AVRO" => AVRO
-      case "CSV" => CSV
-      case "JSON" => JSON
-      case "XML" => XML
-      case "REST" => REST
-      case _ => throw new IllegalArgumentException(s"$value is not supported")
-    }
-  }
-
-  sealed trait DataSourceType
-  case object JDBC extends DataSourceType
-
-  case object ICEBERG extends DataSourceType
-  case object DELTA extends DataSourceType
-
-  sealed trait FileTypeSource extends DataSourceType
-  case object ORC extends FileTypeSource
-  case object AVRO extends FileTypeSource
-  case object PARQUET extends FileTypeSource
-
-  case object CSV extends FileTypeSource
-  case object XML extends FileTypeSource
-  case object JSON extends FileTypeSource
-
-  case object REST extends DataSourceType
-}
 
 case class RegisterDataSourceSpec(namespace: Array[String],
                                   name: String,
@@ -126,7 +89,7 @@ case class RegisterDataSourceSpec(namespace: Array[String],
   }
 
   override def runCommand(sparkSession: SparkSession): Seq[Row] = {
-    val model = LightningModel(dataSourceConfigMap(s"${LightningModel.LIGHTNING_CATALOG}.",
+    val model = LightningModelFactory(dataSourceConfigMap(s"${LightningModelFactory.LIGHTNING_CATALOG}.",
       sparkSession))
     val withoutCatalog = namespace.drop(1)
     val parentNamespace = withoutCatalog.dropRight(1)

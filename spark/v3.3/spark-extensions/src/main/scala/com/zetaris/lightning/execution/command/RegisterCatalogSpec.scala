@@ -22,7 +22,7 @@
 package com.zetaris.lightning.execution.command
 
 import com.zetaris.lightning.catalog.LightningCatalogCache
-import com.zetaris.lightning.model.LightningModel
+import com.zetaris.lightning.model.LightningModelFactory
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
@@ -70,7 +70,7 @@ case class RegisterCatalogSpec(namespace: Array[String],
       val baseNamespace = namespace.drop(1) :+ catalog
       val namespaceIngesting = sourceNamespace.diff(source)
       val targetNamespace = baseNamespace ++ namespaceIngesting
-      val existing = LightningModel.cached.listTables(targetNamespace ++ namespaceIngesting)
+      val existing = LightningModelFactory.cached.listTables(targetNamespace ++ namespaceIngesting)
       nameAndSchema.foreach { case (name, _) =>
         if(existing.find(_.equalsIgnoreCase(name)).isDefined && !replace) {
           throw new RuntimeException(s"table : $name is already registered. Add REPLACE option to overwrite")
@@ -78,7 +78,7 @@ case class RegisterCatalogSpec(namespace: Array[String],
       }
 
       nameAndSchema.map { case (name, schema) =>
-        LightningModel.cached.saveTable(sourceNamespace, targetNamespace, name, schema)
+        LightningModelFactory.cached.saveTable(sourceNamespace, targetNamespace, name, schema)
         1
       }.sum
     }

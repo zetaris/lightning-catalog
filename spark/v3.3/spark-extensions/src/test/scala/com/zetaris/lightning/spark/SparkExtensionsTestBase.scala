@@ -19,7 +19,7 @@
 
 package com.zetaris.lightning.spark
 
-import com.zetaris.lightning.model.LightningModel
+import com.zetaris.lightning.model.{LightningModel, LightningModelFactory}
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.util.sideBySide
 import org.apache.spark.sql.catalyst.util.stackTraceToString
@@ -28,10 +28,10 @@ import org.apache.spark.sql.{AnalysisException, DataFrame, Dataset, Row, SparkSe
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-import scala.collection.JavaConverters._
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.funsuite.AnyFunSuite
+import scala.collection.JavaConverters._
 
 import java.util.TimeZone
 
@@ -44,7 +44,7 @@ abstract class SparkExtensionsTestBase extends AnyFunSuite with BeforeAndAfterAl
   val LIGHTNING_ACCESS_CONTROL_PROVIDER = "spark.sql.catalog.lightning.accessControlProvider"
   val SPARK_CATALOG = "spark.sql.catalog.spark_catalog"
 
-  var model: LightningModel.LightningModel = null
+  var model: LightningModel = null
 
   override def beforeAll(): Unit = {
     sparkSession = SparkSession.builder()
@@ -52,8 +52,8 @@ abstract class SparkExtensionsTestBase extends AnyFunSuite with BeforeAndAfterAl
       .config("spark.testing", "true")
       .config(SQLConf.PARTITION_OVERWRITE_MODE.key, "dynamic")
       .config("spark.sql.extensions",
-        "spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension,org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,com.zetaris.lightning.spark.LightningSparkSessionExtension")
-      .config(LightningModel.LIGHTNING_CATALOG, "com.zetaris.lightning.catalog.LightningCatalog")
+        "io.delta.sql.DeltaSparkSessionExtension,com.zetaris.lightning.spark.LightningSparkSessionExtension")
+      .config(LightningModelFactory.LIGHTNING_CATALOG, "com.zetaris.lightning.catalog.LightningCatalog")
       .config(LIGHTNING_MODEL_TYPE_KEY, MODEL_TYPE)
       .config(LIGHTNING_MODEL_WAREHOUSE_KEY, MODEL_DIR)
       .config(LIGHTNING_ACCESS_CONTROL_PROVIDER, "com.zetaris.lightning.analysis.NotAppliedAccessControlProvider")
@@ -64,7 +64,7 @@ abstract class SparkExtensionsTestBase extends AnyFunSuite with BeforeAndAfterAl
 
     val options = Map("type" -> MODEL_TYPE, "warehouse" -> MODEL_DIR)
 
-    model = LightningModel(new CaseInsensitiveStringMap(mapAsJavaMap(options)))
+    model = LightningModelFactory(new CaseInsensitiveStringMap(mapAsJavaMap(options)))
 
   }
 

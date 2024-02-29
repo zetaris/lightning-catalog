@@ -1,0 +1,59 @@
+/*
+ *
+ *  * Copyright 2023 ZETARIS Pty Ltd
+ *  *
+ *  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+ *  * associated documentation files (the "Software"), to deal in the Software without restriction,
+ *  * including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ *  * and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
+ *  * subject to the following conditions:
+ *  *
+ *  * The above copyright notice and this permission notice shall be included in all copies
+ *  * or substantial portions of the Software.
+ *  *
+ *  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ *  * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ *  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
+
+String sparkVersion = System.getProperty("defaultSparkVersion")
+String scalaVersion = System.getProperty("scalaVersion") != null ? System.getProperty("scalaVersion") : System.getProperty("defaultScalaVersion")
+
+project(":lightning-spark:lightning-spark-common_${scalaVersion}") {
+  apply plugin: 'java-library'
+  apply plugin: 'scala'
+
+  configurations {
+    all {
+      resolutionStrategy {
+        force 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+      }
+    }
+  }
+
+  dependencies {
+    implementation("org.scala-lang.modules:scala-collection-compat_${scalaVersion}")
+
+    compileOnly "org.scala-lang:scala-library:${scalaVersion}"
+    compileOnly("org.apache.spark:spark-hive_${scalaVersion}:${sparkVersion}")
+
+    compileOnly ("org.apache.spark:spark-avro_${scalaVersion}:${sparkVersion}")
+
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "org.scalatest:scalatest_${scalaVersion}:3.2.15"
+    testImplementation "org.scalatest:scalatest-matchers-core_${scalaVersion}:3.2.15"
+    testImplementation "org.scalatestplus:junit-4-13_${scalaVersion}:3.2.2.0"
+
+    testImplementation "org.apache.avro:avro"
+    testImplementation "org.apache.orc:orc-core"
+    testImplementation "org.apache.parquet:parquet-hadoop"
+    testImplementation "com.h2database:h2:2.1.214"
+    testImplementation "net.snowflake:snowflake-jdbc:3.14.4"
+    testImplementation "com.amazon.redshift:redshift-jdbc42:2.1.0.25"
+
+  }
+}
+

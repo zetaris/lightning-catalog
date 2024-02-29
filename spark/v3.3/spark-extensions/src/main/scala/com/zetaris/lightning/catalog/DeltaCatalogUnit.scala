@@ -21,7 +21,6 @@
 
 package com.zetaris.lightning.catalog
 
-import com.zetaris.lightning.catalog.CatalogUnit.CatalogUnit
 import com.zetaris.lightning.util.FileSystemUtils
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.catalog.Identifier
@@ -30,6 +29,7 @@ import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.delta.catalog.DeltaCatalog
 import org.apache.spark.sql.types.StructType
 
+// we're using different version along with spark version.
 case class DeltaCatalogUnit(dsName: String, properties: Map[String, String]) extends CatalogUnit {
   val SESSION_CATALOG_NAME: String = "spark_catalog"
   val deltaCatalog: DeltaCatalog = {

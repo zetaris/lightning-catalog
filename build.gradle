@@ -136,7 +136,7 @@ String getProjectVersion() {
   if (versionFileExists()) {
     return getVersionFromFile()
   }
-  return "o.1"
+  return "0.1"
 }
 
 String getJavadocVersion() {
