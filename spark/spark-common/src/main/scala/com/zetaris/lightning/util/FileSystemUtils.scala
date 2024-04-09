@@ -103,8 +103,22 @@ object FileSystemUtils {
     FileUtils.readFileToString(file, Charset.defaultCharset)
   }
 
+  /**
+   * delete directory
+   * @param dir
+   */
   def deleteDirectory(dir: String): Unit = {
     val file = new File(dir)
     FileUtils.deleteDirectory(file)
   }
+
+  /**
+   * delete file
+   * @param path
+   */
+  def deleteFile(path: String): Unit = {
+    val file = new File(path)
+    FileUtils.delete(file)
+  }
+
 }

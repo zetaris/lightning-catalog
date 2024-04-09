@@ -52,7 +52,7 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces with MetaDat
     }
   }
 
-  private def lookupDataSourceDefinition(namespace: Array[String], name: String = null): Option[DataSource] = {
+  private def findParentDataSource(namespace: Array[String], name: String = null): Option[DataSource] = {
     var dsName = if (name == null ) {
       namespace.last
     } else {
@@ -77,7 +77,7 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces with MetaDat
   }
 
   override def listTables(namespace: Array[String]): Array[Identifier] = {
-    lookupDataSourceDefinition(namespace) match {
+    findParentDataSource(namespace) match {
       case Some(datasource) =>
         CatalogUnitFactory(datasource) match {
           case delta @DeltaCatalogUnit(_, _) =>
@@ -104,7 +104,7 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces with MetaDat
       case "metastore" =>
         LightningCatalogUnit(namespace(0), model).loadTable(ident)
       case "datasource" =>
-        lookupDataSourceDefinition(ident.namespace(), ident.name()) match {
+        findParentDataSource(ident.namespace(), ident.name()) match {
           case Some(datasource) =>
             val catalog = CatalogUnitFactory(datasource)
             val sourceNamespace = ident.namespace().drop(datasource.namespace.length + 1)
@@ -121,7 +121,7 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces with MetaDat
                            schema: StructType,
                            partitions: Array[Transform],
                            properties: java.util.Map[String, String]): Table = {
-    lookupDataSourceDefinition(ident.namespace()) match {
+    findParentDataSource(ident.namespace()) match {
       case Some(datasource) =>
         val catalog = CatalogUnitFactory(datasource)
         val sourceNamespace = ident.namespace().drop(datasource.namespace.length + 1)
@@ -137,7 +137,7 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces with MetaDat
 
   override def dropTable(ident: Identifier): Boolean = {
     val namespace = ident.namespace()
-    lookupDataSourceDefinition(namespace) match {
+    findParentDataSource(namespace) match {
       case Some(datasource) =>
         val catalog = CatalogUnitFactory(datasource)
         val sourceNamespace = namespace.drop(datasource.namespace.length + 1)
@@ -161,7 +161,7 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces with MetaDat
   }
 
   override def listNamespaces(namespace: Array[String]): Array[Array[String]] = {
-    lookupDataSourceDefinition(namespace) match {
+    findParentDataSource(namespace) match {
       case Some(datasource) =>
         val catalog = CatalogUnitFactory(datasource)
         val sourceNamespace = namespace.drop(datasource.namespace.length + 1)
@@ -186,7 +186,7 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces with MetaDat
 
 
   override def namespaceExists(namespace: Array[String]): Boolean = {
-    lookupDataSourceDefinition(namespace) match {
+    findParentDataSource(namespace) match {
       case Some(datasource) =>
         val catalog = CatalogUnitFactory(datasource)
         val sourceNamespace = namespace.drop(datasource.namespace.length + 1)
@@ -198,12 +198,12 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces with MetaDat
         }
       case None =>
         val parent = namespace.dropRight(1)
-        return model.listNamespaces(parent).exists(_.equalsIgnoreCase(namespace.last))
+        model.listNamespaces(parent).exists(_.equalsIgnoreCase(namespace.last))
     }
   }
 
   override def createNamespace(namespace: Array[String], metadata: java.util.Map[String, String]): Unit = {
-    lookupDataSourceDefinition(namespace) match {
+    findParentDataSource(namespace) match {
       case Some(datasource) =>
         val catalog = CatalogUnitFactory(datasource)
         val sourceNamespace = namespace.drop(datasource.namespace.length + 1)
@@ -225,7 +225,7 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces with MetaDat
       }
     }
 
-    lookupDataSourceDefinition(namespace) match {
+    findParentDataSource(namespace) match {
       case Some(datasource) =>
         val catalog = CatalogUnitFactory(datasource)
         val sourceNamespace = namespace.drop(datasource.namespace.length + 1)
@@ -243,7 +243,7 @@ class LightningCatalog extends TableCatalog with SupportsNamespaces with MetaDat
 
   override def tableExists(ident: Identifier): Boolean = {
     val namespace = ident.namespace()
-    lookupDataSourceDefinition(namespace) match {
+    findParentDataSource(namespace) match {
       case Some(datasource) =>
         val catalog = CatalogUnitFactory(datasource)
         val sourceNamespace = namespace.drop(datasource.namespace.length + 1)

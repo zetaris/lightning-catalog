@@ -193,15 +193,15 @@ class RegisterFileDataSourceTestSuite extends SparkExtensionsTestBase with TestD
 //
 //    sparkSession.sql("select * from lightning.datasource.file.nation").show()
 
-    sparkSession.sql(
-      s"""
-         |create temporary view nation using json options (
-         |path "/tmp/ligt-test/nation.json",
-         |multiLine "true"
-         |)
-         |""".stripMargin)
-
-    sparkSession.sql("select * from nation").show()
+//    sparkSession.sql(
+//      s"""
+//         |create temporary view nation using json options (
+//         |path "/tmp/ligt-test/nation.json",
+//         |multiLine "true"
+//         |)
+//         |""".stripMargin)
+//
+//    sparkSession.sql("select * from nation").show()
 
 
 //    val df = sparkSession.read.option("multiline","true").json("/tmp/ligt-test/nation.json")

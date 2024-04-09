@@ -32,7 +32,7 @@ object CatalogUnitFactory {
 
     dataSource.dataSourceType match {
       case JDBC => JDBCDataSourceCatalogUnit(dataSource.name, properties)
-      case ICEBERG => IcebergCatalogUnit(dataSource.name, properties)
+      case ICEBERG =>  IcebergCatalogUnit(dataSource.name, properties)
       case DELTA => DeltaCatalogUnit(dataSource.name, properties)
       case PARQUET | ORC | AVRO | CSV | JSON => FileCatalogUnit(dataSource, LightningModelFactory.cached)
       case _ => ???

@@ -21,7 +21,8 @@ package com.zetaris.lightning.catalog
 
 import org.apache.spark.sql.catalyst.analysis.{NoSuchNamespaceException, NoSuchTableException}
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
-import org.apache.spark.sql.connector.catalog.{Identifier, Table}
+import org.apache.spark.sql.connector.catalog.Identifier
+import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.datasources.jdbc.{JDBCOptions, JDBCRDD, JdbcUtils}
 import org.apache.spark.sql.execution.datasources.v2.jdbc.{JDBCTable, JDBCTableCatalog}
@@ -32,8 +33,8 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import java.sql.SQLException
 import scala.collection.JavaConverters.mapAsJavaMap
 
-case class JDBCDataSourceCatalogUnit(catalog: String, properties: Map[String, String])
-  extends CatalogUnit with LightningSource {
+case class JDBCDataSourceCatalogUnit(catalog: String, properties: Map[String, String]) extends CatalogUnit
+  with LightningSource {
 
   private def buildJDBCTableCatalog(namespace: Array[String],
                                     extra: Map[String, String] = Map.empty): JDBCTableCatalog = {

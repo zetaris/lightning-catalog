@@ -77,7 +77,10 @@ project(":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scal
 project(":lightning-spark:lightning-spark-runtime-${sparkMajorVersion}_${scalaVersion}") {
   apply plugin: 'com.github.johnrengelman.shadow'
 
-  tasks.jar.dependsOn tasks.shadowJar
+  apply plugin: 'java-library-distribution'
+
+  //tasks.jar.dependsOn tasks.shadowJar
+  tasks.jar
 
   sourceSets {
     integration {
@@ -89,6 +92,7 @@ project(":lightning-spark:lightning-spark-runtime-${sparkMajorVersion}_${scalaVe
   configurations {
     implementation {
       exclude group: 'org.apache.spark'
+
       // included in Spark
       exclude group: 'org.slf4j'
       exclude group: 'org.apache.commons'
@@ -104,6 +108,7 @@ project(":lightning-spark:lightning-spark-runtime-${sparkMajorVersion}_${scalaVe
       exclude group: 'org.antlr'
       exclude group: 'org.scala-lang'
       exclude group: 'org.scala-lang.modules'
+      exclude group: 'com.fasterxml.jackson.core'
     }
   }
 
@@ -166,6 +171,17 @@ project(":lightning-spark:lightning-spark-runtime-${sparkMajorVersion}_${scalaVe
 
   jar {
     enabled = false
+  }
+
+  distributions {
+    main {
+      distributionBaseName = 'lightning-metastore'
+      contents {
+        from 'LICENSE'
+        from 'NOTICE'
+        from 'docs'
+      }
+    }
   }
 }
 

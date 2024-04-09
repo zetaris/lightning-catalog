@@ -40,7 +40,7 @@ case class IcebergCatalogUnit(dsName: String, properties: Map[String, String]) e
 
   // namespace is starting with lightning.datasource(.namespace)*
   override def listNamespaces(namespace: Array[String]): Array[Array[String]] = {
-    icebergSparkCatalog.listNamespaces()
+    icebergSparkCatalog.listNamespaces(namespace)
   }
 
   override def createNamespace(namespace: Array[String], metadata: java.util.Map[String, String]): Unit = {
@@ -48,8 +48,7 @@ case class IcebergCatalogUnit(dsName: String, properties: Map[String, String]) e
   }
 
   override def listTables(namespace: Array[String]): Array[Identifier] = {
-    val fromSchema = Array(namespace.last)
-    icebergSparkCatalog.listTables(fromSchema)
+    icebergSparkCatalog.listTables(namespace)
   }
 
   override def loadTable(ident: Identifier): Table = {
