@@ -22,7 +22,6 @@ gradle/
 gradle/wrapper/gradle-wrapper.jar
 
 # rat library install location
-lib/
 
 # web site build
 site/site
@@ -52,7 +51,6 @@ coverage.xml
 .classpath
 .project
 .settings
-bin/
 
 # Hive/metastore files
 metastore_db/
