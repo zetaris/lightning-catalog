@@ -25,12 +25,11 @@ import org.apache.spark.sql.SparkSessionExtensions
 class LightningSparkSessionExtension extends (SparkSessionExtensions => Unit){
   override def apply(extensions: SparkSessionExtensions): Unit = {
 
-    val deltaExtension = new io.delta.sql.DeltaSparkSessionExtension
-    deltaExtension(extensions)
+//    val deltaExtension = new io.delta.sql.DeltaSparkSessionExtension
+//    deltaExtension(extensions)
 
-    // This should be done in CLI
-//    val icebergExtension = new org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
-//    icebergExtension(extensions)
+    val icebergExtension = new org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
+    icebergExtension(extensions)
 
     extensions.injectParser {
       case (sc, parser) => new LightningExtendedParser(parser)

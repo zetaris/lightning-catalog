@@ -19,13 +19,13 @@
 
 package com.zetaris.lightning.spark
 
-import com.zetaris.lightning.model.LightningModel
+import com.zetaris.lightning.model.{LightningModel, LightningModelFactory}
 import org.apache.spark.sql.catalyst.ExtendedAnalysisException
 import org.apache.spark.sql.catalyst.plans.logical
 import org.apache.spark.sql.catalyst.util.sideBySide
 import org.apache.spark.sql.catalyst.util.stackTraceToString
 import org.apache.spark.sql.execution.SQLExecution
-import org.apache.spark.sql.{AnalysisException, DataFrame, Dataset, Row, SparkSession}
+import org.apache.spark.sql.{DataFrame, Dataset, Row, SparkSession}
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
@@ -45,16 +45,17 @@ abstract class SparkExtensionsTestBase extends AnyFunSuite with BeforeAndAfterAl
   val LIGHTNING_ACCESS_CONTROL_PROVIDER = "spark.sql.catalog.lightning.accessControlProvider"
   val SPARK_CATALOG = "spark.sql.catalog.spark_catalog"
 
-  var model: LightningModel.LightningModel = null
+  var model: LightningModel = null
 
   override def beforeAll(): Unit = {
     sparkSession = SparkSession.builder()
       .master("local[2]")
       .config("spark.testing", "true")
       .config(SQLConf.PARTITION_OVERWRITE_MODE.key, "dynamic")
-      .config("spark.sql.extensions", "com.zetaris.lightning.spark.LightningSparkSessionExtension")
+      .config("spark.sql.extensions",
+        "io.delta.sql.DeltaSparkSessionExtension,com.zetaris.lightning.spark.LightningSparkSessionExtension")
 
-      .config(LightningModel.LIGHTNING_CATALOG, "com.zetaris.lightning.catalog.LightningCatalog")
+      .config(LightningModelFactory.LIGHTNING_CATALOG, "com.zetaris.lightning.catalog.LightningCatalog")
       .config(LIGHTNING_MODEL_TYPE_KEY, MODEL_TYPE)
       .config(LIGHTNING_MODEL_WAREHOUSE_KEY, MODEL_DIR)
       .config(LIGHTNING_ACCESS_CONTROL_PROVIDER, "com.zetaris.lightning.analysis.NotAppliedAccessControlProvider")
@@ -65,7 +66,7 @@ abstract class SparkExtensionsTestBase extends AnyFunSuite with BeforeAndAfterAl
 
     val options = Map("type" -> MODEL_TYPE, "warehouse" -> MODEL_DIR)
 
-    model = LightningModel(new CaseInsensitiveStringMap(mapAsJavaMap(options)))
+    model = LightningModelFactory(new CaseInsensitiveStringMap(mapAsJavaMap(options)))
 
   }
 

@@ -28,8 +28,9 @@ Lightning catalog is an open source data catalog for the preparing data at any s
 * Lightning catalog can get rid of burden of data preparation workload for ML engineer, and help them focusing on building model. It supports to access to unstructured data.
 
 ## Online Documentation
-The latest documentation is found on the [project web page](https://lightning.zetaris.com)
+* The latest documentation is found on the [project web page](https://www.zetaris.com/lightning-opensource)
 [API Documentation](https://scala-doc.lightning.zetaris.com)
+* git hub online [doc](https://github.com/zetaris/lightning-metastore/tree/master/spark/v3.3/spark-runtime/src/dist/doc)
 
 ## Collaboration
 
@@ -44,7 +45,8 @@ Lightning is built using Gradle with Java 1.8 or Java 11.
 * To skip tests: `./gradlew build -x test -x integrationTest`
 * To fix code style for default versions: `./gradlew spotlessApply`
 * To fix code style for all versions of Spark/Hive/Flink:`./gradlew spotlessApply -DallVersions`
-
+* To build with spark version profile: `./gradlew clean build -DdefaultSparkMajorVersion=3.4 -DdefaultSparkVersion=3.4.2`  
+* distribution package is found `lightning-metastore/spark/spark_version(v3.3, v3.4, v3.5)/spark-runtime/build/distributions`
 
 ### Major Features
 

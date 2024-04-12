@@ -55,10 +55,10 @@ project(":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scal
     testImplementation "net.snowflake:snowflake-jdbc:3.14.4"
     testImplementation "com.amazon.redshift:redshift-jdbc42:2.1.0.25"
 
-    compileOnly ("org.apache.iceberg:iceberg-spark-${sparkMajorVersion}_${scalaVersion}:1.4.3")
-    compileOnly ("org.apache.iceberg:iceberg-spark-extensions-${sparkMajorVersion}_${scalaVersion}:1.4.3")
-    compileOnly ("io.delta:delta-spark_${scalaVersion}:3.0.0")
-    compileOnly ("org.apache.spark:spark-avro_${scalaVersion}:${sparkVersion}")
+    implementation ("org.apache.iceberg:iceberg-spark-${sparkMajorVersion}_${scalaVersion}:1.4.3")
+    implementation ("org.apache.iceberg:iceberg-spark-extensions-${sparkMajorVersion}_${scalaVersion}:1.4.3")
+    implementation ("io.delta:delta-spark_${scalaVersion}:3.1.0")
+    implementation ("org.apache.spark:spark-avro_${scalaVersion}:${sparkVersion}")
     implementation("com.databricks:spark-xml_${scalaVersion}:0.17.0")
 
     // Required because we remove antlr plugin dependencies from the compile configuration, see note above
