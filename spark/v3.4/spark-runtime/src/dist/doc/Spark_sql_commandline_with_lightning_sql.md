@@ -31,10 +31,6 @@ To plugin Lightning catalog, 4 custom parameters need to be provided to SPARK.
 * spark.sql.catalog.lightning.warehouse=/tmp/lightning-model
   hadoop(local file system or any blob storage) endpoint for catalog repository 
 
-Library that need to run
-* apache iceberg: ver 1.4.2 with spark 3.3 and scala 2.12 is tested
-* delta lake: ver 2.3.0 with scala 2.12 is tested
-* all the JDBC drivers for datasource
 
 These need to be provided using spark.jars.packages parameter
 ```bash
