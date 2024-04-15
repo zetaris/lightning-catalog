@@ -37,11 +37,12 @@ project(":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scal
   }
 
   dependencies {
+    implementation project(":lightning-spark:lightning-spark-common_${scalaVersion}")
+
     implementation("org.scala-lang.modules:scala-collection-compat_${scalaVersion}")
 
     compileOnly "org.scala-lang:scala-library:${scalaVersion}"
     compileOnly("org.apache.spark:spark-hive_${scalaVersion}:${sparkVersion}")
-    compileOnly project(":lightning-spark:lightning-spark-common_${scalaVersion}")
 
     testImplementation "junit:junit:4.13.2"
     testImplementation "org.scalatest:scalatest_${scalaVersion}:3.2.15"

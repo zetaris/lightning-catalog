@@ -23,7 +23,6 @@ package com.zetaris.lightning.parser
 
 import org.antlr.v4.runtime.atn.PredictionMode
 import org.antlr.v4.runtime._
-import org.antlr.v4.runtime.misc.Interval
 import org.antlr.v4.runtime.misc.ParseCancellationException
 import org.antlr.v4.runtime.tree.TerminalNodeImpl
 import org.apache.spark.sql.AnalysisException
