@@ -137,7 +137,7 @@ project(":lightning-spark:lightning-spark-runtime-${sparkMajorVersion}_${scalaVe
 
   distributions {
     main {
-      distributionBaseName = 'lightning-metastore'
+      distributionBaseName = "lightning-metastore-${sparkMajorVersion}_${scalaVersion}"
       contents {
         from 'LICENSE'
         from 'NOTICE'
