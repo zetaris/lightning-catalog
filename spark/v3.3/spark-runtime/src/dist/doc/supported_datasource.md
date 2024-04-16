@@ -23,19 +23,20 @@ Data source which are supported along with there version
 ________________________________________
 |Datasoure               |Tested Version
 ________________________________________
-|DeltaLake               |1.4.2        |
+|DeltaLake               |2.3.0        |
+|Iceberg                 |1.4.2        |
 |H2                      |2.2.220      |
 |Snowflake               |3.14.4       |
 |Posstgres               |42.6.0       |
 |Oracle                  |23.3.0.23.09 |
 |Mssql                   |7.0.0.jre8   |
 |Redshift                |2.1.0.25     |
-|Terradat                |20.00.00.16  |
-|CSV                     |             |
+|Terradata               |20.00.00.16  |
+|Csv                     |             |
 |Parquet                 |             |
-|ORC                     |             |
-|JSON                    |             |
-|AVRO                    |             |
+|Orc                     |             |
+|Json                    |             |
+|Avro                    |             |
 ________________________________________
 
 ```
