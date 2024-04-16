@@ -23,11 +23,11 @@ Data source which are supported along with there version
 ________________________________________
 |Datasoure               |Tested Version
 ________________________________________
-|DeltaLake Iceberg       |1.4.2        |
+|DeltaLake               |1.4.2        |
 |H2                      |2.2.220      |
 |Snowflake               |3.14.4       |
 |Posstgres               |42.6.0       |
-|Orcale                  |23.3.0.23.09 |
+|Oracle                  |23.3.0.23.09 |
 |Mssql                   |7.0.0.jre8   |
 |Redshift                |2.1.0.25     |
 |Terradat                |20.00.00.16  |

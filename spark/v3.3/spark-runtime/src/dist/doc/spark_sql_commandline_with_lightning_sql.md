@@ -38,10 +38,13 @@ These need to be provided using spark.jars.packages parameter
 ```
 
 ```bash
-./spark-sql --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension,org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions,com.zetaris.lightning.spark.LightningSparkSessionExtension \
+$SPARK_HOME/bin/spark-sql --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension,com.zetaris.lightning.spark.LightningSparkSessionExtension \
     --conf spark.sql.catalog.lightning=com.zetaris.lightning.catalog.LightningCatalog \
     --conf spark.sql.catalog.lightning.type=hadoop \
-    --conf spark.sql.catalog.lightning.warehouse=/tmp/lightning-model \
-    --conf spark.jars.packages=org.apache.iceberg:iceberg-spark-runtime-3.3_2.12:1.4.2,io.delta:delta-core_2.12:2.3.0 \
-    --jars ${spark-runtime-build-directory}/lightning-spark-extensions-3.3_2.12-0.1.jar 
+    --conf spark.sql.catalog.lightning.warehouse=/tmp/ligt-model \
+    --conf spark.sql.catalog.lightning.accessControlProvider=com.zetaris.lightning.analysis.NotAppliedAccessControlProvider \
+    --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog \
+    --conf spark.executor.extraClassPath=$LIGT_HOME/lib/* \
+    --conf spark.driver.extraClassPath=$LIGT_HOME/lib/* \
+    --jars $LIGT_HOME/lib/lightning-spark-extensions-3.3_2.12-0.1.jar
 ```
