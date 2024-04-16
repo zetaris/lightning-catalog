@@ -23,7 +23,7 @@ Data source which are supported along with there version
 ________________________________________
 |Datasoure               |Tested Version
 ________________________________________
-|DeltaLake Iceberg       |1.4.2        |
+|DeltaLake               |1.4.2        |
 |H2                      |2.2.220      |
 |Snowflake               |3.14.4       |
 |Posstgres               |42.6.0       |
