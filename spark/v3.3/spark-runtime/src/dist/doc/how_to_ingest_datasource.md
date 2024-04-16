@@ -17,7 +17,7 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 
-### Lightning has 2 top level namespaces :
+## Lightning has 2 top level namespaces :
 
 * datasource
 
@@ -29,7 +29,7 @@ Once the external source is registered then user can register specific tables in
 
 In below scenario, our aim to register different data source using lightning query.You have the flexibility to establish connections with any database that supports JDBC connectivity
 
-##### Create a namespace.
+### Create a namespace.
 Having a hierarchical structure is consistently beneficial. In this particular scenario of registering a database,datalake and filesource we will establish new namespaces termed "rdbms","iceberg" and "file" respectively within "datasource" and proceed to register all data sources within those namespace.
 ```bash
 --spark sql to create namespace rdbms where all the database will get registered
@@ -43,7 +43,7 @@ CREATE NAMESPACE lightning.datasource.iceberg
 --spark sql to create namespace file where all the filesource will get registered
 CREATE NAMESPACE lightning.datasource.file
 ```
-##### 1. Register datasource under rdbms namespace
+### 1. Register datasource under rdbms namespace
 You have the flexibility to establish connections with any database that supports JDBC connectivity. Some of the examplesto register different databases are below:
 ```bash
 --lightning sql to register mssql
@@ -104,7 +104,7 @@ REGISTER OR REPLACE JDBC DATASOURCE <DATASOURCE NAME> OPTIONS(
 
 **Namespace**: Container where your database will be registered
 
-##### 2. Register iceberg datalake under iceberg namespace
+### 2. Register iceberg datalake under iceberg namespace
 
 ```bash
 --lightning sql to register iceberg datalake
@@ -120,7 +120,7 @@ warehouse "/tmp/iceberg-warehouse"
 
 **Namespace**: Container where your data source will be registered
 
-##### 3. Register filesource under file namespace
+### 3. Register filesource under file namespace
 ```bash
 --lightning sql to register csv file
 REGISTER OR REPLACE CSV DATASOURCE customers OPTIONS (
@@ -162,22 +162,26 @@ path "/home/zetaris/data/avro/customer.avro"
 ) NAMESPACE lightning.datasource.file.avro
 ```
 
-#### 3: Check if data source is registered under different namespaces
+### 3: Check if data source is registered under different namespaces
 This will show all the diffent database, datalake and filesource registered
 ```bash
 SHOW NAMESPACES IN lightning.datasource.rdbms;
 SHOW NAMESPACES IN lightning.datasource.iceberg;
 SHOW NAMESPACES IN lightning.datasource.file;
 ```
-#### 4: Check the tables in particular register database,datalake or filesource
+### 4: Check all the schemas in particular register database,datalake or filesource
+```bash
+SHOW Tables IN lightning.datasource.rdbms.postgres_db;
+```
+### 5: Check the tables in particular register database,datalake or filesource
 ```bash
 SHOW Tables IN lightning.datasource.rdbms.postgres_db.HR_schema;
 ```
-#### 4: Check the column inside table in particular register database,datalake or filesource
+### 6: Check the column inside table in particular register database,datalake or filesource
 ```bash
 DESCRIBE TABLE lightning.datasource.rdbms.postgres_db.HR_schema.employee_table
 ```
-#### 4: Run query on particular register database,datalake or filesource table
+#### 7: Run query on particular register database,datalake or filesource table
 ```bash
 select * from lightning.datasource.rdbms.postgres_db.HR_schema.employee_table
 ```
