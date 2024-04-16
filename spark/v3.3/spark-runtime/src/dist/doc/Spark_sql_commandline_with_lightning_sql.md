@@ -46,5 +46,5 @@ $SPARK_HOME/bin/spark-sql --conf spark.sql.extensions=io.delta.sql.DeltaSparkSes
     --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog \
     --conf spark.executor.extraClassPath=$LIGT_HOME/lib/* \
     --conf spark.driver.extraClassPath=$LIGT_HOME/lib/* \
-    --jars $LIST_HOME/lib/lightning-spark-extensions-3.3_2.12-0.1.jar
+    --jars $LIGT_HOME/lib/lightning-spark-extensions-3.3_2.12-0.1.jar
 ```
