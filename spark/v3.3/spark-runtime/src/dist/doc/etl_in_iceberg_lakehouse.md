@@ -16,11 +16,11 @@ warehouse "/tmp/iceberg-warehouse"
 ### Step 2: create a snapshot of postgres table into iceberg lake house
 ```bash
 CREATE TABLE lightning.datasource.iceberg.icebergdb.taxis as
-select * from lightning.datasource.rdbms.qa_postgres.opensource.postgres_taxi;
+SELECT * from lightning.datasource.rdbms.qa_postgres.opensource.postgres_taxi;
 ```
 ### Step 3: To see the snapshot created in iceberg datalake.
 ```bash
-select * from lightning.datasource.iceberg.icebergdb.taxis;
+SELECT * from lightning.datasource.iceberg.icebergdb.taxis;
 ```
 ```bash
 Output 1: 
@@ -32,10 +32,13 @@ Output 1:
 ### Step 4: To do incremental load from postgres table to the table in iceberg datalake.
 
 ```bash
-MERGE INTO lightning.datasource.iceberg.icebergdb.taxis t - - a target table USING (
+MERGE INTO lightning.datasource.iceberg.icebergdb.taxis t
+USING (
     SELECT *
     from lightning.datasource.rdbms.qa_postgres.opensource.postgres_taxi
-) s - - the source updates ON t.trip_id = s.trip_id - - condition to find updates for target rows WHEN NOT MATCHED THEN INSERT (
+) s 
+updates ON t.trip_id = s.trip_id
+WHEN NOT MATCHED THEN INSERT (
     t.vendor_id,  t.trip_id,  t.trip_distance,  t.fare_amount,  t.store_and_fwd_flag
 )
 VALUES (
@@ -86,11 +89,12 @@ Now the records are update in source postgres table. same need to be replicated 
 
 ### Step 3:  Update all the records in target with new values in source.
 ```bash
-MERGE INTO lightning.datasource.iceberg.icebergdb.taxis t -- a target table
+MERGE INTO lightning.datasource.iceberg.icebergdb.taxis t -- target table
 USING (
     SELECT *
     from lightning.datasource.rdbms.qa_postgres.opensource.postgres_taxi
-) s -- the source updates
+) s --the source
+ updates
 ON t.trip_id = s.trip_id -- condition to find updates for target rows
 WHEN MATCHED THEN
 update
