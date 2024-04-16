@@ -76,6 +76,7 @@ project(":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scal
 
 project(":lightning-spark:lightning-spark-runtime-${sparkMajorVersion}_${scalaVersion}") {
   apply plugin: 'java-library-distribution'
+  //apply plugin: 'application'
 
   tasks.jar
 
@@ -139,8 +140,12 @@ project(":lightning-spark:lightning-spark-runtime-${sparkMajorVersion}_${scalaVe
     main {
       distributionBaseName = "lightning-metastore-${sparkMajorVersion}_${scalaVersion}"
       contents {
-        from 'LICENSE'
-        from 'NOTICE'
+        from "${project.projectDir}/dist"
+//        from 'LICENSE'
+//        from 'NOTICE'
+//        into('/doc') {
+//          from "${project.projectDir}/dist/spark-bin/*"
+//        }
       }
     }
   }
