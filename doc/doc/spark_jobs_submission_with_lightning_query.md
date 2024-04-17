@@ -19,17 +19,17 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 
 ## Adding Lightning catalog
 Lightning has two different catalog type, hdfs(as of now) and rdbs which will be added later.
-SPARK-SQL CLI is kicked off with Lightning catalog on hdfs 
+SPARK-SQL CLI is kicked off with Lightning catalog on hdfs
 
 To plugin Lightning catalog, 4 custom parameters need to be provided to SPARK.
 * spark.sql.extensions=com.zetaris.lightning.spark.LightningSparkSessionExtension
-  Implementation of Spark session for Lightning catalog 
+  Implementation of Spark session for Lightning catalog
 * spark.sql.catalog.lightning=com.zetaris.lightning.catalog.LightningCatalog
   Lightning catalog implementation
 * spark.sql.catalog.lightning.type=hadoop
   catalog type, hadoop or rdbms. At the moment, only hadoop is provided
 * spark.sql.catalog.lightning.warehouse=/tmp/lightning-model
-  hadoop(local file system or any blob storage) endpoint for catalog repository 
+  hadoop(local file system or any blob storage) endpoint for catalog repository
 
 
 These need to be provided using spark.jars.packages parameter
@@ -46,5 +46,5 @@ $SPARK_HOME/bin/spark-sql --conf spark.sql.extensions=io.delta.sql.DeltaSparkSes
     --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog \
     --conf spark.executor.extraClassPath=$LIGT_HOME/lib/* \
     --conf spark.driver.extraClassPath=$LIGT_HOME/lib/* \
-    --jars $LIGT_HOME/lib/lightning-spark-extensions-3.5_2.12-0.1.jar
+    --jars $LIGT_HOME/lib/lightning-spark-extensions-3.3_2.12-0.1.jar
 ```
