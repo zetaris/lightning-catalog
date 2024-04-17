@@ -1,4 +1,4 @@
-##Data Lakehouse Revolution
+## Data Lakehouse Revolution
 The data lakehouse is a relatively new approach to data management and analytics that combines elements of both data lakes and data warehouses.
 It's aimed at addressing the limitations and challenges associated with traditional data lakes and warehouses, offering a more unified and flexible platform for data storage, processing, and analytics.
 
@@ -19,13 +19,13 @@ It's aimed at addressing the limitations and challenges associated with traditio
 
 * **Advanced Analytics Capabilities**: With a data lakehouse, organizations can perform advanced analytics tasks such as machine learning, AI, and predictive analytics directly on the same platform where data is stored, eliminating the need to extract and transform data for analysis in separate environments. This tight integration streamlines the analytics workflow and accelerates time-to-insight for data-driven decision-making.
 
-##Open Lakehouse 
+## Open Lakehouse 
 Open Lakehouse utilizes open sources, community driven components Apache Iceberg or Delta lake as table format, Apache Spark or Trino as a Query Engine  
 By leveraging open lakehouse technologies, organizations can benefit the maximum flexibility to build their infrastructure according to their unique needs while eliminating the constraints of vendor lock-in  
   
 Apache Spark and Apache Iceberg are two main players in this open source revolution, offering powerful tools and capabilities of Data Lakehouse.
 
-##Apache Iceberg
+## Apache Iceberg
 https://iceberg.apache.org/
 Here are some outstanding features that make Apache Iceberg adopted by most companies.
 * **ACID Transactions**    
@@ -44,7 +44,7 @@ Here are some outstanding features that make Apache Iceberg adopted by most comp
 * **Time-Travel**  
   Apache Iceberg allow you to query tables at any valid snapshot in time. 
   
-##Lakehouse Example : TPCDS table.
+## Lakehouse Example : TPCDS table.
 
 ### 1. create namespace for iceberg lakehouse  
 create iceberg.tpcds
@@ -148,7 +148,7 @@ order by c_customer_id
 limit 100;
 ```
 
-##Iceberg resources
+## Iceberg resources
 DDL  
 https://iceberg.apache.org/docs/nightly/spark-ddl/  
 Queries  
