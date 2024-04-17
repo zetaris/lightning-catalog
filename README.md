@@ -17,7 +17,7 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 
-##Lightning Catalog
+## Lightning Catalog
 
 Lightning catalog is an open source data catalog for the preparing data at any scale in ad-hoc analytics, data warehouse, lake house and ML project
 
