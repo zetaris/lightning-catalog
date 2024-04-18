@@ -48,13 +48,13 @@ exec "${SPARK_HOME}"/sbin/spark-daemon.sh submit $CLASS 1 --name "Thrift JDBC/OD
 In this example, DBeaver is being used to connect to thrift server.
 
 * Select apache hive for the database and jdbc driver.  
-  ![database selection](https://drive.google.com/file/d/12TgpqQR8MtzGHNr2-bjxg-pzFHHKlqSf/view?usp=drive_link)
+  ![database selection](https://drive.google.com/file/d/1gxiWqFRbvJB8_GLVeprx63J8RDqqscjN/view?usp=sharing)
   
 * Enter jdbc:hive2://localhost:10000 for JDBC url section.  
-  ![jdbc url](https://drive.google.com/file/d/1BwnZ-WgAyhEfGd3KBI31lOBMjyoYz-ma/view?usp=drive_link)
+  ![jdbc url](https://drive.google.com/file/d/1w_yNRHimV1ZhEZ1y21It-HKrKV2CoBCB/view?usp=sharing)
   
 * "default" and "global_temp" schema will be displayed by default when connection is made.  
-  ![sql editor](https://drive.google.com/file/d/1DX36v7fniA6-yQOyYpViySnnt7kf-NsB/view?usp=drive_link)
+  ![sql editor](https://drive.google.com/file/d/1EgNW4jQHynTlXlgQkRYQqUhoKYbHW7cG/view?usp=sharing)
   
 ## 5. Create namespace.
 Lightning has 2 top level namespaces :
