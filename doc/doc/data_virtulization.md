@@ -17,17 +17,20 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 
-## Data virtualization
+# Data virtualization
 
 Data virtualization is an approach to data management that allows applications to retrieve and manipulate data without requiring technical details about the underlying data sources.
 It provides a unified interface for accessing data from multiple disparate sources, such as databases, APIs, cloud services, and more, regardless of their location or format.
-**Scenario 1:**
-In the scenario, our aim is to join 2 tables from different database produce a joined table.
 
-### 1: Register different datasource for which you want to join the tables
+## (**Browse Schema & tables)**
+User can browse registered schema and its tables using Spark SQL command
+
+### 1. Register datasource
+User can register external datasource into Lightning catalog by providing JDBC details.
+
 ```bash
---lightning sql to register mssql
-REGISTER OR REPLACE JDBC DATASOURCE <DATASOURCENAME> OPTIONS(
+-- lightning command to register mssql
+REGISTER OR REPLACE JDBC DATASOURCE <DATASOURCE NAME> OPTIONS(
     driver "com.microsoft.sqlserver.jdbc.SQLServerDriver",
     url "jdbc:sqlserver://microsoftsqlserver.database.windows.net:1433 ",
     databaseName "DemoXXXXX",
@@ -36,7 +39,7 @@ REGISTER OR REPLACE JDBC DATASOURCE <DATASOURCENAME> OPTIONS(
 ) NAMESPACE lightning.datasource.rdbms;
 ```
 ```bash
---lightning sql to register postgres
+-- lightning command to register postgres
 REGISTER OR REPLACE JDBC DATASOURCE <DATASOURCE NAME> OPTIONS (
 driver "org.postgresql.Driver",
 url "jdbc:postgresql://zetarispostgres.postgres.database.azure.com:5432/databasename", 
@@ -44,21 +47,39 @@ user "zetXXXXX",
 password "XXXXXXXXX"
 ) NAMESPACE lightning.datasource.rdbms;
 ```
-In above scenario, we have registered to different database under the name space "ightning.datasource.rdbms" :- Mssql db and postgres db
 
-### 2: Check the tables you want join(Not mandatory step)
+<DATASOURCE NAME> must follow identifier format in spark:  
+
+https://spark.apache.org/docs/3.3.1/sql-ref-identifier.html#:~:text=An%20identifier%20is%20a%20string,delimited%20identifiers%20are%20case%2Dinsensitive.
+
+In above scenario, we have registered to different database under the name space "ightning.datasource.rdbms",  mssql_db, prstsgres_db for instance.
+
+### 2. Browse schema & tables
 ```bash
-SHOW Tables IN lightning.datasource.rdbms.postgres_db.HR_schema;
-SHOW Tables IN lightning.datasource.rdbms.mssql_db.finance_schema;
+-- spark sql command
+SHOW NAMESPACES IN lightning.datasource.rdbms.postgres_db;
 ```
 
-### 3: Another namespace can be created inside database
+This will display all the schema under the registered database.
+
+### 3: Check the tables you want join(Not mandatory step)
+```bash
+-- Spark SQL command to show tables
+SHOW Tables IN lightning.datasource.rdbms.postgres_db.HR_schema;
+SHOW Tables IN lightning.datasource.rdbms.mssql_db.finance_schema;
+
+-- Spark SQL command to browse schema
+DESCRIBE TABLE lightning.datasource.rdbms.postgres_db.HR_schema.CUSTOMER
+```
+
+### 4: Another namespace can be created inside database
 User can create another namespace inside the registered database as long as the user has right permission to do create schema.
+
 ```bash
 CREATE NAMESPACE lightning.datasource.rdbms.postgres_db.nytaxis;
 ````
 
-### 4: Create a table inside a namespace
+### 5: Create a new table inside a namespace
 A new table can be created inside the namespace. 
 ```bash
 CREATE TABLE lightning.datasource.rdbms.postgres_db.nytaxis.taxis (
@@ -67,136 +88,98 @@ trip_id bigint,
 trip_distance float,
 fare_amount double,
 store_and_fwd_flag string
-) PARTITIONED BY (vendor_id);
+);
 ```
+In this example, taxis table is created under nytaxis schema for the registered PostgreSQL db.
+
 you can also create a table using another table from different Db.In below example user is creating
 taxi table in postgres db and getting the data from iceberg datalake taxi table.
 
 ```bash
 CREATE TABLE lightning.datasource.rdbms.postgres_db.nytaxis.taxis 
-as
-select * from lightning.datasource.iceberg.icebergdb.taxis
+AS
+SELECT * FROM lightning.datasource.iceberg.icebergdb.taxis
 ```
 
-### 5: Inserting the values in the table in case it is created from scratch
+### 6: Inserting the values in the table in case it is created from scratch
 ```bash
 INSERT INTO lightning.datasource.rdbms.postgres_db.nytaxis.taxis
 VALUES (1, 1000371, 1.8, 15.32, "N"), (2, 1000372, 2.5, 22.15, "N"), (2, 1000373, 0.9, 9.01, "N"), (1, 1000374, 8.4, 42.13, "Y");
 ```
-### 6: Drop a namespace in a db
+### 7: Drop a namespace in a db
 In this example, we will drop the namespace created above
 ```bash
 DROP NAMESPACE lightning.datasource.rdbms.postgres_db.nytaxis;
 ```
 
-### 7: Drop a table in namespace which created inside db
+### 8: Drop a table in namespace which created inside db
 In this example, we will drop the table created above
 ```bash
 DROP table lightning.datasource.rdbms.postgres_db.nytaxis.taxis;
 ```
 
-### 8: Describe a table to show it metadata
+### 9: Describe a table to show it metadata
 In this example, we will show the column inside a table
 ```bash
-Describe table lightning.datasource.rdbms.postgres_db.nytaxis.taxis;
+DESCRIBE table lightning.datasource.rdbms.postgres_db.nytaxis.taxis;
 ```
 
-### 9: Join the tables based on business key. some examples are as below;
+### 10: Join the tables based on business key. some examples are as below;
 We can use different type join. example 1 and 2 show inner and left join
 ```bash
-select * from lightning.datasource.rdbms.postgres_db.HR_schema.customers c
-inner join
-lightning.datasource.rdbms.mssql_db.finance_schema.order o
-on c.c_custkey=o.o_custkey
+SELECT * 
+FROM lightning.datasource.rdbms.postgres_db.HR_schema.customers c
+INNER JOIN lightning.datasource.rdbms.mssql_db.finance_schema.order o
+ON c.c_custkey=o.o_custkey
 ```
 
 ```bash
-select * from lightning.datasource.rdbms.postgres_db.HR_schema.customers c
-Left join
-lightning.datasource.rdbms.mssql_db.finance_schema.Nation o
-on c.c_custkey=n.n_nationkey
+SELECT * 
+FROM lightning.datasource.rdbms.postgres_db.HR_schema.customers c
+LEFT JOIN lightning.datasource.rdbms.mssql_db.finance_schema.Nation o
+ON c.c_custkey=n.n_nationkey
 ```
 
 In below query we are using table from 3 different database
 ```bash
-select dt.d_year,  item.i_brand_id brand_id,  item.i_brand brand,  sum(ss_ext_sales_price) sum_agg
-from 
-lightning.datasource.rdbms.postgres_db.HR_schema.TPCDS_DB.date_dim dt
-,lightning.datasource.rdbms.postgres_db.fianace_schema.TPCDS_DB.store_sales s
-,lightning.datasource.iceberg.icebergdb.TPCDS_DB.item i
-where dt.d_date_sk = s.ss_sold_date_sk
-and s.ss_item_sk = i.i_item_sk
-and i.i_manufact_id = 128
-and dt.d_moy = 11
-group by dt.d_year,  i.i_brand,  i.i_brand_id
-order by dt.d_year,  sum_agg
-desc,  brand_id
-limit 100;
+SELECT dt.d_year,  item.i_brand_id brand_id,  item.i_brand brand,  sum(ss_ext_sales_price) sum_agg
+FROM lightning.datasource.rdbms.postgres_db.HR_schema.TPCDS_DB.date_dim dt,
+     lightning.datasource.rdbms.postgres_db.fianace_schema.TPCDS_DB.store_sales s,
+     lightning.datasource.iceberg.icebergdb.TPCDS_DB.item i
+WHERE dt.d_date_sk = s.ss_sold_date_sk
+AND s.ss_item_sk = i.i_item_sk
+AND i.i_manufact_id = 128
+AND dt.d_moy = 11
+GROUP BY dt.d_year,  i.i_brand,  i.i_brand_id
+ORDER BY dt.d_year,  sum_agg DESC,  brand_id
+LIMIT 100;
 ```
 
 we can also use different aggregation function and group by. for example:
 ```bash
-select  i_item_id,
-avg(ss_quantity) agg1,
-sum(ss_list_price) agg2,
-count(ss_coupon_amt) agg3,
-max(ss_sales_price) agg4
-from lightning.datasource.rdbms.postgres_db.fianace_schema.TPCDS_DB.store_sales
-, lightning.datasource.rdbms.postgres_db.fianace_schema.TPCDS_DB.customer_demographics
-, lightning.datasource.rdbms.postgres_db.HR_schema.TPCDS_DB.date_dim
-, lightning.datasource.iceberg.icebergdb.TPCDS_DB.item
-, lightning.datasource.iceberg.icebergdb.TPCDS_DB.promotion
-where ss_sold_date_sk = d_date_sk and
-ss_item_sk = i_item_sk and
-ss_cdemo_sk = cd_demo_sk and
-ss_promo_sk = p_promo_sk and
-cd_gender = 'M' and
-cd_marital_status = 'S' and
-cd_education_status = 'College' and
-(p_channel_email = 'N' or p_channel_event = 'N') and
-d_year = 2000
-group by i_item_id
-order by i_item_id
-limit 100;
+SELECT  i_item_id,
+   avg(ss_quantity) agg1,
+   sum(ss_list_price) agg2,
+   count(ss_coupon_amt) agg3,
+   max(ss_sales_price) agg4
+FROM lightning.datasource.rdbms.postgres_db.fianace_schema.TPCDS_DB.store_sales,
+     lightning.datasource.rdbms.postgres_db.fianace_schema.TPCDS_DB.customer_demographics,
+     lightning.datasource.rdbms.postgres_db.HR_schema.TPCDS_DB.date_dim,
+     lightning.datasource.iceberg.icebergdb.TPCDS_DB.item,
+     lightning.datasource.iceberg.icebergdb.TPCDS_DB.promotion
+WHERE ss_sold_date_sk = d_date_sk
+AND ss_item_sk = i_item_sk 
+AND ss_cdemo_sk = cd_demo_sk
+AND ss_promo_sk = p_promo_sk
+AND cd_gender = 'M'
+AND cd_marital_status = 'S'
+AND cd_education_status = 'College'
+AND (p_channel_email = 'N' OR p_channel_event = 'N')
+AND d_year = 2000
+BROUP BY i_item_id
+ORDER BY i_item_id
+LIMIT 100;
 ```
-we can also do union and intersection of tables from different db
 
-```bash
-select  i_product_name
-             ,i_brand
-             ,i_class
-             ,i_category
-             ,avg(inv_quantity_on_hand) qoh
-       from lightning.datasource.rdbms.postgres_db.nytaxis.taxis
-       group by        i_product_name
-                       ,i_brand
-                       ,i_class
-                       ,i_category
-UNION
-select  i_product_name
-             ,i_brand
-             ,i_class
-             ,i_category
-             ,avg(inv_quantity_on_hand) qoh
-       from lightning.datasource.iceberg.icebergdb.taxis
-       group by        i_product_name
-                       ,i_brand
-                       ,i_class
-                       ,i_category
-                       
-
- limit 100;
- ```
-### 10: ANSI SQL supports several types of joins, including:
-
-**INNER JOIN**: Returns rows that have matching values in both tables being joined.
-
-**LEFT JOIN (or LEFT OUTER JOIN)**: Returns all rows from the left table and matching rows from the right table. If there is no match, NULL values are returned for the columns from the right table.
-
-**RIGHT JOIN (or RIGHT OUTER JOIN)**: Returns all rows from the right table and matching rows from the left table. If there is no match, NULL values are returned for the columns from the left table.
-
-**FULL JOIN (or FULL OUTER JOIN)**: Returns all rows when there is a match in either the left or right table. If there is no match, NULL values are returned for the columns from the table without a matching row.
-
-**CROSS JOIN**: Returns the Cartesian product of the two tables, i.e., all possible combinations of rows from both tables.
-
-**SELF JOIN**: Joins a table to itself, typically used when a table has a foreign key that references another row in the same table.
+# Spark SQL Reference
+https://spark.apache.org/docs/3.3.1/sql-programming-guide.html

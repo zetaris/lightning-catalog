@@ -29,8 +29,7 @@ Lightning catalog is an open source data catalog for the preparing data at any s
 
 ## Online Documentation
 * The latest documentation is found on the [project web page](https://www.zetaris.com/lightning-opensource)
-[API Documentation](https://scala-doc.lightning.zetaris.com)
-* git hub online [doc](https://github.com/zetaris/lightning-metastore/tree/master/spark/v3.3/spark-runtime/src/dist/doc)
+* git hub online [doc](https://github.com/zetaris/lightning-catalog/tree/master/doc/doc)
 
 ## Collaboration
 

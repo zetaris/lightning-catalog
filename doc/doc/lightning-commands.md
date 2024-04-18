@@ -42,6 +42,9 @@ There is no limitation of multi level of identifier like:
 CREATE NAMESPACE lightning.datasource.parent1.parent2.parent3...
 ```
 
+Apache Spark identifier:  
+https://spark.apache.org/docs/3.3.1/sql-ref-identifier.html#:~:text=An%20identifier%20is%20a%20string,delimited%20identifiers%20are%20case%2Dinsensitive.
+
 ### drop name space
 ```bash
 -- Spark SQL command

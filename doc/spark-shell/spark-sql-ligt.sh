@@ -19,6 +19,10 @@
 #  */
 #
 
+#############################################################
+# LIGT_HOME var need to be set for the installed directory
+# Assuming all 3rd party libraries, for example vendor JDBC jar file, are kept in $LIGT_HOME/jdbc-lib
+
 $SPARK_HOME/bin/spark-sql --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension,com.zetaris.lightning.spark.LightningSparkSessionExtension \
     --conf spark.sql.catalog.lightning=com.zetaris.lightning.catalog.LightningCatalog \
     --conf spark.sql.catalog.lightning.type=hadoop \
@@ -27,4 +31,4 @@ $SPARK_HOME/bin/spark-sql --conf spark.sql.extensions=io.delta.sql.DeltaSparkSes
     --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog \
     --conf spark.executor.extraClassPath=$LIGT_HOME/lib/* \
     --conf spark.driver.extraClassPath=$LIGT_HOME/lib/* \
-    --jars $LIST_HOME/lib/lightning-spark-extensions-3.5_2.12-0.1.jar
+    --jars $LIGT_HOME/lib/lightning-spark-extensions-3.5_2.12-0.1.jar,$LIGT_HOME/jdbc-lib/*
