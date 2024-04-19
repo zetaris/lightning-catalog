@@ -69,4 +69,4 @@ exec "${SPARK_HOME}"/sbin/spark-daemon.sh submit $CLASS 1 --name "Thrift JDBC/OD
     --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog \
     --conf spark.executor.extraClassPath=$LIGT_HOME/lib/* \
     --conf spark.driver.extraClassPath=$LIGT_HOME/lib/* \
-    --jars $LIGT_HOME/lib/lightning-spark-extensions-3.5_2.12-0.1.jar,$LIGT_HOME/jdbc-lib/* "$@"
+    --jars $LIGT_HOME/lib/lightning-spark-extensions-3.5_2.12-0.1.jar,$LIGT_HOME/jdbc-lib/*,$LIGT_HOME/jdbc-lib/* "$@"
