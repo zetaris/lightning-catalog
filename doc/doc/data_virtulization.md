@@ -52,7 +52,7 @@ DATASOURCE NAME must follow identifier format in spark:
 
 https://spark.apache.org/docs/3.3.1/sql-ref-identifier.html#:~:text=An%20identifier%20is%20a%20string,delimited%20identifiers%20are%20case%2Dinsensitive.
 
-In above scenario, we have registered to different database under the name space "ightning.datasource.rdbms",  mssql_db, prstsgres_db for instance.
+In above scenario, we have registered to different database under the name space "lightning.datasource.rdbms",  mssql_db, postsgres_db for instance.
 
 ### 2. Browse schema & tables
 ```bash
