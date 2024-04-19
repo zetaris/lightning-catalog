@@ -7,7 +7,7 @@ Having a hierarchical structure is consistently beneficial. In this particular s
 --spark sql to create namespace iceberg where all the iceberg datalakes will get registered
 CREATE NAMESPACE lightning.datasource.iceberg
 ```
-### Step 1: Register iceberg datasource.
+### Step 1: Register iceberg datasource on aws s3.
 ```bash
 REGISTER OR REPLACE iceberg DATASOURCE icebergdb_s3 OPTIONS(
 type "hadoop",
