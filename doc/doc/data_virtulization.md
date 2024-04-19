@@ -48,7 +48,7 @@ password "XXXXXXXXX"
 ) NAMESPACE lightning.datasource.rdbms;
 ```
 
-<DATASOURCE NAME> must follow identifier format in spark:  
+DATASOURCE NAME must follow identifier format in spark:  
 
 https://spark.apache.org/docs/3.3.1/sql-ref-identifier.html#:~:text=An%20identifier%20is%20a%20string,delimited%20identifiers%20are%20case%2Dinsensitive.
 
