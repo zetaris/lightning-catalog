@@ -18,7 +18,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 -->
 
 ## Adding Lightning catalog
-Lightning has two different catalog type, hdfs(as of now) and rdbs which will be added later.
+Lightning has two different catalog type, hdfs(as of now) and rdbms which will be added later.
 SPARK-SQL CLI is kicked off with Lightning catalog on hdfs
 
 To plugin Lightning catalog, 4 custom parameters need to be provided to SPARK.

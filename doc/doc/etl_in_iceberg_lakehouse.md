@@ -1,4 +1,4 @@
-# ETL in iceberg lakegouse
+# ETL in iceberg lakehouse
 ETL stands for Extract, Transform, Load. It's a process used in data warehousing and data integration to collect data from various sources, transform it into a format that is suitable for analysis, and then load it into a target database, data warehouse, or data lake for storage and further analysis.
 
 **Scenario 1:**
@@ -60,7 +60,7 @@ Output 2:
 ```
 
 **Scenario 2:**
-In the scenario, our aim is to update records in Iceberg datalake table using orginal postgres table.
+In the scenario, our aim is to update records in Iceberg datalake table using original postgres table.
 
 ### Step 1: To see the current records in target.
 ```bash

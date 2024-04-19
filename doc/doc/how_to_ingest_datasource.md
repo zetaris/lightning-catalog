@@ -44,7 +44,7 @@ CREATE NAMESPACE lightning.datasource.iceberg
 CREATE NAMESPACE lightning.datasource.file
 ```
 ### 1. Register datasource under rdbms namespace
-You have the flexibility to establish connections with any database that supports JDBC connectivity. Some of the examplesto register different databases are below:
+You have the flexibility to establish connections with any database that supports JDBC connectivity. Some of the examples to register different databases are below:
 ```bash
 --lightning sql to register mssql
 REGISTER OR REPLACE JDBC DATASOURCE <DATASOURCENAME> OPTIONS(
@@ -163,7 +163,7 @@ path "/home/zetaris/data/avro/customer.avro"
 ```
 
 ### 3: Check if data source is registered under different namespaces
-This will show all the diffent database, datalake and filesource registered
+This will show all the different database, datalake and filesource registered
 ```bash
 SHOW NAMESPACES IN lightning.datasource.rdbms;
 SHOW NAMESPACES IN lightning.datasource.iceberg;
