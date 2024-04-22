@@ -18,25 +18,35 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 # Supported datasource
-Data source which are supported along with there version
+Data source which are supported along with their version
 ```bash
-________________________________________
-|Datasoure               |Tested Version
-________________________________________
-|DeltaLake               |2.3.0        |
-|Iceberg                 |1.4.2        |
-|H2                      |2.2.220      |
-|Snowflake               |3.14.4       |
-|Posstgres               |42.6.0       |
-|Oracle                  |23.3.0.23.09 |
-|Mssql                   |7.0.0.jre8   |
-|Redshift                |2.1.0.25     |
-|Terradata               |20.00.00.16  |
-|Csv                     |             |
-|Parquet                 |             |
-|Orc                     |             |
-|Json                    |             |
-|Avro                    |             |
-________________________________________
+__________________________________________________________________________________
+|Datasoure               |Tested Version                                         |
+__________________________________________________________________________________
+|DeltaLake               |2.3.0(spark v3.3), 2.4.0(spark v3.4), 3.1.0(spark v3.5)|
+|Iceberg                 |1.4.2(spark v3.3), 1.4.3(spark v3.4, v3.5)             |
+|H2                      |2.2.220                                                |
+|Snowflake               |3.14.4                                                 |
+|Posstgres               |42.6.0                                                 |
+|Oracle                  |23.3.0.23.09                                           |
+|Mssql                   |7.0.0.jre8                                             |
+|Redshift                |2.1.0.25                                               |
+|Terradata               |20.00.00.16                                            |
+|MySQL                   |                                                       |
+|DB2                     |                                                       |
+|SQLLite                 |                                                       |
+|MariaDB                 |                                                       |
+|Derby                   |                                                       |
+|HANA                    |                                                       |
+|Greenplum               |                                                       |
+|Vertica                 |                                                       |
+|Netezza                 |                                                       |
+__________________________________________________________________________________
+|Csv                     |                                                       |
+|Parquet                 |                                                       |
+|Orc                     |                                                       |
+|Json                    |                                                       |
+|Avro                    |                                                       |
+__________________________________________________________________________________
 
 ```
