@@ -57,3 +57,30 @@ Lightning is built using Gradle with Java 1.8 or Java 11.
 * Support data quality by integrating Amazon Deequ
 * Support data flow table, declarative ETL framework which define transforms your data.
 * Support processing unstructured data, accessing all files and their meta data recursively from an endpoint.
+
+### Currently supported data sources (more to be added)
+```
+DeltaLake
+Iceberg
+H2
+Snowflake
+Posstgres
+Oracle
+Mssql
+Redshift
+Terradata
+MySQL
+DB2
+SQLLite
+MariaDB
+Derby
+HANA
+Greenplum
+Vertica
+Netezza
+Csv
+Parquet
+Orc
+Json
+Avro
+```
