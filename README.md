@@ -58,7 +58,7 @@ Lightning is built using Gradle with Java 1.8 or Java 11.
 * Support data flow table, declarative ETL framework which define transforms your data.
 * Support processing unstructured data, accessing all files and their meta data recursively from an endpoint.
 
-### Currently supported datasources (more to be supported)
+### Currently supported data sources (more to be added)
 ```
 DeltaLake
 Iceberg
