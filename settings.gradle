@@ -70,3 +70,7 @@ if (sparkVersions.contains("3.5")) {
   project(":lightning-spark:spark-runtime-3.5_${scalaVersion}").projectDir = file('spark/v3.5/spark-runtime')
   project(":lightning-spark:spark-runtime-3.5_${scalaVersion}").name = "lightning-spark-runtime-3.5_${scalaVersion}"
 }
+
+include ":lightning-spark:spark-test_${scalaVersion}"
+project(":lightning-spark:spark-test_${scalaVersion}").projectDir = file("spark/spark-test")
+project(":lightning-spark:spark-test_${scalaVersion}").name = "lightning-spark-test_${scalaVersion}"

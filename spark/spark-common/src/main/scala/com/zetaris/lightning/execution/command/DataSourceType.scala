@@ -21,8 +21,11 @@
 
 package com.zetaris.lightning.execution.command
 
+import javafx.scene.media.VideoTrack
+
 object DataSourceType {
-  val allTypes = Seq("JDBC", "ICEBERG", "DELTA", "ORC", "PARQUET", "CSV", "JSON", "XML", "REST")
+  val allTypes = Seq("JDBC", "ICEBERG", "DELTA", "ORC", "PARQUET", "CSV", "JSON", "XML", "REST",
+    "PDF", "IMAGE", "VIDEO", "AUDIO")
 
   def apply(value: String): DataSourceType = {
     value.toUpperCase match {
@@ -36,6 +39,11 @@ object DataSourceType {
       case "JSON" => JSON
       case "XML" => XML
       case "REST" => REST
+      case "PDF" => PDF
+      case "IMAGE" => IMAGE
+      case "VIDEO" => VIDEO
+      case "AUDIO" => AUDIO
+
       case _ => throw new IllegalArgumentException(s"$value is not supported")
     }
   }
@@ -56,4 +64,8 @@ object DataSourceType {
   case object JSON extends FileTypeSource
 
   case object REST extends DataSourceType
+  case object PDF extends DataSourceType
+  case object IMAGE extends DataSourceType
+  case object VIDEO extends DataSourceType
+  case object AUDIO extends DataSourceType
 }
