@@ -17,10 +17,39 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package com.zetaris.lightning.catalog
+package com.zetaris.lightning.model
 
-import com.zetaris.lightning.model.serde.DataSource.DataSource
+import com.zetaris.lightning.catalog.LightningSource
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-class LightningCatalog extends AbstractLightningCatalog {
-  override def loadCatalogUnit(dataSource: DataSource): CatalogUnit = CatalogUnitFactory(dataSource)
+
+/**
+ * Lightning model object encapsulating implementation details
+ */
+object LightningModelFactory extends LightningSource {
+
+  var cached: LightningModel = null
+
+  /**
+   * factory instantiating concrete lightning model
+   * @param prop
+   * @return concrete model
+   */
+  def apply(prop: CaseInsensitiveStringMap): LightningModel = {
+    if (!prop.containsKey(LIGHTNING_MODEL_TYPE_KEY)) {
+      throw new RuntimeException(s"${LIGHTNING_MODEL_TYPE_KEY} is not set in spark conf")
+    }
+
+    val modelType = prop.get(LIGHTNING_MODEL_TYPE_KEY)
+
+    synchronized {
+      if (cached == null) {
+        cached = modelType.toLowerCase match {
+          case "hadoop" => new LightningHdfsModel(prop)
+          case _ => throw new IllegalArgumentException(s"only hadoop implementation is supported")
+        }
+      }
+    }
+    cached
+  }
 }

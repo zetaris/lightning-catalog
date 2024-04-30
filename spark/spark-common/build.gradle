@@ -25,12 +25,24 @@ String scalaVersion = System.getProperty("scalaVersion") != null ? System.getPro
 project(":lightning-spark:lightning-spark-common_${scalaVersion}") {
   apply plugin: 'java-library'
   apply plugin: 'scala'
+  apply plugin: 'antlr'
 
   configurations {
     all {
       resolutionStrategy {
         force 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
       }
+    }
+
+    /*
+     The Gradle Antlr plugin erroneously adds both antlr-build and runtime dependencies to the runtime path. This
+     bug https://github.com/gradle/gradle/issues/820 exists because older versions of Antlr do not have separate
+     runtime and implementation dependencies and they do not want to break backwards compatibility. So to only end up with
+     the runtime dependency on the runtime classpath we remove the dependencies added by the plugin here. Then add
+     the runtime dependency back to only the runtime configuration manually.
+    */
+    implementation {
+      extendsFrom = extendsFrom.findAll { it != configurations.antlr }
     }
   }
 
@@ -53,7 +65,14 @@ project(":lightning-spark:lightning-spark-common_${scalaVersion}") {
     testImplementation "com.h2database:h2:2.1.214"
     testImplementation "net.snowflake:snowflake-jdbc:3.14.4"
     testImplementation "com.amazon.redshift:redshift-jdbc42:2.1.0.25"
+    runtimeOnly "org.antlr:antlr4-runtime:4.8"
+    antlr "org.antlr:antlr4:4.8"
+  }
 
+  generateGrammarSource {
+    maxHeapSize = "2048m"
+    arguments += ['-visitor']
+    //arguments += ['-visitor', '-package', 'org.apache.spark.sql.catalyst.parser.extensions']
   }
 }
 

@@ -21,17 +21,16 @@
 
 package com.zetaris.lightning.catalog
 
-import com.zetaris.lightning.util.FileSystemUtils
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.connector.catalog.Identifier
-import org.apache.spark.sql.connector.catalog.Table
+import org.apache.spark.sql.connector.catalog.{Identifier, Table}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.delta.catalog.DeltaCatalog
 import org.apache.spark.sql.types.StructType
 
 // we're using different version along with spark version.
-case class DeltaCatalogUnit(dsName: String, properties: Map[String, String]) extends CatalogUnit {
-  val SESSION_CATALOG_NAME: String = "spark_catalog"
+case class DeltaCatalogUnit(dsName: String, properties: Map[String, String])
+  extends AbstractDeltaCatalogUnit(properties) {
+
   val deltaCatalog: DeltaCatalog = {
     val delegate = SparkSession.active.sessionState.catalogManager.catalog(SESSION_CATALOG_NAME)
     val catalog = new DeltaCatalog()
@@ -39,40 +38,9 @@ case class DeltaCatalogUnit(dsName: String, properties: Map[String, String]) ext
     catalog
   }
 
-  private def tablePath(table: String): String = {
-    val path = properties("path")
-    if (path.endsWith("/")) {
-      s"$path$table}"
-    } else {
-      s"$path/${table}"
-    }
-  }
-
-  override def listNamespaces(namespace: Array[String]): Array[Array[String]] = {
-    throw new RuntimeException("delta lake doesn't support list namespaces")
-  }
-
-  override def createNamespace(namespace: Array[String], metadata: java.util.Map[String, String]): Unit = {
-    throw new RuntimeException("delta lake doesn't support create namespace")
-  }
-
-  override def listTables(namespace: Array[String]): Array[Identifier] = {
-    val path = properties("path")
-    FileSystemUtils.listDirectories(path).filter(!_.startsWith(".")).map(Identifier.of(namespace, _))
-      .toArray
-  }
-
   override def loadTable(ident: Identifier): Table = {
     val table = tablePath(ident.name())
     deltaCatalog.loadTable(Identifier.of(Array("delta"), table))
-  }
-
-  override def namespaceExists(namespace: Array[String]): Boolean = {
-    throw new RuntimeException("delta lake doesn't support namespace exists")
-  }
-
-  override def dropNamespace(namespace: Array[String], cascade: Boolean): Boolean = {
-    throw new RuntimeException("delta lake doesn't support drop namespace")
   }
 
   override def createTable(ident: Identifier, schema: StructType, partitions: Array[Transform],
@@ -81,12 +49,6 @@ case class DeltaCatalogUnit(dsName: String, properties: Map[String, String]) ext
     val withProvider = new java.util.HashMap[String, String](properties)
     withProvider.put("provider", "delta")
     deltaCatalog.createTable(Identifier.of(Array("delta"), table), schema, partitions, withProvider)
-  }
-
-  override def dropTable(ident: Identifier): Boolean = {
-    val fullPath = tablePath(ident.name())
-    FileSystemUtils.deleteDirectory(fullPath)
-    true
   }
 
   override def tableExists(ident: Identifier): Boolean = {

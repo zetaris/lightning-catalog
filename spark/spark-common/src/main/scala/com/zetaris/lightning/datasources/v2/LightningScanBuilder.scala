@@ -17,10 +17,12 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package com.zetaris.lightning.catalog
+package com.zetaris.lightning.datasources.v2
 
-import com.zetaris.lightning.model.serde.DataSource.DataSource
+import org.apache.spark.sql.connector.read.{Scan, ScanBuilder}
 
-class LightningCatalog extends AbstractLightningCatalog {
-  override def loadCatalogUnit(dataSource: DataSource): CatalogUnit = CatalogUnitFactory(dataSource)
+case class LightningScanBuilder() extends ScanBuilder {
+  override def build(): Scan = {
+    ???
+  }
 }

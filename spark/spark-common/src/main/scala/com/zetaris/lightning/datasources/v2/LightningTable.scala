@@ -17,10 +17,17 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
 
-package com.zetaris.lightning.catalog
+package com.zetaris.lightning.datasources.v2
 
-import com.zetaris.lightning.model.serde.DataSource.DataSource
+import org.apache.spark.sql.connector.catalog.{SupportsRead, Table, TableCapability}
+import org.apache.spark.sql.connector.catalog.TableCapability.BATCH_READ
+import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-class LightningCatalog extends AbstractLightningCatalog {
-  override def loadCatalogUnit(dataSource: DataSource): CatalogUnit = CatalogUnitFactory(dataSource)
+case class LightningTable(override val name: String, override val schema: StructType) extends Table with SupportsRead {
+
+
+  override def capabilities(): java.util.Set[TableCapability] =  java.util.EnumSet.of(BATCH_READ)
+
+  override def newScanBuilder(options: CaseInsensitiveStringMap): LightningScanBuilder = ???
 }

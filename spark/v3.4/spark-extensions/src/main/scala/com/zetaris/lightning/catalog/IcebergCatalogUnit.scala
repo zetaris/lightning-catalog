@@ -21,58 +21,22 @@
 
 package com.zetaris.lightning.catalog
 
-import org.apache.spark.sql.connector.catalog.Identifier
-import org.apache.spark.sql.connector.catalog.Table
-import org.apache.spark.sql.connector.expressions.Transform
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.connector.catalog.TableCatalog
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import scala.collection.JavaConverters._
 
 // we're using different iceberg version along with spark version.
-case class IcebergCatalogUnit(dsName: String, properties: Map[String, String]) extends CatalogUnit {
+case class IcebergCatalogUnit(dsName: String, properties: Map[String, String]) extends AbstractIcebergCatalogUnit {
+
   val icebergSparkCatalog = {
     val className = "org.apache.iceberg.spark.SparkCatalog"
     val catalog = Class.forName(className).newInstance.asInstanceOf[org.apache.iceberg.spark.SparkCatalog]
     catalog.initialize(dsName, new CaseInsensitiveStringMap(mapAsJavaMap(properties)))
+
     catalog
   }
 
-  // namespace is starting with lightning.datasource(.namespace)*
-  override def listNamespaces(namespace: Array[String]): Array[Array[String]] = {
-    icebergSparkCatalog.listNamespaces(namespace)
-  }
-
-  override def createNamespace(namespace: Array[String], metadata: java.util.Map[String, String]): Unit = {
-    icebergSparkCatalog.createNamespace(namespace, metadata)
-  }
-
-  override def listTables(namespace: Array[String]): Array[Identifier] = {
-    icebergSparkCatalog.listTables(namespace)
-  }
-
-  override def loadTable(ident: Identifier): Table = {
-    icebergSparkCatalog.loadTable(ident)
-  }
-
-  override def namespaceExists(namespace: Array[String]): Boolean = {
-    icebergSparkCatalog.namespaceExists(namespace)
-  }
-
-  override def dropNamespace(namespace: Array[String], cascade: Boolean): Boolean = {
-    icebergSparkCatalog.dropNamespace(namespace, cascade)
-  }
-
-  override def createTable(ident: Identifier,
-                           schema: StructType,
-                           partitions: Array[Transform],
-                           properties: java.util.Map[String, String]): Table = {
-    icebergSparkCatalog.createTable(ident, schema, partitions, properties)
-  }
-
-  override def dropTable(ident: Identifier): Boolean = icebergSparkCatalog.dropTable(ident)
-
-  override def tableExists(ident: Identifier): Boolean = {
-    icebergSparkCatalog.tableExists(ident)
-  }
+  override val namespaces = icebergSparkCatalog
+  override val tableCatalog: TableCatalog = icebergSparkCatalog
 }
