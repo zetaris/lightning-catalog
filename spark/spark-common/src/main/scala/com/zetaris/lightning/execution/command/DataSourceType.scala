@@ -21,7 +21,6 @@
 
 package com.zetaris.lightning.execution.command
 
-import javafx.scene.media.VideoTrack
 
 object DataSourceType {
   val allTypes = Seq("JDBC", "ICEBERG", "DELTA", "ORC", "PARQUET", "CSV", "JSON", "XML", "REST",
