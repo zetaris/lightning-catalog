@@ -22,6 +22,8 @@
 package com.zetaris.lightning.catalog
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.zetaris.lightning.datasources.v2.UnstructuredData
+import com.zetaris.lightning.datasources.v2.pdf.{PdfFileFormat, PdfTable}
 import com.zetaris.lightning.execution.command.DataSourceType._
 import com.zetaris.lightning.model.LightningModel
 import com.zetaris.lightning.model.serde.DataSource.DataSource
@@ -61,7 +63,8 @@ case class FileCatalogUnit(dataSource: DataSource,
       case CSV => classOf[CSVFileFormat]
       case JSON => classOf[JsonFileFormat]
       case AVRO => SparkSQLBridge.fallbackAvroFileFormat
-      case other => ???
+      case PDF => classOf[PdfFileFormat]
+      case _ => ???
     }
 
   }
@@ -92,7 +95,6 @@ case class FileCatalogUnit(dataSource: DataSource,
 
   override def listTables(namespace: Array[String]): Array[Identifier] = {
     val namespace = dataSource.namespace
-    val name = dataSource.name
     val path = ciMap.get("path")
     FileSystemUtils.listDirectories(path).filter(!_.startsWith(".")).map(Identifier.of(namespace, _))
       .toArray
@@ -116,6 +118,13 @@ case class FileCatalogUnit(dataSource: DataSource,
         JsonTable(ident.name(), SparkSession.active, optionsWithoutPaths, paths, None, fallbackFileFormat)
       case AVRO =>
         AvroTable(ident.name(), SparkSession.active, optionsWithoutPaths, paths, None, fallbackFileFormat)
+      case PDF =>
+        val schema = if (ident.name().toLowerCase == UnstructuredData.CONTENT) {
+          UnstructuredData.pdfContentsSchema
+        } else {
+          UnstructuredData.pdfSchema
+        }
+        PdfTable(ident.name(), SparkSession.active, optionsWithoutPaths, paths, Some(schema), fallbackFileFormat)
       case other =>
         ???
     }

@@ -20,22 +20,19 @@
 package com.zetaris.lightning.catalog
 
 import com.zetaris.lightning.execution.command.DataSourceType._
-import com.zetaris.lightning.model.LightningModelFactory
 import com.zetaris.lightning.model.serde.DataSource.DataSource
 
 
-object CatalogUnitFactory {
+object CatalogUnitFactory extends DefaultCatalogUnitFactory {
   def apply(dataSource: DataSource): CatalogUnit = {
     val properties = dataSource.properties.map { prop =>
       prop.key -> prop.value
     }.toMap
 
     dataSource.dataSourceType match {
-      case JDBC => JDBCDataSourceCatalogUnit(dataSource.name, properties)
       case ICEBERG =>  IcebergCatalogUnit(dataSource.name, properties)
       case DELTA => DeltaCatalogUnit(dataSource.name, properties)
-      case PARQUET | ORC | AVRO | CSV | JSON => FileCatalogUnit(dataSource, LightningModelFactory.cached)
-      case _ => ???
+      case _ => fallback(dataSource, properties)
     }
   }
 }

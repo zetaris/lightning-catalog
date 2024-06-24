@@ -93,6 +93,8 @@ class RegisterCatalogTestSuite extends SparkExtensionsTestBase with H2TestBase {
          |NAMESPACE lightning.metastore.h2
          |""".stripMargin)
 
+    sparkSession.sql(s"SHOW NAMESPACES IN lightning.metastore.h2").show()
+
     checkAnswer(sparkSession.sql(s"SHOW NAMESPACES IN lightning.metastore.h2"), Seq(Row(singleSchema)))
     checkAnswer(sparkSession.sql(s"SHOW NAMESPACES IN lightning.metastore.h2.$singleSchema"),
       Seq(Row("INFORMATION_SCHEMA"), Row(schema1), Row(schema2)))

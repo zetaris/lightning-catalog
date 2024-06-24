@@ -21,12 +21,33 @@
 
 package org.apache.spark.sql
 
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.avro.AvroFileFormat
+import org.apache.spark.sql.errors.QueryCompilationErrors
+import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.execution.datasources.FileFormat
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{DataType, StructField, StructType}
+import org.apache.spark.sql.util.SchemaUtils
 
 object SparkSQLBridge {
   def fallbackAvroFileFormat: Class[_ <: FileFormat] = classOf[AvroFileFormat]
 
   def schemaFromJson(json: String): StructType = StructType.fromString(json)
+
+  def checkAndGlobPathIfNecessary(pathStrings: Seq[String],
+                                  hadoopConf: Configuration,
+                                  checkEmptyGlobPath: Boolean,
+                                  checkFilesExist: Boolean,
+                                  numThreads: Integer = 40,
+                                  enableGlobbing: Boolean): Seq[Path] =
+    DataSource.checkAndGlobPathIfNecessary(pathStrings,
+      hadoopConf, checkEmptyGlobPath, checkFilesExist, numThreads, enableGlobbing)
+
+  def checkSchemaColumnNameDuplication(schema: DataType,
+                                       aseSensitiveAnalysis: Boolean = false): Unit =
+    SchemaUtils.checkSchemaColumnNameDuplication(schema, aseSensitiveAnalysis)
+
+  def dataTypeUnsupportedByDataSourceError(format: String, column: StructField): Throwable =
+    QueryCompilationErrors.dataTypeUnsupportedByDataSourceError(format, column)
 }

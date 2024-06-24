@@ -27,6 +27,7 @@ import org.antlr.v4.runtime.tree.ParseTree
 import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.parser.ParserUtils.{checkDuplicateKeys, operationNotAllowed, string}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 
 import java.util.Locale
 import scala.collection.JavaConverters._

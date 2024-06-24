@@ -22,11 +22,13 @@
 
 package com.zetaris.lightning.execution.command
 
+import com.zetaris.lightning.datasources.v2.UnstructuredData
 import com.zetaris.lightning.execution.command.DataSourceType._
 import com.zetaris.lightning.model.LightningModelFactory
 import com.zetaris.lightning.model.serde.DataSource
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
@@ -38,6 +40,8 @@ case class RegisterDataSourceSpec(namespace: Array[String],
                                   dataSourceType: DataSourceType.DataSourceType,
                                   opts: Map[String, String],
                                   replace: Boolean) extends LightningCommandBase {
+  val caseInsensitiveMap = CaseInsensitiveMap(opts)
+
   dataSourceType match {
     case JDBC => validateJDBCParams()
     case ICEBERG => validateIcebergParams()
@@ -62,29 +66,33 @@ case class RegisterDataSourceSpec(namespace: Array[String],
   }
 
   private def validateFileParams(): Unit = {
-    opts.getOrElse("path", {
-      opts.getOrElse("paths",
+    caseInsensitiveMap.getOrElse("path", {
+      caseInsensitiveMap.getOrElse("paths",
         throw new IllegalArgumentException(s"path option is not provided"))
     })
+
+    caseInsensitiveMap.get("scanType").foreach { scanType =>
+      UnstructuredData.ScanType(scanType)
+    }
   }
 
   private def validateDeltaParams(): Unit = {
-    opts.getOrElse(s"path", throw new IllegalArgumentException(s"path option is not provided"))
+    caseInsensitiveMap.getOrElse(s"path", throw new IllegalArgumentException(s"path option is not provided"))
   }
 
   private def validateIcebergParams(): Unit = {
-    val warehousetype = opts.getOrElse("type",
+    val warehousetype = caseInsensitiveMap.getOrElse("type",
       throw new IllegalArgumentException(s"iceberg type(type) is not provided"))
 
     if (warehousetype.toLowerCase == "hadoop") {
-      opts.getOrElse(s"warehouse",
-        throw new IllegalArgumentException(s"warehouse path(warehouse) is not provided"))
+      caseInsensitiveMap.getOrElse("warehouse",
+        throw new IllegalArgumentException("warehouse path(warehouse) is not provided"))
     }
   }
 
   private def validateJDBCParams(): Unit = {
-    opts.getOrElse(s"url",
-      throw new IllegalArgumentException(s"jdbc url : url is not provided"))
+    caseInsensitiveMap.getOrElse("url",
+      throw new IllegalArgumentException("jdbc url : url is not provided"))
   }
 
   override def runCommand(sparkSession: SparkSession): Seq[Row] = {

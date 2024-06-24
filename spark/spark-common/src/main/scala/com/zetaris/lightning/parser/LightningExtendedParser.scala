@@ -149,7 +149,11 @@ class LightningExtendedParser(delegate: ParserInterface) extends ParserInterface
         normalisedText.contains("avro datasource") ||
         normalisedText.contains("csv datasource") ||
         normalisedText.contains("xml datasource") ||
-        normalisedText.contains("json datasource")
+        normalisedText.contains("json datasource") ||
+        normalisedText.contains("pdf datasource") ||
+        normalisedText.contains("image datasource") ||
+        normalisedText.contains("video datasource") ||
+        normalisedText.contains("audio datasource")
     }
 
     def checkNamespace(normalisedText: String): Boolean = {

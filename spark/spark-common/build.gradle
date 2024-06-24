@@ -48,6 +48,8 @@ project(":lightning-spark:lightning-spark-common_${scalaVersion}") {
 
   dependencies {
     implementation("org.scala-lang.modules:scala-collection-compat_${scalaVersion}")
+    implementation("com.drewnoakes:metadata-extractor:2.19.0")
+    implementation("org.apache.pdfbox:pdfbox:3.0.2")
 
     compileOnly "org.scala-lang:scala-library:${scalaVersion}"
     compileOnly("org.apache.spark:spark-hive_${scalaVersion}:${sparkVersion}")

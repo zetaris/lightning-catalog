@@ -63,8 +63,10 @@ object DataSourceType {
   case object JSON extends FileTypeSource
 
   case object REST extends DataSourceType
-  case object PDF extends DataSourceType
-  case object IMAGE extends DataSourceType
-  case object VIDEO extends DataSourceType
-  case object AUDIO extends DataSourceType
+  case object PDF extends FileTypeSource
+  case object IMAGE extends FileTypeSource
+  case object VIDEO extends FileTypeSource
+  case object AUDIO extends FileTypeSource
+  case object TEXT extends FileTypeSource
+  case object BIN extends FileTypeSource
 }

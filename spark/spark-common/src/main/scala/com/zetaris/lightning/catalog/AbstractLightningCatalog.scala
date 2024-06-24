@@ -19,6 +19,7 @@
 
 package com.zetaris.lightning.catalog
 
+import com.zetaris.lightning.datasources.v2.UnstructuredData
 import com.zetaris.lightning.execution.command.DataSourceType
 import com.zetaris.lightning.model.{LightningModel, LightningModelFactory}
 import com.zetaris.lightning.model.serde.DataSource.DataSource
@@ -93,7 +94,6 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
     }
   }
 
-
   override def loadTable(ident: Identifier): Table = {
     val namespace = ident.namespace()
 
@@ -106,12 +106,21 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
         LightningCatalogUnit(namespace(0), model).loadTable(ident)
       case "datasource" =>
         findParentDataSource(ident.namespace(), ident.name()) match {
+          case Some(datasource) if datasource.dataSourceType.isInstanceOf[DataSourceType.FileTypeSource] =>
+            if ((datasource.namespace.sameElements(ident.namespace()) && datasource.name.equalsIgnoreCase(ident.name()))
+              || ident.name().equalsIgnoreCase(UnstructuredData.CONTENT)) {
+              val catalog = loadCatalogUnit(datasource)
+              val sourceNamespace = ident.namespace().drop(datasource.namespace.length + 1)
+              catalog.loadTable(Identifier.of(sourceNamespace, ident.name()))
+            } else {
+              throw new RuntimeException(s"namespace(${ident.namespace().mkString(".")}), name(${ident.name()}) is not defined")
+            }
           case Some(datasource) =>
             val catalog = loadCatalogUnit(datasource)
             val sourceNamespace = ident.namespace().drop(datasource.namespace.length + 1)
             catalog.loadTable(Identifier.of(sourceNamespace, ident.name()))
           case None =>
-            throw new RuntimeException(s"namespace(${ident.namespace().mkString(".")}) is not defined")
+            throw new RuntimeException(s"namespace(${ident.namespace().mkString(".")}), name(${ident.name()}) is not defined")
           case _ => throw new RuntimeException(s"invalid namespace : ${namespace(0)}")
         }
       case _ => throw new RuntimeException(s"namespace : ${ident.namespace()} doesn't exist")
@@ -230,7 +239,7 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
 
   override def tableExists(ident: Identifier): Boolean = {
     val namespace = ident.namespace()
-    findParentDataSource(namespace) match {
+    findParentDataSource(namespace, ident.name()) match {
       case Some(datasource) =>
         val catalog = loadCatalogUnit(datasource)
         val sourceNamespace = namespace.drop(datasource.namespace.length + 1)
