@@ -21,37 +21,11 @@
 
 package com.zetaris.lightning.datasource.command
 
-import com.zetaris.lightning.spark.SparkExtensionsTestBase
 import org.junit.runner.RunWith
 import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class RegisterUnstructuredDataSourceTestSuite extends SparkExtensionsTestBase with TestDataSet {
-  override def beforeAll(): Unit = {
-    super.beforeAll()
-    initRoootNamespace()
-  }
-
-  override def beforeEach(): Unit = {
-    sparkSession.sql(s"DROP NAMESPACE IF EXISTS lightning.datasource.file")
-    sparkSession.sql(s"CREATE NAMESPACE lightning.datasource.file")
-  }
-
-  private def registerFileDataSource(tableName: String,
-                                     format: String,
-                                     path: String,
-                                     scanType: String,
-                                     pathFilter: String) = {
-    sparkSession.sql(
-      s"""
-         |REGISTER OR REPLACE ${format.toUpperCase} DATASOURCE $tableName OPTIONS (
-         |path "$path",
-         |scanType "$scanType",
-         |pathGlobFilter "$pathFilter"
-         |) NAMESPACE lightning.datasource.file
-         |""".stripMargin)
-  }
-
+class RegisterPdfDataSourceTestSuite extends FileDataSourceTestBase {
   test("should run query over a pdf file") {
     registerFileDataSource("spark_history", "pdf", getClass.getResource("/pdf/apache_spark_history.pdf").getPath, "file_scan", "*.pdf")
 
@@ -111,7 +85,6 @@ class RegisterUnstructuredDataSourceTestSuite extends SparkExtensionsTestBase wi
     assert(schema(5).getString(0) == "subdir")
 
     val df = sparkSession.sql("select * from lightning.datasource.file.pdf_subdir")
-    df.show()
     val rec = df.collect()
 
     assert(rec.size == 3)
@@ -290,7 +263,6 @@ class RegisterUnstructuredDataSourceTestSuite extends SparkExtensionsTestBase wi
     registerFileDataSource("pdf_subdir", "pdf", getClass.getResource("/pdf-subdir").getPath, "recursive_scan", "*.pdf")
 
     val df = sparkSession.sql("select * from lightning.datasource.file.pdf_subdir.content")
-    df.show()
     val rec = df.collect()
 
     assert(rec.size == 3)

@@ -19,13 +19,15 @@
  *
  */
 
-package com.zetaris.lightning.datasources.v2.pdf
+package com.zetaris.lightning.datasources.v2.image
 
+import com.zetaris.lightning.datasources.v2.UnstructuredData
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.connector.read.PartitionReaderFactory
 import org.apache.spark.sql.execution.datasources.PartitioningAwareFileIndex
+import org.apache.spark.sql.execution.datasources.text.TextOptions
 import org.apache.spark.sql.execution.datasources.v2.FileScan
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
@@ -34,26 +36,25 @@ import org.apache.spark.util.SerializableConfiguration
 
 import scala.collection.JavaConverters._
 
-case class PdfScan(
-  sparkSession: SparkSession,
-  fileIndex: PartitioningAwareFileIndex,
-  dataSchema: StructType, // data schema (schema - partition schema)
-  readDataSchema: StructType, // required(selected) schema from data schema
-  readPartitionSchema: StructType, // required(selected) schema from partition schema
-  recursiveScanSchema: StructType,
-  rootPathsSpecified: Seq[Path],
-  pushedFilters: Array[Filter],
-  opts: Map[String, String],
-  partitionFilters: Seq[Expression] = Seq.empty,
-  dataFilters: Seq[Expression] = Seq.empty,
-  isContentTable: Boolean = false) extends FileScan {
+case class ImageScan(sparkSession: SparkSession,
+                     fileIndex: PartitioningAwareFileIndex,
+                     dataSchema: StructType, // data schema (schema - partition schema)
+                     readDataSchema: StructType, // required(selected) schema from data schema
+                     readPartitionSchema: StructType, // required(selected) schema from partition schema
+                     recursiveScanSchema: StructType,
+                     rootPathsSpecified: Seq[Path],
+                     pushedFilters: Array[Filter],
+                     opts: Map[String, String],
+                     partitionFilters: Seq[Expression] = Seq.empty,
+                     dataFilters: Seq[Expression] = Seq.empty,
+                     isContentTable: Boolean = false) extends FileScan {
 
   override def isSplitable(path: Path): Boolean = false
 
   override def createReaderFactory(): PartitionReaderFactory = {
     val hadoopConf = sparkSession.sessionState.newHadoopConfWithOptions(opts)
     val broadcastedConf = sparkSession.sparkContext.broadcast(new SerializableConfiguration(hadoopConf))
-    PdfReaderFactory(broadcastedConf,
+    ImageReaderFactory(broadcastedConf,
       readDataSchema,
       readPartitionSchema,
       rootPathsSpecified,
@@ -64,4 +65,6 @@ case class PdfScan(
 
   override def readSchema(): StructType =
     StructType(readDataSchema.fields ++ recursiveScanSchema ++ readPartitionSchema.fields)
+
 }
+

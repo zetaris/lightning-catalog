@@ -19,42 +19,20 @@
  *
  */
 
-package com.zetaris.lightning.datasources.v2.pdf
+package com.zetaris.lightning.datasources.v2
 
-import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.StructFilters
 import org.apache.spark.sql.execution.datasources.PartitioningAwareFileIndex
 import org.apache.spark.sql.execution.datasources.v2.FileScanBuilder
 import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.types._
-import org.apache.spark.sql.util.CaseInsensitiveStringMap
+import org.apache.spark.sql.types.StructType
 
-case class PdfFileScanBuilder(sparkSession: SparkSession,
-                              fileIndex: PartitioningAwareFileIndex,
-                              schema: StructType, // data schema + partition schema
-                              dataSchema: StructType, // data schema - UnstructuredData.pdfSchema
-                              recursiveScanSchema: StructType,
-                              rootPathsSpecified: Seq[Path],
-                              options: CaseInsensitiveStringMap,
-                              isContentTable: Boolean = false)
+abstract class UnstructuredFileScanBuilder(sparkSession: SparkSession,
+                                           fileIndex: PartitioningAwareFileIndex,
+                                           dataSchema: StructType,
+                                           recursiveScanSchema: StructType)
   extends FileScanBuilder(sparkSession, fileIndex, dataSchema) {
-
-  override def build(): PdfScan = {
-    PdfScan(sparkSession,
-      fileIndex,
-      dataSchema,
-      readDataSchema(),
-      readPartitionSchema(),
-      recursiveScanSchema,
-      rootPathsSpecified,
-      pushedDataFilters,
-      options,
-      partitionFilters,
-      dataFilters,
-      isContentTable)
-  }
-
   override protected def readDataSchema(): StructType = {
     val fields = super.readDataSchema().fields ++ recursiveScanSchema.fields
     StructType(fields)

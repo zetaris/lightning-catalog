@@ -23,7 +23,9 @@ package com.zetaris.lightning.catalog
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.zetaris.lightning.datasources.v2.UnstructuredData
+import com.zetaris.lightning.datasources.v2.image.ImageTable
 import com.zetaris.lightning.datasources.v2.pdf.{PdfFileFormat, PdfTable}
+import com.zetaris.lightning.datasources.v2.text.TextTable
 import com.zetaris.lightning.execution.command.DataSourceType._
 import com.zetaris.lightning.model.LightningModel
 import com.zetaris.lightning.model.serde.DataSource.DataSource
@@ -48,13 +50,11 @@ import scala.collection.JavaConverters._
 
 case class FileCatalogUnit(dataSource: DataSource,
                            lightningModel: LightningModel) extends CatalogUnit {
-  private val ciMap: CaseInsensitiveStringMap = {
-    val properties = dataSource.properties.map { prop =>
-      prop.key -> prop.value
-    }.toMap
+  private val opts = dataSource.properties.map { prop =>
+    prop.key -> prop.value
+  }.toMap
 
-    new CaseInsensitiveStringMap(mapAsJavaMap(properties))
-  }
+  private val ciMap: CaseInsensitiveStringMap = new CaseInsensitiveStringMap(mapAsJavaMap(opts))
 
   def fallbackFileFormat: Class[_ <: FileFormat] = {
     dataSource.dataSourceType match {
@@ -118,13 +118,9 @@ case class FileCatalogUnit(dataSource: DataSource,
         JsonTable(ident.name(), SparkSession.active, optionsWithoutPaths, paths, None, fallbackFileFormat)
       case AVRO =>
         AvroTable(ident.name(), SparkSession.active, optionsWithoutPaths, paths, None, fallbackFileFormat)
-      case PDF =>
-        val schema = if (ident.name().toLowerCase == UnstructuredData.CONTENT) {
-          UnstructuredData.pdfContentsSchema
-        } else {
-          UnstructuredData.pdfSchema
-        }
-        PdfTable(ident.name(), SparkSession.active, optionsWithoutPaths, paths, Some(schema), fallbackFileFormat)
+      case PDF => PdfTable(ident.name(), SparkSession.active, opts, paths, fallbackFileFormat)
+      case TEXT => TextTable(ident.name(), SparkSession.active, opts, paths)
+      case IMAGE => ImageTable(ident.name(), SparkSession.active, opts, paths)
       case other =>
         ???
     }

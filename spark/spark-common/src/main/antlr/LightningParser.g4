@@ -16,7 +16,7 @@ ddlStatement
     ;
 
 registerDataSource
-    : REGISTER (OR REPLACE)? dataSourceType = (JDBC | ICEBERG | ORC | PARQUET | DELTA | AVRO | CSV | XML | JSON | PDF | IMAGE | VIDEO | AUDIO)
+    : REGISTER (OR REPLACE)? dataSourceType = (JDBC | ICEBERG | ORC | PARQUET | DELTA | AVRO | CSV | XML | JSON | PDF | TEXT | IMAGE | VIDEO | AUDIO)
       DATASOURCE identifier (OPTIONS options=propertyList)?
       NAMESPACE multipartIdentifier
     ;

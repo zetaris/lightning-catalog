@@ -19,25 +19,24 @@
  *
  */
 
-package com.zetaris.lightning.datasources.v2.pdf
+package com.zetaris.lightning.datasources.v2.text
 
-import com.zetaris.lightning.datasources.v2.UnstructuredData.{BINCONTENT, FILETYPE, MODIFIEDAT, PATH, PREVIEW, SIZEINBYTES, TEXTCONTENT}
+import com.zetaris.lightning.datasources.v2.UnstructuredData._
 import com.zetaris.lightning.datasources.v2.{UnstructuredData, UnstructuredFileScanBuilder, UnstructuredFileTable}
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.execution.datasources._
-import org.apache.spark.sql.types.{BinaryType, LongType, StringType, StructField, StructType, TimestampType}
+import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-case class PdfTable(name: String,
-                    sparkSession: SparkSession,
-                    opts: Map[String, String],
-                    paths: Seq[String],
-                    fallbackFileFormat: Class[_ <: FileFormat])
+case class TextTable(name: String,
+                     sparkSession: SparkSession,
+                     opts: Map[String, String],
+                     paths: Seq[String],
+                     fallbackFileFormat: Class[_ <: FileFormat] = null)
   extends UnstructuredFileTable(sparkSession, opts, paths, if (name.toLowerCase == UnstructuredData.CONTENT) {
     Some(StructType(
       StructField(PATH, StringType, false) ::
-        StructField(TEXTCONTENT, StringType, false) ::
-        StructField(BINCONTENT, BinaryType, false) :: Nil
+        StructField(TEXTCONTENT, StringType, false) :: Nil
     ))
   } else {
     Some(StructType(
@@ -47,12 +46,12 @@ case class PdfTable(name: String,
         StructField(SIZEINBYTES, LongType, false) ::
         StructField(PREVIEW, StringType, false) :: Nil
     ))
-  }, "pdf") {
+  }, "txt") {
 
   override def newScanBuilder(options: CaseInsensitiveStringMap): UnstructuredFileScanBuilder =
     new UnstructuredFileScanBuilder(sparkSession, fileIndex, dataSchema, recursiveScanSchema) {
-      override def build(): PdfScan = {
-        PdfScan(sparkSession,
+      override def build(): TextScan = {
+        TextScan(sparkSession,
           fileIndex,
           dataSchema,
           readDataSchema(),
@@ -67,4 +66,3 @@ case class PdfTable(name: String,
       }
     }
 }
-

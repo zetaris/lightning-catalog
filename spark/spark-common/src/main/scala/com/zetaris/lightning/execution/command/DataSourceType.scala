@@ -39,6 +39,7 @@ object DataSourceType {
       case "XML" => XML
       case "REST" => REST
       case "PDF" => PDF
+      case "TEXT" => TEXT
       case "IMAGE" => IMAGE
       case "VIDEO" => VIDEO
       case "AUDIO" => AUDIO

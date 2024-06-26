@@ -22,12 +22,9 @@
 package com.zetaris.lightning.datasources.v2
 
 import com.drew.metadata.{Metadata, Tag}
-import org.apache.pdfbox.Loader
-import org.apache.pdfbox.text.PDFTextStripper
-import org.apache.spark.sql.sources.{And, EqualNullSafe, EqualTo, Filter, GreaterThan, GreaterThanOrEqual, In, IsNotNull, IsNull, LessThan, LessThanOrEqual, Not, Or, StringContains, StringEndsWith, StringStartsWith}
-import org.apache.spark.sql.types.{BinaryType, LongType, StringType, StructField, StructType, TimestampType}
-import org.apache.spark.unsafe.types.UTF8String
+import org.apache.spark.sql.sources._
 
+import java.awt.Dimension
 import scala.collection.JavaConverters._
 
 object UnstructuredData {
@@ -37,6 +34,7 @@ object UnstructuredData {
   val MODIFIEDAT = "modifiedat"
   val SIZEINBYTES = "sizeinbytes"
   val PREVIEW = "preview"
+  val IMAGETHUMBNAIL = "imagethumbnail"
 
   val WIDTH = "width"
   val HEIGHT = "height"
@@ -57,6 +55,11 @@ object UnstructuredData {
   val PDF_SHORT_NAME = "pdf"
   val PDF_PREVIEW_KEY = "pdf_preview_len"
   val PDF_PREVIEW_LEN = 1000
+
+  val IMAGE_THUMBNAIL_WIDTH_KEY = "image_thumbnail_with"
+  val IMAGE_THUMBNAIL_HEIGHT_KEY = "image_thumbnail_height"
+  val IMAGE_THUMBNAIL_WIDTH_DEFAULT = 100
+  val IMAGE_THUMBNAIL_HEIGHT_DEFAULT = 100
 
   object ScanType {
     def apply(scanType: String): ScanType = {
@@ -80,21 +83,8 @@ object UnstructuredData {
                                   preview: String,
                                   subDir: String,
                                   textcontent: String = null,
-                                  bincontent: Array[Byte] = null)
-
-  val pdfSchema: StructType = StructType(
-    StructField(FILETYPE, StringType, true) ::
-      StructField(PATH, StringType, false) ::
-      StructField(MODIFIEDAT, TimestampType, false) ::
-      StructField(SIZEINBYTES, LongType, false) ::
-      StructField(PREVIEW, StringType, false) :: Nil
-  )
-
-  val pdfContentsSchema: StructType = StructType(
-      StructField(PATH, StringType, false) ::
-      StructField(TEXTCONTENT, StringType, false) ::
-      StructField(BINCONTENT, BinaryType, false) :: Nil
-  )
+                                  bincontent: Array[Byte] = null,
+                                  imageDim: Dimension = null)
 
   def extractTags(metadata: Metadata): List[Tag] = {
     metadata.getDirectories.asScala
@@ -114,28 +104,17 @@ object UnstructuredData {
       }
   }
 
-  def getTag(tags: List[Tag], name: String): Option[UTF8String] = {
-    tags
-      .find(tag => tag.getTagName.equalsIgnoreCase(name))
-      .map(tag => UTF8String.fromString(tag.getDescription))
-  }
-
-  private def pdfTextFromBinary(content: Array[Byte]): String = {
-    val document = Loader.loadPDF(content)
-    val pdfStripper = new PDFTextStripper()
-    val text = pdfStripper.getText(document)
-    text
-  }
-
-
   def getFieldValue(field: String, metaData: MetaData): Any = {
     field.toLowerCase match {
-      case UnstructuredData.FILETYPE => "pdf"
+      case UnstructuredData.FILETYPE => metaData.fileType
       case UnstructuredData.PATH => metaData.path
       case UnstructuredData.MODIFIEDAT => metaData.modifiedAt
       case UnstructuredData.SIZEINBYTES => metaData.sizeInBytes
       case UnstructuredData.PREVIEW => metaData.preview
       case UnstructuredData.SUBDIR => metaData.subDir
+      case UnstructuredData.WIDTH => metaData.imageDim.width
+      case UnstructuredData.HEIGHT => metaData.imageDim.height
+      case UnstructuredData.IMAGETHUMBNAIL => metaData.bincontent
     }
   }
 

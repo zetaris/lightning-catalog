@@ -23,43 +23,42 @@ package com.zetaris.lightning.datasources.v2
 
 import com.zetaris.lightning.datasources.v2.UnstructuredData.{MetaData, createFilter}
 import org.apache.hadoop.fs.Path
-import org.apache.pdfbox.Loader
-import org.apache.pdfbox.text.PDFTextStripper
 import org.apache.spark.TaskContext
 import org.apache.spark.broadcast.Broadcast
-import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
-import org.apache.spark.sql.catalyst.{FileSourceOptions, InternalRow}
 import org.apache.spark.sql.connector.read.PartitionReader
 import org.apache.spark.sql.execution.datasources.PartitionedFile
+import org.apache.spark.sql.execution.datasources.text.TextOptions
 import org.apache.spark.sql.execution.datasources.v2._
-import org.apache.spark.sql.internal.SQLConf
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.unsafe.types.UTF8String
 import org.apache.spark.util.SerializableConfiguration
 
-case class UnstructuredFilePartitionReaderFactory(broadcastedConf: Broadcast[SerializableConfiguration],
-                                                  sparkSession: SparkSession,
-                                                  sqlConf: SQLConf,
-                                                  readDataSchema: StructType,
-                                                  partitionSchema: StructType,
-                                                  rootPathsSpecified: Seq[Path],
-                                                  pushedFilters: Array[Filter],
-                                                  options: FileSourceOptions,
-                                                  previewLen: Long,
-                                                  isContentTable: Boolean = false) extends FilePartitionReaderFactory {
+import java.awt.Dimension
+import scala.collection.JavaConverters._
 
-  private def pdfTextFromBinary(content: Array[Byte], previewLen: Int): String = {
-    val document = Loader.loadPDF(content)
-    val pdfStripper = new PDFTextStripper()
-    val pdfText = pdfStripper.getText(document)
-    if (previewLen > 0 && pdfText.length > previewLen) {
-      pdfStripper.getText(document).substring(0, previewLen)
-    } else {
-      pdfStripper.getText(document)
-    }
+abstract class UnstructuredFilePartitionReaderFactory(broadcastedConf: Broadcast[SerializableConfiguration],
+                                                      readDataSchema: StructType,
+                                                      partitionSchema: StructType,
+                                                      rootPathsSpecified: Seq[Path],
+                                                      pushedFilters: Array[Filter],
+                                                      opts: Map[String, String],
+                                                      isContentTable: Boolean = false) extends FilePartitionReaderFactory {
+  val options = new TextOptions(opts)
+
+  def textPreviewFromBinary(content: Array[Byte]): String
+
+  def thumbnailImage(content: Array[Byte]): Array[Byte] = content
+
+  def getImageResolution(content: Array[Byte]): Dimension = ???
+
+  val previewLen: Int = {
+    val ciMap = new CaseInsensitiveStringMap(mapAsJavaMap(opts))
+    ciMap.getInt(UnstructuredData.PDF_PREVIEW_KEY, UnstructuredData.PDF_PREVIEW_LEN)
   }
 
   private def buildMetaDataReader(file: PartitionedFile): PartitionReader[InternalRow] = {
@@ -75,6 +74,23 @@ case class UnstructuredFilePartitionReaderFactory(broadcastedConf: Broadcast[Ser
       val writer = new UnsafeRowWriter(readDataSchema.length)
       writer.resetRowWriter()
       var md = MetaData("pdf", "", -1L, -1L, "", "")
+
+      val contentNeed = readDataSchema.fields.find(_.name.toLowerCase == UnstructuredData.WIDTH).isDefined ||
+        readDataSchema.fields.find(_.name.toLowerCase == UnstructuredData.HEIGHT).isDefined ||
+        readDataSchema.fields.find(_.name.toLowerCase == UnstructuredData.IMAGETHUMBNAIL).isDefined
+      val bincontent: Array[Byte] = if (contentNeed) {
+        reader.next()
+      } else {
+        Array()
+      }
+      val imageDim = if(contentNeed) {
+        getImageResolution(bincontent)
+      } else {
+        null
+      }
+
+      md = md.copy(bincontent = bincontent)
+      md = md.copy(imageDim = imageDim)
 
       readDataSchema.fields.map(_.name).zipWithIndex.foreach {
         case (UnstructuredData.FILETYPE, index) =>
@@ -99,9 +115,18 @@ case class UnstructuredFilePartitionReaderFactory(broadcastedConf: Broadcast[Ser
           md = md.copy(sizeInBytes = file.length)
           writer.write(index, file.length)
         case (UnstructuredData.PREVIEW, index) =>
-          val preview = pdfTextFromBinary(reader.next(), previewLen.toInt)
+          val preview = textPreviewFromBinary(reader.next())
           md = md.copy(preview = preview)
           writer.write(index, UTF8String.fromString(preview))
+        case (UnstructuredData.WIDTH, index) =>
+          writer.write(index, md.imageDim.width)
+        case (UnstructuredData.HEIGHT, index) =>
+          writer.write(index, md.imageDim.height)
+        case (UnstructuredData.IMAGETHUMBNAIL, index) =>
+          val thumbnail = thumbnailImage(md.bincontent)
+          md = md.copy(bincontent = thumbnail)
+          writer.write(index, thumbnail)
+
         case (UnstructuredData.SUBDIR, index) =>
           val fullPath = file.toPath.toUri.getPath
           val rootPath = rootPathsSpecified.find(path => fullPath.startsWith(path.toUri.getPath)).get.toUri.getPath
@@ -146,12 +171,14 @@ case class UnstructuredFilePartitionReaderFactory(broadcastedConf: Broadcast[Ser
       var md = MetaData("pdf", "", -1L, -1L, "", "")
 
       val contentNeed = readDataSchema.fields.find(_.name.toLowerCase == UnstructuredData.TEXTCONTENT).isDefined ||
-        readDataSchema.fields.find(_.name.toLowerCase == UnstructuredData.TEXTCONTENT).isDefined
-      val binContents: Array[Byte] = if (contentNeed) {
+        readDataSchema.fields.find(_.name.toLowerCase == UnstructuredData.BINCONTENT).isDefined
+      val bincontent: Array[Byte] = if (contentNeed) {
         reader.next()
       } else {
         Array()
       }
+
+      md = md.copy(bincontent = bincontent)
 
       readDataSchema.fields.map(_.name).zipWithIndex.foreach {
         case (UnstructuredData.PATH, index) =>
@@ -171,12 +198,10 @@ case class UnstructuredFilePartitionReaderFactory(broadcastedConf: Broadcast[Ser
           md = md.copy(subDir = subDir)
           writer.write(index, UTF8String.fromString(subDir))
         case (UnstructuredData.TEXTCONTENT, index) =>
-          val content = pdfTextFromBinary(binContents, previewLen.toInt)
-          md = md.copy(textcontent = content)
+          val content = textPreviewFromBinary(md.bincontent)
           writer.write(index, UTF8String.fromString(content))
         case (UnstructuredData.BINCONTENT, index) =>
-          md = md.copy(bincontent = binContents)
-          writer.write(index, binContents)
+          writer.write(index, md.bincontent)
       }
 
       if (pushedFilters.isEmpty) {

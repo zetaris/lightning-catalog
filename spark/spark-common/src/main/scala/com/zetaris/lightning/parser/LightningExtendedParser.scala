@@ -151,6 +151,7 @@ class LightningExtendedParser(delegate: ParserInterface) extends ParserInterface
         normalisedText.contains("xml datasource") ||
         normalisedText.contains("json datasource") ||
         normalisedText.contains("pdf datasource") ||
+        normalisedText.contains("text datasource") ||
         normalisedText.contains("image datasource") ||
         normalisedText.contains("video datasource") ||
         normalisedText.contains("audio datasource")

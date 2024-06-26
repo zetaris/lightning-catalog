@@ -37,7 +37,13 @@ case class PdfFileFormat() extends BinaryFileFormat with DataSourceRegister {
 
   import UnstructuredData._
 
-  val schema: StructType = pdfSchema
+  val schema: StructType = StructType(
+    StructField(FILETYPE, StringType, true) ::
+      StructField(PATH, StringType, false) ::
+      StructField(MODIFIEDAT, TimestampType, false) ::
+      StructField(SIZEINBYTES, LongType, false) ::
+      StructField(PREVIEW, StringType, false) :: Nil
+  )
 
   override def shortName(): String = "pdf"
 

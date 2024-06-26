@@ -19,20 +19,34 @@
  *
  */
 
-package com.zetaris.lightning.catalog
+package com.zetaris.lightning.datasource.command
 
-import com.zetaris.lightning.execution.command.DataSourceType.{AUDIO, AVRO, CSV, IMAGE, JDBC, JSON, ORC, PARQUET, PDF, TEXT, VIDEO}
-import com.zetaris.lightning.model.LightningModelFactory
-import com.zetaris.lightning.model.serde.DataSource.DataSource
+import com.zetaris.lightning.spark.SparkExtensionsTestBase
 
-trait DefaultCatalogUnitFactory {
-  def fallback(dataSource: DataSource, properties: Map[String, String]): CatalogUnit = {
-    dataSource.dataSourceType match {
-      case JDBC =>
-        JDBCDataSourceCatalogUnit(dataSource.name, properties)
-      case PARQUET | ORC | AVRO | CSV | JSON | PDF | TEXT | IMAGE | VIDEO | AUDIO =>
-        FileCatalogUnit(dataSource, LightningModelFactory.cached)
-      case _ => ???
-    }
+abstract class FileDataSourceTestBase extends SparkExtensionsTestBase with TestDataSet {
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    initRoootNamespace()
   }
+
+  override def beforeEach(): Unit = {
+    sparkSession.sql(s"DROP NAMESPACE IF EXISTS lightning.datasource.file")
+    sparkSession.sql(s"CREATE NAMESPACE lightning.datasource.file")
+  }
+
+  def registerFileDataSource(tableName: String,
+                             format: String,
+                             path: String,
+                             scanType: String,
+                             pathFilter: String): Unit = {
+    sparkSession.sql(
+      s"""
+         |REGISTER OR REPLACE ${format.toUpperCase} DATASOURCE $tableName OPTIONS (
+         |path "$path",
+         |scanType "$scanType",
+         |pathGlobFilter "$pathFilter"
+         |) NAMESPACE lightning.datasource.file
+         |""".stripMargin)
+  }
+
 }

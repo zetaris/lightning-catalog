@@ -22,39 +22,41 @@
 package com.zetaris.lightning.datasources.v2
 
 import com.zetaris.lightning.datasources.v2.UnstructuredData.ScanType
-import org.apache.hadoop.fs.Path
-import org.apache.spark.sql.execution.datasources.v2.FileTable
+import org.apache.hadoop.fs.{FileStatus, Path}
+import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
 import org.apache.spark.sql.execution.datasources._
+import org.apache.spark.sql.execution.datasources.v2.FileTable
 import org.apache.spark.sql.execution.streaming.{FileStreamSink, MetadataLogFileIndex}
-import org.apache.spark.sql.types.{StringType, StructField, StructType}
+import org.apache.spark.sql.types.{DataType, StringType, StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.sql.{SparkSQLBridge, SparkSession}
 
 import scala.collection.JavaConverters._
 
-trait UnstructuredScan { this: FileTable =>
-  val options: CaseInsensitiveStringMap
+abstract class UnstructuredFileTable(sparkSession: SparkSession,
+                                     opts: Map[String, String],
+                                     paths: Seq[String],
+                                     userSpecifiedSchema: Option[StructType],
+                                     override val formatName: String)
+  extends FileTable(sparkSession, new CaseInsensitiveStringMap(mapAsJavaMap(opts)), paths, userSpecifiedSchema) {
+  val options = new CaseInsensitiveStringMap(mapAsJavaMap(opts))
 
   val scanType: ScanType = {
     val scanType = options.getOrDefault("scanType", "file_scan")
     ScanType(scanType)
   }
 
-  val sparkSession: SparkSession
-  val paths: Seq[String]
-  val userSpecifiedSchema: Option[StructType]
-
   private def globPaths: Boolean = {
     val entry = options.get(DataSource.GLOB_PATHS_KEY)
     Option(entry).map(_ == "true").getOrElse(true)
   }
 
-  private val caseSensitiveMap = options.asCaseSensitiveMap.asScala.toMap
+  //private val caseSensitiveMap = options.asCaseSensitiveMap.asScala.toMap
   // Hadoop Configurations are case sensitive.
-  private val hadoopConf = sparkSession.sessionState.newHadoopConfWithOptions(caseSensitiveMap)
+  private val hadoopConf = sparkSession.sessionState.newHadoopConfWithOptions(opts)
 
   private[datasources] val rootPathsSpecified = {
-    val hadoopConf = sparkSession.sessionState.newHadoopConfWithOptions(caseSensitiveMap)
+    val hadoopConf = sparkSession.sessionState.newHadoopConfWithOptions(opts)
     SparkSQLBridge.checkAndGlobPathIfNecessary(paths, hadoopConf,
       checkEmptyGlobPath = true, checkFilesExist = true, enableGlobbing = globPaths)
   }
@@ -74,8 +76,11 @@ trait UnstructuredScan { this: FileTable =>
           Map(FileIndexOptions.RECURSIVE_FILE_LOOKUP -> "true")
       }
 
+      // see private val pathFilters = PathFilterFactory.create(caseInsensitiveMap) for glob filter
+      // in PartitioningAwareFileIndex
+      val parameters =  opts ++ fileScanOption
       new InMemoryFileIndex(
-        sparkSession, rootPathsSpecified, caseSensitiveMap ++ fileScanOption, userSpecifiedSchema, fileStatusCache)
+        sparkSession, rootPathsSpecified, parameters, userSpecifiedSchema, fileStatusCache)
     }
   }
 
@@ -115,5 +120,11 @@ trait UnstructuredScan { this: FileTable =>
     }
   }
 
+  override def inferSchema(files: Seq[FileStatus]): Option[StructType] = None
+
+  override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder =
+    throw new RuntimeException("Wring pdf table is not supported")
+
+  override def supportsDataType(dataType: DataType): Boolean = true
 
 }

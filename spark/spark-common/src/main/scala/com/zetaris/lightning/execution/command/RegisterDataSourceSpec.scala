@@ -34,19 +34,20 @@ import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import java.util.regex.Pattern
+import scala.util.Try
 
 case class RegisterDataSourceSpec(namespace: Array[String],
                                   name: String,
                                   dataSourceType: DataSourceType.DataSourceType,
                                   opts: Map[String, String],
                                   replace: Boolean) extends LightningCommandBase {
-  val caseInsensitiveMap = CaseInsensitiveMap(opts)
+  val ciMap = CaseInsensitiveMap(opts)
 
   dataSourceType match {
     case JDBC => validateJDBCParams()
     case ICEBERG => validateIcebergParams()
     case DELTA => validateDeltaParams()
-    case PARQUET | ORC | AVRO | XML | CSV | JSON => validateFileParams()
+    case PARQUET | ORC | AVRO | XML | CSV | JSON | IMAGE => validateFileParams()
     case _ =>
   }
 
@@ -66,32 +67,46 @@ case class RegisterDataSourceSpec(namespace: Array[String],
   }
 
   private def validateFileParams(): Unit = {
-    caseInsensitiveMap.getOrElse("path", {
-      caseInsensitiveMap.getOrElse("paths",
+    ciMap.getOrElse("path", {
+      ciMap.getOrElse("paths",
         throw new IllegalArgumentException(s"path option is not provided"))
     })
 
-    caseInsensitiveMap.get("scanType").foreach { scanType =>
+    ciMap.get("scanType").foreach { scanType =>
       UnstructuredData.ScanType(scanType)
+    }
+
+    ciMap.get(UnstructuredData.IMAGE_THUMBNAIL_WIDTH_KEY).foreach { width =>
+      val w = Try(width.toInt).getOrElse(throw new IllegalArgumentException(s"thumbnail width is not valid"))
+      if (w <= 1) {
+        throw new IllegalArgumentException(s"thumbnail width should be bigger than 1")
+      }
+    }
+
+    ciMap.get(UnstructuredData.IMAGE_THUMBNAIL_HEIGHT_KEY).foreach { height =>
+      val h = Try(height.toInt).getOrElse(throw new IllegalArgumentException(s"thumbnail height is not valid"))
+      if (h <= 1) {
+        throw new IllegalArgumentException(s"thumbnail height should be bigger than 1")
+      }
     }
   }
 
   private def validateDeltaParams(): Unit = {
-    caseInsensitiveMap.getOrElse(s"path", throw new IllegalArgumentException(s"path option is not provided"))
+    ciMap.getOrElse(s"path", throw new IllegalArgumentException(s"path option is not provided"))
   }
 
   private def validateIcebergParams(): Unit = {
-    val warehousetype = caseInsensitiveMap.getOrElse("type",
+    val warehousetype = ciMap.getOrElse("type",
       throw new IllegalArgumentException(s"iceberg type(type) is not provided"))
 
     if (warehousetype.toLowerCase == "hadoop") {
-      caseInsensitiveMap.getOrElse("warehouse",
+      ciMap.getOrElse("warehouse",
         throw new IllegalArgumentException("warehouse path(warehouse) is not provided"))
     }
   }
 
   private def validateJDBCParams(): Unit = {
-    caseInsensitiveMap.getOrElse("url",
+    ciMap.getOrElse("url",
       throw new IllegalArgumentException("jdbc url : url is not provided"))
   }
 
