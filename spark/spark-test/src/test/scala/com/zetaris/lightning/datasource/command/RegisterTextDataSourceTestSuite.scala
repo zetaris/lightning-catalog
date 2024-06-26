@@ -114,7 +114,6 @@ class RegisterTextDataSourceTestSuite extends FileDataSourceTestBase {
     assert(schema(5).getString(0) == "ct")
 
     val df = sparkSession.sql("select * from lightning.datasource.file.text_parts order by path")
-    df.show()
     val rec = df.collect()
 
     assert(rec.size == 6)

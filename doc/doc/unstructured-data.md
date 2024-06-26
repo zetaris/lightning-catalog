@@ -150,3 +150,110 @@ will display the below with "ct" column
 | pdf|file:///Users/jae...|2024-06-24 15:54:33|       8507|55 \n66 \n77 \n88 \n|     numeric|
 +----+--------------------+-------------------+-----------+--------------------+------------+
 ```
+
+### ingest text file
+```bash
+-- Ingest the below partition directory
+Lprescriptions
+  Lct=alpha
+    aa.txt
+    bb.txt
+  Lct=alphanumeric
+    11aa.txt
+    22bb.txt
+  Lct=numeric
+    11.txt
+    22.txt
+    
+REGISTER OR REPLACE TEXT DATASOURCE prescriptions OPTIONS (
+  path "s3a://doctor/prescriptions",
+  scanType "parts_scan", 
+  pathGlobFilter "*.txt", 
+  "fs.s3a.access.key" "AKIAUDI43XXXXXXXXXXX",
+  "fs.s3a.secret.key" "xfGoSe+mmgXXXXXXXXXXXXX"
+) NAMESPACE lightning.datasource.file
+
+SELECT * FROM lightning.datasource.file.prescriptions
+
+will display the below with "ct" column
++----+--------------------+-------------------+-----------+-------+------------+
+|type|                path|         modifiedat|sizeinbytes|preview|          ct|
++----+--------------------+-------------------+-----------+-------+------------+
+| txt|file:///Users/jae...|2024-06-26 09:52:15|          3|   aa\n|       alpha|
+| txt|file:///Users/jae...|2024-06-26 09:52:15|          3|   bb\n|       alpha|
+| txt|file:///Users/jae...|2024-06-26 09:52:15|          5| 11aa\n|alphanumeric|
+| txt|file:///Users/jae...|2024-06-26 09:52:15|          5| 22bb\n|alphanumeric|
+| txt|file:///Users/jae...|2024-06-26 09:52:15|          3|   11\n|     numeric|
+| txt|file:///Users/jae...|2024-06-26 09:52:15|          3|   22\n|     numeric|
++----+--------------------+-------------------+-----------+-------+------------+
+
+SELECT * FROM lightning.datasource.file.prescriptions.content
+
+will display:
+
++--------------------+-----------+------------+
+|                path|textcontent|          ct|
++--------------------+-----------+------------+
+|file:///Users/jae...|       11\n|     numeric|
+|file:///Users/jae...|       22\n|     numeric|
+|file:///Users/jae...|     11aa\n|alphanumeric|
+|file:///Users/jae...|     22bb\n|alphanumeric|
+|file:///Users/jae...|       aa\n|       alpha|
+|file:///Users/jae...|       bb\n|       alpha|
++--------------------+-----------+------------+
+```
+
+### ingest image files
+```bash
+REGISTER OR REPLACE IMAGE DATASOURCE xray_scan OPTIONS (
+  path "s3a://doctor/xray-scan",
+  scanType "file_scan", 
+  pathGlobFilter "{*.png,*.jpg}", 
+  "fs.s3a.access.key" "AKIAUDI43XXXXXXXXXXX",
+  "fs.s3a.secret.key" "xfGoSe+mmgXXXXXXXXXXXXX"
+) NAMESPACE lightning.datasource.file
+
+-- default thumbnail resolution 100 x 1000
+
+SELECT * FROM lightning.datasource.file.xray_scan
+
+will display :
++----+--------------------+-------------------+-----------+-----+------+--------------------+
+|type|                path|         modifiedat|sizeinbytes|width|height|      imagethumbnail|
++----+--------------------+-------------------+-----------+-----+------+--------------------+
+| jpg|file:///Users/jae...|2024-06-26 09:52:15|       4909|  230|   148|[89 50 4E 47 0D 0...|
+| png|file:///Users/jae...|2024-06-26 09:52:15|       6131|  270|   148|[89 50 4E 47 0D 0...|
++----+--------------------+-------------------+-----------+-----+------+--------------------+
+
+-- with custom thumbnail resolution, 50 x 50
+REGISTER OR REPLACE IMAGE DATASOURCE xray_scan OPTIONS (
+  path "s3a://doctor/xray-scan",
+  scanType "file_scan", 
+  pathGlobFilter "{*.png,*.jpg}", 
+  image_thumbnail_with "50",
+  image_thumbnail_height "50",
+  "fs.s3a.access.key" "AKIAUDI43XXXXXXXXXXX",
+  "fs.s3a.secret.key" "xfGoSe+mmgXXXXXXXXXXXXX"
+) NAMESPACE lightning.datasource.file
+  
+SELECT * FROM FROM lightning.datasource.file.xray_scan
+
+will display with thumbnail resolution, 50 x 32:
+
++----+--------------------+-------------------+-----------+-----+------+--------------------+
+|type|                path|         modifiedat|sizeinbytes|width|height|      imagethumbnail|
++----+--------------------+-------------------+-----------+-----+------+--------------------+
+| jpg|file:///Users/jae...|2024-06-26 09:52:15|       4909|  230|   148|[89 50 4E 47 0D 0...|
+| png|file:///Users/jae...|2024-06-26 09:52:15|       6131|  270|   148|[89 50 4E 47 0D 0...|
++----+--------------------+-------------------+-----------+-----+------+--------------------+
+
+SELECT * FROM FROM lightning.datasource.file.xray_scan.content
+
+will display actual content:
++--------------------+--------------------+
+|                path|          bincontent|
++--------------------+--------------------+
+|file:///Users/jae...|[89 50 4E 47 0D 0...|
+|file:///Users/jae...|[89 50 4E 47 0D 0...|
++--------------------+--------------------+
+```

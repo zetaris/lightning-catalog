@@ -55,7 +55,6 @@ class RegisterImageDataSourceTestSuite extends FileDataSourceTestBase {
     registerFileDataSource("spark_images", "image", getClass.getResource("/image").getPath, "file_scan", "{*.png,*.jpg}")
 
     val df = sparkSession.sql("select * from lightning.datasource.file.spark_images order by path")
-    df.show()
 
     val rec = df.collect()
     assert(rec.size == 2)
@@ -133,6 +132,7 @@ class RegisterImageDataSourceTestSuite extends FileDataSourceTestBase {
     image = ImageIO.read(new ByteArrayInputStream(rec(1).get(6).asInstanceOf[Array[Byte]]))
     dim = new Dimension(image.getWidth, image.getHeight)
     assert(dim.width == 50)
+
   }
 
   test("should pushdown filter") {
