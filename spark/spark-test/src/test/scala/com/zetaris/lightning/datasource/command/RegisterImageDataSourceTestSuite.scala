@@ -22,16 +22,39 @@
 package com.zetaris.lightning.datasource.command
 
 import com.zetaris.lightning.datasources.v2.UnstructuredData
+import com.zetaris.lightning.util.FileSystemUtils
 import org.apache.spark.sql.DataFrame
 import org.junit.runner.RunWith
 import org.scalatestplus.junit.JUnitRunner
 
 import java.awt.Dimension
-import java.io.ByteArrayInputStream
+import java.io.{ByteArrayInputStream, File}
 import javax.imageio.ImageIO
 
 @RunWith(classOf[JUnitRunner])
 class RegisterImageDataSourceTestSuite extends FileDataSourceTestBase {
+  val saveDir = "/tmp/image-save"
+
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    initSaveDir()
+  }
+
+  private def initSaveDir(createPart: Boolean = false): Unit = {
+    FileSystemUtils.deleteDirectory(saveDir)
+    val directory = new File(saveDir)
+    if (!directory.exists()) {
+      directory.mkdir()
+
+      if (createPart) {
+        val ctFed = new File(s"$saveDir/ct=fed")
+        ctFed.mkdir()
+        val ctLogo = new File(s"$saveDir/ct=logo")
+        ctLogo.mkdir()
+      }
+    }
+  }
+
   def registerFileDataSource(tableName: String,
                              format: String,
                              path: String,
@@ -55,8 +78,10 @@ class RegisterImageDataSourceTestSuite extends FileDataSourceTestBase {
     registerFileDataSource("spark_images", "image", getClass.getResource("/image").getPath, "file_scan", "{*.png,*.jpg}")
 
     val df = sparkSession.sql("select * from lightning.datasource.file.spark_images order by path")
+    df.show()
 
     val rec = df.collect()
+
     assert(rec.size == 2)
     assert(rec(0).getString(0) == "jpg")
     assert(rec(0).getString(1).endsWith("/image/spark-fed.jpg"))
@@ -64,7 +89,7 @@ class RegisterImageDataSourceTestSuite extends FileDataSourceTestBase {
     assert(rec(0).getInt(4) == 230)
     assert(rec(0).getInt(5) == 148)
 
-    var image = ImageIO.read(new ByteArrayInputStream(rec(0).get(6).asInstanceOf[Array[Byte]]))
+    var image = ImageIO.read(new ByteArrayInputStream(rec(0).get(7).asInstanceOf[Array[Byte]]))
     var dim = new Dimension(image.getWidth, image.getHeight)
     assert(dim.width == 100)
     // thumbnail height is prorate with real resolution 230:100 = 148:64
@@ -77,7 +102,7 @@ class RegisterImageDataSourceTestSuite extends FileDataSourceTestBase {
     assert(rec(1).getInt(4) == 270)
     assert(rec(1).getInt(5) == 148)
 
-    image = ImageIO.read(new ByteArrayInputStream(rec(1).get(6).asInstanceOf[Array[Byte]]))
+    image = ImageIO.read(new ByteArrayInputStream(rec(1).get(7).asInstanceOf[Array[Byte]]))
     dim = new Dimension(image.getWidth, image.getHeight)
     assert(dim.width == 100)
     // thumbnail height is prorate with real resolution 270:100 = 148:55
@@ -117,7 +142,7 @@ class RegisterImageDataSourceTestSuite extends FileDataSourceTestBase {
     assert(rec(0).getInt(4) == 230)
     assert(rec(0).getInt(5) == 148)
 
-    var image = ImageIO.read(new ByteArrayInputStream(rec(0).get(6).asInstanceOf[Array[Byte]]))
+    var image = ImageIO.read(new ByteArrayInputStream(rec(0).get(7).asInstanceOf[Array[Byte]]))
     var dim = new Dimension(image.getWidth, image.getHeight)
     assert(dim.width == 50)
     // thumbnail height is prorate with real resolution 230:100 = 148:64
@@ -129,7 +154,7 @@ class RegisterImageDataSourceTestSuite extends FileDataSourceTestBase {
     assert(rec(1).getInt(4) == 270)
     assert(rec(1).getInt(5) == 148)
 
-    image = ImageIO.read(new ByteArrayInputStream(rec(1).get(6).asInstanceOf[Array[Byte]]))
+    image = ImageIO.read(new ByteArrayInputStream(rec(1).get(7).asInstanceOf[Array[Byte]]))
     dim = new Dimension(image.getWidth, image.getHeight)
     assert(dim.width == 50)
 
@@ -147,7 +172,7 @@ class RegisterImageDataSourceTestSuite extends FileDataSourceTestBase {
       assert(rec(0).getInt(4) == 230)
       assert(rec(0).getInt(5) == 148)
 
-      val image = ImageIO.read(new ByteArrayInputStream(rec(0).get(6).asInstanceOf[Array[Byte]]))
+      val image = ImageIO.read(new ByteArrayInputStream(rec(0).get(7).asInstanceOf[Array[Byte]]))
       val dim = new Dimension(image.getWidth, image.getHeight)
       assert(dim.width == 50)
     }
@@ -163,7 +188,87 @@ class RegisterImageDataSourceTestSuite extends FileDataSourceTestBase {
 
     df = sparkSession.sql("select * from lightning.datasource.file.spark_images where type = 'jpg'")
     assertResult(df)
-
   }
+
+  test("should write image file with thumbnail") {
+    registerFileDataSource("spark_images", "image", getClass.getResource("/image").getPath, "file_scan", "{*.png,*.jpg}", "50", "50")
+    sparkSession.sql(
+      s"""
+         |REGISTER OR REPLACE IMAGE DATASOURCE spark_images_save OPTIONS (
+         |path "$saveDir",
+         |scanType "file_scan",
+         |${UnstructuredData.IMAGE_THUMBNAIL_WIDTH_KEY} "50",
+         |${UnstructuredData.IMAGE_THUMBNAIL_HEIGHT_KEY} "50"
+         |) NAMESPACE lightning.datasource.file
+         |""".stripMargin)
+
+    var df = sparkSession.sql("select * from lightning.datasource.file.spark_images_save")
+    assert(df.count() == 0)
+
+    sparkSession.sql("insert into lightning.datasource.file.spark_images_save select * from lightning.datasource.file.spark_images")
+
+    df = sparkSession.sql("select * from lightning.datasource.file.spark_images_save order by path")
+    val rec = df.collect()
+
+    assert(rec.size == 2)
+    assert(rec(0).getString(0) == "jpg")
+    assert(rec(0).getString(1) == s"file://$saveDir/spark-fed_thumbnail.jpg")
+
+    assert(rec(1).getString(0) == "png")
+    assert(rec(1).getString(1) == s"file://$saveDir/spark-logo_thumbnail.png")
+  }
+
+  test("should write image file with thumbnail from content") {
+    initSaveDir()
+
+    registerFileDataSource("spark_images", "image", getClass.getResource("/image").getPath, "file_scan", "{*.png,*.jpg}", "50", "50")
+    sparkSession.sql(
+      s"""
+         |REGISTER OR REPLACE IMAGE DATASOURCE spark_images_save OPTIONS (
+         |path "$saveDir",
+         |scanType "file_scan",
+         |${UnstructuredData.IMAGE_THUMBNAIL_WIDTH_KEY} "50",
+         |${UnstructuredData.IMAGE_THUMBNAIL_HEIGHT_KEY} "50"
+         |) NAMESPACE lightning.datasource.file
+         |""".stripMargin)
+
+    sparkSession.sql("insert into lightning.datasource.file.spark_images_save.content select * from lightning.datasource.file.spark_images.content")
+
+    val df = sparkSession.sql("select * from lightning.datasource.file.spark_images_save order by path")
+    val rec = df.collect()
+
+    assert(rec.size == 4)
+    assert(rec(0).getString(0) == "jpg")
+    assert(rec(0).getString(1) == s"file://$saveDir/spark-fed.jpg")
+    assert(rec(1).getString(0) == "jpg")
+    assert(rec(1).getString(1) == s"file://$saveDir/spark-fed_thumbnail.jpg")
+
+    assert(rec(2).getString(0) == "png")
+    assert(rec(2).getString(1) == s"file://$saveDir/spark-logo.png")
+    assert(rec(3).getString(0) == "png")
+    assert(rec(3).getString(1) == s"file://$saveDir/spark-logo_thumbnail.png")
+  }
+
+  /**
+  test("should write image file with with partition") {
+    initSaveDir(true)
+
+    registerFileDataSource("spark_parts_images", "image", getClass.getResource("/image-parts").getPath, "parts_scan", "{*.png,*.jpg}", "50", "50")
+    sparkSession.sql(
+      s"""
+         |REGISTER OR REPLACE IMAGE DATASOURCE spark_images_save OPTIONS (
+         |path "$saveDir",
+         |scanType "parts_scan",
+         |${UnstructuredData.IMAGE_THUMBNAIL_WIDTH_KEY} "50",
+         |${UnstructuredData.IMAGE_THUMBNAIL_HEIGHT_KEY} "50"
+         |) NAMESPACE lightning.datasource.file
+         |""".stripMargin)
+
+    sparkSession.sql("insert into lightning.datasource.file.spark_images_save.content select * from lightning.datasource.file.spark_parts_images.content")
+
+    val df = sparkSession.sql("select * from lightning.datasource.file.spark_images_save")
+    df.show()
+  }
+  */
 
 }

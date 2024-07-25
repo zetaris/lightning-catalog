@@ -29,43 +29,33 @@ abstract class AbstractIcebergCatalogUnit  extends CatalogUnit {
   val namespaces: SupportsNamespaces
   val tableCatalog: TableCatalog
 
-  override def listNamespaces(namespace: Array[String]): Array[Array[String]] = {
+  override def listNamespaces(namespace: Array[String]): Array[Array[String]] =
     namespaces.listNamespaces(namespace)
-  }
 
-  override def createNamespace(namespace: Array[String], metadata: java.util.Map[String, String]): Unit = {
+  override def createNamespace(namespace: Array[String], metadata: java.util.Map[String, String]): Unit =
     namespaces.createNamespace(namespace, metadata)
-  }
 
-  override def namespaceExists(namespace: Array[String]): Boolean = {
-    namespaces.namespaceExists(namespace)
-  }
+  override def namespaceExists(namespace: Array[String]): Boolean = namespaces.namespaceExists(namespace)
 
-  override def dropNamespace(namespace: Array[String], cascade: Boolean): Boolean = {
+  override def dropNamespace(namespace: Array[String], cascade: Boolean): Boolean =
     namespaces.dropNamespace(namespace, cascade)
-  }
 
-  override def listTables(namespace: Array[String]): Array[Identifier] = {
-    tableCatalog.listTables(namespace)
-  }
+  override def listTables(namespace: Array[String]): Array[Identifier] = tableCatalog.listTables(namespace)
 
-  override def loadTable(ident: Identifier): Table = {
-    tableCatalog.loadTable(ident)
-  }
+  override def loadTable(ident: Identifier): Table = tableCatalog.loadTable(ident)
 
   override def createTable(ident: Identifier,
                            schema: StructType,
                            partitions: Array[Transform],
-                           properties: java.util.Map[String, String]): Table = {
+                           properties: java.util.Map[String, String]): Table =
     tableCatalog.createTable(ident, schema, partitions, properties)
-  }
 
-  override def dropTable(ident: Identifier): Boolean = {
-    tableCatalog.dropTable(ident)
-  }
+  override def dropTable(ident: Identifier): Boolean = tableCatalog.dropTable(ident)
 
-  override def tableExists(ident: Identifier): Boolean = {
-    tableCatalog.tableExists(ident)
-  }
+  override def tableExists(ident: Identifier): Boolean = tableCatalog.tableExists(ident)
+
+  override def loadTable(ident: Identifier, version: String): Table = tableCatalog.loadTable(ident, version)
+
+  override def loadTable(ident: Identifier, timestamp: Long): Table = tableCatalog.loadTable(ident, timestamp)
 
 }

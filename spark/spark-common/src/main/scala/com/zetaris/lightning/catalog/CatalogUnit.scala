@@ -21,9 +21,11 @@
 
 package com.zetaris.lightning.catalog
 
-import org.apache.spark.sql.connector.catalog.{Identifier, Table}
+import org.apache.spark.sql.connector.catalog.{Column, Identifier, Table}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.types.StructType
+
+import java.util.Map
 
 /**
  * common catalogue definition
@@ -37,6 +39,18 @@ trait CatalogUnit {
   def listTables(namespace: Array[String]): Array[Identifier]
 
   def loadTable(ident: Identifier): Table
+
+  def loadTable(ident: Identifier, version: String): Table = {
+    throw new RuntimeException(
+      s"time travel is not supported for this datasource : ${ident.namespace().mkString(".")}.${ident.name()}"
+    )
+  }
+
+  def loadTable(ident: Identifier, timestamp: Long): Table = {
+    throw new RuntimeException(
+      s"time travel is not supported for this datasource : ${ident.namespace().mkString(".")}.${ident.name()}"
+    )
+  }
 
   def namespaceExists(namespace: Array[String]): Boolean
 

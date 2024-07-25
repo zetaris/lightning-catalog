@@ -27,6 +27,8 @@ import org.apache.spark.sql.Row
 import org.junit.runner.RunWith
 import org.scalatestplus.junit.JUnitRunner
 
+import java.text.SimpleDateFormat
+
 @RunWith(classOf[JUnitRunner])
 class RegisterIcebergDataSourceTestSuite extends SparkExtensionsTestBase {
   val dbName = "icebergdb"
@@ -142,4 +144,49 @@ class RegisterIcebergDataSourceTestSuite extends SparkExtensionsTestBase {
     sparkSession.sql(s"drop table lightning.datasource.iceberg.$dbName.nyc.taxis")
     checkAnswer(sparkSession.sql(s"show tables in lightning.datasource.iceberg.$dbName.nyc"), Seq())
   }
+
+  test("should support time travel") {
+    sparkSession.sql(s"CREATE NAMESPACE lightning.datasource.iceberg.$dbName.nyc")
+    sparkSession.sql(
+      s"""
+         |CREATE TABLE lightning.datasource.iceberg.$dbName.nyc.taxis (
+         |vendor_id bigint,
+         |trip_id bigint,
+         |trip_distance float,
+         |fare_amount double,
+         |store_and_fwd_flag string
+         |) PARTITIONED BY (vendor_id)
+         |""".stripMargin)
+
+    checkAnswer(sparkSession.sql(s"show tables in lightning.datasource.iceberg.$dbName.nyc"),
+      Seq(Row("nyc", "taxis", false)))
+
+    sparkSession.sql(
+      s"""
+         |INSERT INTO lightning.datasource.iceberg.$dbName.nyc.taxis
+         |VALUES (1, 1000371, 1.8, 15.32, "N"), (2, 1000372, 2.5, 22.15, "N"), (2, 1000373, 0.9, 9.01, "N"), (1, 1000374, 8.4, 42.13, "Y")
+         |""".stripMargin)
+
+    val history = sparkSession.sql(s"select * from lightning.datasource.iceberg.$dbName.nyc.taxis.history").collect()
+
+    val sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+    val dfStr = sdf.format(history(0).getTimestamp(0))
+
+    checkAnswer(sparkSession.sql(s"select * from lightning.datasource.iceberg.$dbName.nyc.taxis VERSION AS OF ${history(0).getLong(1)}"),
+      Seq(Row(1l, 1000371l, 1.8f, 15.32d, "N"),
+          Row(2l, 1000372l, 2.5f, 22.15d, "N"),
+          Row(2l, 1000373l, 0.9f, 9.01d, "N"),
+          Row(1l, 1000374l, 8.4f, 42.13d, "Y")))
+
+    /** check utc..
+    df = sparkSession.sql(s"select * from lightning.datasource.iceberg.$dbName.nyc.taxis TIMESTAMP AS OF '$dfStr'")
+
+    checkAnswer(df,
+      Seq(Row(1l, 1000371l, 1.8f, 15.32d, "N"),
+        Row(2l, 1000372l, 2.5f, 22.15d, "N"),
+        Row(2l, 1000373l, 0.9f, 9.01d, "N"),
+        Row(1l, 1000374l, 8.4f, 42.13d, "Y")))
+    */
+  }
+
 }

@@ -19,8 +19,9 @@
  *
  */
 
-package com.zetaris.lightning.datasources.v2.image
+package com.zetaris.lightning.datasources.v2.video
 
+import com.drew.metadata.Tag
 import com.zetaris.lightning.datasources.v2.{UnstructuredData, UnstructuredFilePartitionReaderFactory}
 import org.apache.hadoop.fs.Path
 import org.apache.spark.broadcast.Broadcast
@@ -30,11 +31,9 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.util.SerializableConfiguration
 
 import java.awt.Dimension
-import java.io.ByteArrayInputStream
-import javax.imageio.ImageIO
 import scala.collection.JavaConverters.mapAsJavaMap
 
-case class ImageReaderFactory(broadcastedConf: Broadcast[SerializableConfiguration],
+case class VideoReaderFactory(broadcastedConf: Broadcast[SerializableConfiguration],
                               readDataSchema: StructType,
                               partitionSchema: StructType,
                               rootPathsSpecified: Seq[Path],
@@ -52,8 +51,47 @@ case class ImageReaderFactory(broadcastedConf: Broadcast[SerializableConfigurati
   override def textPreviewFromBinary(content: Array[Byte]): String = ???
 
   override def getResolution(content: Array[Byte]): Dimension = {
-    val image = ImageIO.read(new ByteArrayInputStream(content))
-    new Dimension(image.getWidth, image.getHeight)
+    if (tags == null) {
+      tags = extractTags(content)
+    }
+
+    val widthTag = tags.find(_.getTagName.equals(UnstructuredData.WIDTH))
+    val heightTag = tags.find(_.getTagName.equals(UnstructuredData.HEIGHT))
+
+    if (widthTag.isDefined && heightTag.isDefined) {
+      val width = widthTag.get.getDescription.toInt
+      val height = heightTag.get.getDescription.toInt
+      new Dimension(width, height)
+    } else {
+      new Dimension(-1, -1)
+    }
+  }
+
+  override def getDuration(content: Array[Byte]): Float = {
+    if (tags == null) {
+      tags = extractTags(content)
+    }
+
+    val durationTag = tags.find(_.getTagName.equalsIgnoreCase(UnstructuredData.DURATION))
+    val timeScaleTag = tags.find(_.getTagName.equalsIgnoreCase(UnstructuredData.MEDIA_TIME_SCALE))
+    if (durationTag.isDefined && timeScaleTag.isDefined) {
+      durationTag.get.getDescription.toInt.toFloat / timeScaleTag.get.getDescription.toInt
+    } else {
+      -1.0f
+    }
+  }
+
+  override def getFormat(content: Array[Byte]): String = {
+    if (tags == null) {
+      tags = extractTags(content)
+    }
+
+    val formatTag = tags.find(_.getTagName.equalsIgnoreCase(UnstructuredData.DETECTED_FILE_TYPE_NAME))
+    if (formatTag.isDefined) {
+      formatTag.get.getDescription
+    } else {
+      ""
+    }
   }
 
   override def thumbnailImage(content: Array[Byte]): Array[Byte] = {
@@ -65,4 +103,5 @@ case class ImageReaderFactory(broadcastedConf: Broadcast[SerializableConfigurati
     UnstructuredData.thumbnailImage(content, width, height)
   }
 }
+
 

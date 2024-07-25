@@ -22,22 +22,24 @@
 package com.zetaris.lightning.catalog
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import com.zetaris.lightning.datasources.v2.UnstructuredData
+import com.zetaris.lightning.datasources.v2.{UnstructuredData, UnstructuredFileFormat}
 import com.zetaris.lightning.datasources.v2.image.ImageTable
 import com.zetaris.lightning.datasources.v2.pdf.{PdfFileFormat, PdfTable}
 import com.zetaris.lightning.datasources.v2.text.TextTable
+import com.zetaris.lightning.datasources.v2.video.VideoTable
 import com.zetaris.lightning.execution.command.DataSourceType._
 import com.zetaris.lightning.model.LightningModel
 import com.zetaris.lightning.model.serde.DataSource.DataSource
 import com.zetaris.lightning.util.FileSystemUtils
-import org.apache.spark.sql.{SparkSQLBridge, SparkSession}
 import org.apache.spark.sql.connector.catalog.{Identifier, Table}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.datasources.FileFormat
+import org.apache.spark.sql.execution.datasources.binaryfile.BinaryFileFormat
 import org.apache.spark.sql.execution.datasources.csv.CSVFileFormat
 import org.apache.spark.sql.execution.datasources.json.JsonFileFormat
 import org.apache.spark.sql.execution.datasources.orc.OrcFileFormat
 import org.apache.spark.sql.execution.datasources.parquet.ParquetFileFormat
+import org.apache.spark.sql.execution.datasources.text.TextFileFormat
 import org.apache.spark.sql.execution.datasources.v2.csv.{CSVScanBuilder, CSVTable}
 import org.apache.spark.sql.execution.datasources.v2.json.JsonTable
 import org.apache.spark.sql.execution.datasources.v2.orc.OrcTable
@@ -45,6 +47,7 @@ import org.apache.spark.sql.execution.datasources.v2.parquet.ParquetTable
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.sql.v2.avro.AvroTable
+import org.apache.spark.sql.{SparkSQLBridge, SparkSession}
 
 import scala.collection.JavaConverters._
 
@@ -64,7 +67,8 @@ case class FileCatalogUnit(dataSource: DataSource,
       case JSON => classOf[JsonFileFormat]
       case AVRO => SparkSQLBridge.fallbackAvroFileFormat
       case PDF => classOf[PdfFileFormat]
-      case _ => ???
+      case TEXT => classOf[TextFileFormat]
+      case _ => classOf[UnstructuredFileFormat]
     }
 
   }
@@ -118,9 +122,14 @@ case class FileCatalogUnit(dataSource: DataSource,
         JsonTable(ident.name(), SparkSession.active, optionsWithoutPaths, paths, None, fallbackFileFormat)
       case AVRO =>
         AvroTable(ident.name(), SparkSession.active, optionsWithoutPaths, paths, None, fallbackFileFormat)
-      case PDF => PdfTable(ident.name(), SparkSession.active, opts, paths, fallbackFileFormat)
-      case TEXT => TextTable(ident.name(), SparkSession.active, opts, paths)
-      case IMAGE => ImageTable(ident.name(), SparkSession.active, opts, paths)
+      case PDF =>
+        PdfTable(ident.name(), SparkSession.active, UnstructuredData.mapWithFileFormat(opts, PDF), paths, fallbackFileFormat)
+      case TEXT =>
+        TextTable(ident.name(), SparkSession.active, UnstructuredData.mapWithFileFormat(opts, TEXT), paths, fallbackFileFormat)
+      case IMAGE =>
+        ImageTable(ident.name(), SparkSession.active, UnstructuredData.mapWithFileFormat(opts, IMAGE), paths, fallbackFileFormat)
+      case VIDEO =>
+        VideoTable(ident.name(), SparkSession.active, UnstructuredData.mapWithFileFormat(opts, VIDEO), paths, fallbackFileFormat)
       case other =>
         ???
     }

@@ -26,15 +26,19 @@ import org.apache.spark.sql.connector.catalog.Table
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.datasources.jdbc.{JDBCOptions, JDBCRDD, JdbcUtils}
 import org.apache.spark.sql.execution.datasources.v2.jdbc.{JDBCTable, JDBCTableCatalog}
-import org.apache.spark.sql.jdbc.SnowflakeDialect
+import org.apache.spark.sql.jdbc.{SnowflakeDialect, SnowflakeJDBCTableCatalog}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import java.sql.SQLException
-import scala.collection.JavaConverters.mapAsJavaMap
+import scala.collection.JavaConverters._
 
 case class JDBCDataSourceCatalogUnit(catalog: String, properties: Map[String, String]) extends CatalogUnit
   with LightningSource {
+
+  private def isSnowflake(): Boolean = {
+    properties("url").toLowerCase.startsWith("jdbc:snowflake")
+  }
 
   private def buildJDBCTableCatalog(namespace: Array[String],
                                     extra: Map[String, String] = Map.empty): JDBCTableCatalog = {
@@ -44,7 +48,12 @@ case class JDBCDataSourceCatalogUnit(catalog: String, properties: Map[String, St
       namespace.last
     }
 
-    val jdbcTableCatalog = new JDBCTableCatalog()
+    val jdbcTableCatalog = if (isSnowflake()) {
+      new SnowflakeJDBCTableCatalog()
+    } else {
+      new JDBCTableCatalog()
+
+    }
     val ciMap = new CaseInsensitiveStringMap(mapAsJavaMap(properties ++ extra))
     jdbcTableCatalog.initialize(schema, ciMap)
 
@@ -52,36 +61,42 @@ case class JDBCDataSourceCatalogUnit(catalog: String, properties: Map[String, St
   }
 
   private def listMultiLevelNamespaces(namespace: Array[String]): Array[Array[String]] = {
-    val namespaceMap = scala.collection.mutable.Map.empty[String, String]
-    val jdbcTableCatalog = if (namespace.isEmpty) {
-      namespaceMap += "namespace" -> "/"
-      buildJDBCTableCatalog(namespace, namespaceMap.toMap)
+    val capitalNameSpace = if (isSnowflake()) {
+      namespace.map(_.toUpperCase)
     } else {
-      namespaceMap += "namespace" -> toFqn(namespace)
-      buildJDBCTableCatalog(namespace, namespaceMap.toMap)
+      namespace
+    }
+    val namespaceMap = scala.collection.mutable.Map.empty[String, String]
+    val jdbcTableCatalog = if (capitalNameSpace.isEmpty) {
+      namespaceMap += "namespace" -> "/"
+      buildJDBCTableCatalog(capitalNameSpace, namespaceMap.toMap)
+    } else {
+      namespaceMap += "namespace" -> toFqn(capitalNameSpace)
+      buildJDBCTableCatalog(capitalNameSpace, namespaceMap.toMap)
     }
 
-    namespace match {
+
+    capitalNameSpace match {
       case Array() =>
         jdbcTableCatalog.listNamespaces()
-      case Array(_) if jdbcTableCatalog.namespaceExists(namespace) =>
+      case Array(_) if jdbcTableCatalog.namespaceExists(capitalNameSpace) =>
         val options = new JDBCOptions(CaseInsensitiveMap(
           properties ++ namespaceMap ++ Map(JDBCOptions.JDBC_TABLE_NAME -> "__invalid_dbtable")))
 
         JdbcUtils.withConnection(options) { conn =>
           JdbcUtils.listSchemas(conn, options)
         }
-      case _ if namespace.length == 2 =>
+      case _ if capitalNameSpace.length == 2 =>
         val options = new JDBCOptions(CaseInsensitiveMap(
           properties ++ namespaceMap ++ Map(JDBCOptions.JDBC_TABLE_NAME -> "__invalid_dbtable")))
         JdbcUtils.withConnection(options) { conn =>
-          if (SnowflakeDialect.schemasExists(conn, namespace(0), namespace(1))) {
+          if (SnowflakeDialect.schemasExists(conn, capitalNameSpace(0), capitalNameSpace(1))) {
             Array()
           } else {
-            throw new NoSuchNamespaceException(namespace)
+            throw new NoSuchNamespaceException(capitalNameSpace)
           }
         }
-      case _ => throw new NoSuchNamespaceException(namespace)
+      case _ => throw new NoSuchNamespaceException(capitalNameSpace)
     }
   }
 
@@ -105,38 +120,31 @@ case class JDBCDataSourceCatalogUnit(catalog: String, properties: Map[String, St
     if (namespace.isEmpty) {
       Array()
     } else {
-      val fromSchema = Array(namespace.last)
+      val fromSchema = if (isSnowflake()) {
+        namespace
+      } else {
+        Array(namespace.last)
+      }
+
       val jdbcTableCatalog = buildJDBCTableCatalog(namespace)
       jdbcTableCatalog.listTables(fromSchema)
     }
   }
 
-  private def loadSnowflakeTable(ident: Identifier): Table = {
-    val tableName = (ident.namespace() :+ ident.name()).map(SnowflakeDialect.quoteIdentifier).mkString(".")
-    val optionsWithTableName = new JDBCOptions(CaseInsensitiveMap(
-      properties ++ Map(JDBCOptions.JDBC_TABLE_NAME -> tableName)))
-
-    try {
-      val schema = JDBCRDD.resolveTable(optionsWithTableName)
-      JDBCTable(ident, schema, optionsWithTableName)
-    } catch {
-      case _: SQLException => throw new NoSuchTableException(ident)
-    }
-  }
-
   override def loadTable(ident: Identifier): Table = {
     val jdbcTableCatalog = buildJDBCTableCatalog(ident.namespace())
-    if (properties("url").toLowerCase.startsWith("jdbc:snowflake")) {
-      loadSnowflakeTable(ident)
+    val fromSchema = if (isSnowflake()) {
+      ident.namespace()
     } else {
-      val fromSchema = Array(ident.namespace().last)
-      val tweakedIdent = new Identifier {
-        override def namespace(): Array[String] = fromSchema
-
-        override def name(): String = ident.name()
-      }
-      jdbcTableCatalog.loadTable(tweakedIdent)
+      Array(ident.namespace().last)
     }
+
+    val tweakedIdent = new Identifier {
+      override def namespace(): Array[String] = fromSchema
+
+      override def name(): String = ident.name()
+    }
+    jdbcTableCatalog.loadTable(tweakedIdent)
   }
 
   override def namespaceExists(namespace: Array[String]): Boolean = {

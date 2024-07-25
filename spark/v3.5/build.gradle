@@ -1,5 +1,6 @@
-String sparkVersion = '3.5.0'
+String sparkVersion = '3.5.1'
 String sparkMajorVersion = '3.5'
+
 String scalaVersion = System.getProperty("scalaVersion") != null ? System.getProperty("scalaVersion") : System.getProperty("defaultScalaVersion")
 
 def sparkProjects = [
@@ -11,7 +12,7 @@ configure(sparkProjects) {
   configurations {
     all {
       resolutionStrategy {
-        force 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+        force 'com.fasterxml.jackson.core:jackson-databind:2.16.0'
       }
     }
   }
@@ -44,6 +45,8 @@ project(":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scal
 
     implementation ("org.apache.iceberg:iceberg-spark-${sparkMajorVersion}_${scalaVersion}:1.4.3")
     implementation ("org.apache.iceberg:iceberg-spark-extensions-${sparkMajorVersion}_${scalaVersion}:1.4.3")
+    //implementation ("org.apache.iceberg:iceberg-hive-matastore:1.4.3")
+
     implementation ("io.delta:delta-spark_${scalaVersion}:3.1.0")
     implementation ("org.apache.spark:spark-avro_${scalaVersion}:${sparkVersion}")
     implementation("com.databricks:spark-xml_${scalaVersion}:0.17.0")
@@ -83,13 +86,13 @@ project(":lightning-spark:lightning-spark-runtime-${sparkMajorVersion}_${scalaVe
       exclude group: 'org.antlr'
       exclude group: 'org.scala-lang'
       exclude group: 'org.scala-lang.modules'
-      exclude group: 'com.fasterxml.jackson.core'
+      //exclude group: 'com.fasterxml.jackson.core'
     }
   }
 
   dependencies {
     implementation project(":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scalaVersion}")
-    implementation 'com.github.ben-manes.caffeine:caffeine:2.9.3'
+    implementation "com.github.ben-manes.caffeine:caffeine:2.9.3"
 
     integrationImplementation "org.scala-lang.modules:scala-collection-compat_${scalaVersion}"
     integrationImplementation "org.apache.spark:spark-hive_${scalaVersion}:${sparkVersion}"

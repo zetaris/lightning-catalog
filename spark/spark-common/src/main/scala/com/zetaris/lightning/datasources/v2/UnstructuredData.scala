@@ -22,9 +22,14 @@
 package com.zetaris.lightning.datasources.v2
 
 import com.drew.metadata.{Metadata, Tag}
+import com.zetaris.lightning.execution.command.DataSourceType
+import com.zetaris.lightning.execution.command.DataSourceType.DataSourceType
+import net.coobird.thumbnailator.Thumbnails
 import org.apache.spark.sql.sources._
+import org.apache.spark.sql.types.MetadataBuilder
 
 import java.awt.Dimension
+import java.io.{ByteArrayInputStream, ByteArrayOutputStream}
 import scala.collection.JavaConverters._
 
 object UnstructuredData {
@@ -36,12 +41,17 @@ object UnstructuredData {
   val PREVIEW = "preview"
   val IMAGETHUMBNAIL = "imagethumbnail"
 
+  val TAGS = "tags"
   val WIDTH = "width"
   val HEIGHT = "height"
+  val LENGTH = "length"
   val CONTENT = "content"
 
   val TEXTCONTENT = "textcontent"
   val BINCONTENT = "bincontent"
+  val IMAGECONTENT = "imagecontent"
+  val VIDEOCONTENT = "videocontent"
+  val VIDEOTHUMBNAIL = "videothumbnail"
 
   val SUBDIR = "subdir"
 
@@ -51,6 +61,7 @@ object UnstructuredData {
   val FILE_SIZE = "file_size"
   val DETECTED_FILE_TYPE_NAME = "detected file type name"
   val COMPRESSION_TYPE = "compression type"
+  val MEDIA_TIME_SCALE = "Media Time Scale"
 
   val PDF_SHORT_NAME = "pdf"
   val PDF_PREVIEW_KEY = "pdf_preview_len"
@@ -82,9 +93,12 @@ object UnstructuredData {
                                   sizeInBytes: Long,
                                   preview: String,
                                   subDir: String,
+                                  tags: String = null,
                                   textcontent: String = null,
                                   bincontent: Array[Byte] = null,
-                                  imageDim: Dimension = null)
+                                  imageDim: Dimension = null,
+                                  duration: Float = -1.0f,
+                                  format: String = null)
 
   def extractTags(metadata: Metadata): List[Tag] = {
     metadata.getDirectories.asScala
@@ -164,6 +178,43 @@ object UnstructuredData {
       case _ =>  _ => false
 
     }
+  }
+
+  def thumbnailImage(content: Array[Byte], width: Int, height: Int): Array[Byte] = {
+    val is = new ByteArrayInputStream(content)
+    val tis = Thumbnails.of(is)
+    tis.size(width, height)
+    val os = new ByteArrayOutputStream()
+    tis.toOutputStream(os)
+    os.toByteArray
+  }
+
+  def mapWithFileFormat(opts: Map[String, String], dataSourceType: DataSourceType): Map[String, String] = {
+    opts ++ Map("fileFormat" -> dataSourceType.toString)
+  }
+
+  def extractFileFormat(opts: Map[String, String]): Option[DataSourceType] = {
+    opts.get("fileFormat").map(DataSourceType(_))
+  }
+
+  def buildMetadata(opts: Map[String, String]): org.apache.spark.sql.types.Metadata = {
+    val mb = new MetadataBuilder()
+    opts.foreach {
+      case (k, v) => mb.putString(k, v)
+    }
+    mb.build()
+  }
+
+  def mapWithFilePath(opts: Map[String, String], filePath: String): Map[String, String] = {
+    opts ++ Map("filePath" -> filePath)
+  }
+
+  def getFilePathFromMetadata(md: org.apache.spark.sql.types.Metadata): String  = {
+    md.getString("filePath")
+  }
+
+  def getFileFormatFromMetadata(md: org.apache.spark.sql.types.Metadata): Option[DataSourceType]  = {
+    Option(md.getString("fileFormat")).map(DataSourceType(_))
   }
 
 }

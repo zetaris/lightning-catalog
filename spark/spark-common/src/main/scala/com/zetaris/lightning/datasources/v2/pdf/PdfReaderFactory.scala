@@ -47,14 +47,20 @@ case class PdfReaderFactory(broadcastedConf: Broadcast[SerializableConfiguration
     opts,
     isContentTable) {
 
+  override def textFromBinary(content: Array[Byte]): String = {
+    val document = Loader.loadPDF(content)
+    val pdfStripper = new PDFTextStripper()
+    pdfStripper.getText(document)
+  }
+
   override def textPreviewFromBinary(content: Array[Byte]): String = {
     val document = Loader.loadPDF(content)
     val pdfStripper = new PDFTextStripper()
     val pdfText = pdfStripper.getText(document)
     if (previewLen > 0 && pdfText.length > previewLen) {
-      pdfStripper.getText(document).substring(0, previewLen)
+      pdfText.substring(0, previewLen)
     } else {
-      pdfStripper.getText(document)
+      pdfText
     }
   }
 }

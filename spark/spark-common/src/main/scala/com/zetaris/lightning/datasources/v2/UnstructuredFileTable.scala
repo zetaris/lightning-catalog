@@ -123,7 +123,7 @@ abstract class UnstructuredFileTable(sparkSession: SparkSession,
   override def inferSchema(files: Seq[FileStatus]): Option[StructType] = None
 
   override def newWriteBuilder(info: LogicalWriteInfo): WriteBuilder =
-    throw new RuntimeException("Wring pdf table is not supported")
+    throw new RuntimeException("Wring table for unstructured data is not supported")
 
   override def supportsDataType(dataType: DataType): Boolean = true
 

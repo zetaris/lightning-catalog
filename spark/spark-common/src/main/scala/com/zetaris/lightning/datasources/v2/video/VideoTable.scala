@@ -19,19 +19,19 @@
  *
  */
 
-package com.zetaris.lightning.datasources.v2.image
+package com.zetaris.lightning.datasources.v2.video
 
 import com.zetaris.lightning.datasources.v2.UnstructuredData._
+import com.zetaris.lightning.datasources.v2.image.ImageScan
 import com.zetaris.lightning.datasources.v2.{UnstructuredData, UnstructuredFileScanBuilder, UnstructuredFileTable, UnstructuredFileWrite}
 import com.zetaris.lightning.execution.command.DataSourceType
-import com.zetaris.lightning.execution.command.DataSourceType.DataSourceType
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, Write, WriteBuilder}
 import org.apache.spark.sql.execution.datasources.FileFormat
 import org.apache.spark.sql.types._
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-case class ImageTable(name: String,
+case class VideoTable(name: String,
                       sparkSession: SparkSession,
                       opts: Map[String, String],
                       paths: Seq[String],
@@ -41,8 +41,9 @@ case class ImageTable(name: String,
       StructField(PATH, StringType, false,
         UnstructuredData.buildMetadata(
           UnstructuredData.mapWithFileFormat(UnstructuredData.mapWithFilePath(Map(), paths.head),
-          DataSourceType.IMAGE))) ::
-          StructField(IMAGECONTENT, BinaryType, false) :: Nil
+            DataSourceType.VIDEO))) ::
+        StructField(VIDEOTHUMBNAIL, BinaryType, false) ::
+        StructField(VIDEOCONTENT, BinaryType, false) :: Nil
     ))
   } else {
     Some(StructType(
@@ -50,19 +51,20 @@ case class ImageTable(name: String,
         StructField(PATH, StringType, false,
           UnstructuredData.buildMetadata(
             UnstructuredData.mapWithFileFormat(UnstructuredData.mapWithFilePath(Map(), paths.head),
-              DataSourceType.IMAGE))) ::
+              DataSourceType.VIDEO))) ::
+        StructField(FORMAT, StringType, false) ::
         StructField(MODIFIEDAT, TimestampType, false) ::
         StructField(SIZEINBYTES, LongType, false) ::
+        StructField(DURATION, FloatType, false) ::
         StructField(WIDTH, IntegerType, false) ::
         StructField(HEIGHT, IntegerType, false) ::
-        StructField(TAGS, StringType, false) ::
-        StructField(IMAGETHUMBNAIL, BinaryType, false) :: Nil
+        StructField(TAGS, StringType, false) :: Nil
     ))
-  }, "image") {
+  }, "video") {
   override def newScanBuilder(options: CaseInsensitiveStringMap): UnstructuredFileScanBuilder =
     new UnstructuredFileScanBuilder(sparkSession, fileIndex, dataSchema, recursiveScanSchema) {
-      override def build(): ImageScan = {
-        ImageScan(sparkSession,
+      override def build(): VideoScan = {
+        VideoScan(sparkSession,
           fileIndex,
           dataSchema,
           readDataSchema(),

@@ -94,39 +94,6 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
     }
   }
 
-  override def loadTable(ident: Identifier): Table = {
-    val namespace = ident.namespace()
-
-    if (namespace.isEmpty) {
-      throw new RuntimeException(s"namespace: [${LightningModelFactory.toFqn(namespace)}] is not provided")
-    }
-
-    namespace(0).toLowerCase match {
-      case "metastore" =>
-        LightningCatalogUnit(namespace(0), model).loadTable(ident)
-      case "datasource" =>
-        findParentDataSource(ident.namespace(), ident.name()) match {
-          case Some(datasource) if datasource.dataSourceType.isInstanceOf[DataSourceType.FileTypeSource] =>
-            if ((datasource.namespace.sameElements(ident.namespace()) && datasource.name.equalsIgnoreCase(ident.name()))
-              || ident.name().equalsIgnoreCase(UnstructuredData.CONTENT)) {
-              val catalog = loadCatalogUnit(datasource)
-              val sourceNamespace = ident.namespace().drop(datasource.namespace.length + 1)
-              catalog.loadTable(Identifier.of(sourceNamespace, ident.name()))
-            } else {
-              throw new RuntimeException(s"namespace(${ident.namespace().mkString(".")}), name(${ident.name()}) is not defined")
-            }
-          case Some(datasource) =>
-            val catalog = loadCatalogUnit(datasource)
-            val sourceNamespace = ident.namespace().drop(datasource.namespace.length + 1)
-            catalog.loadTable(Identifier.of(sourceNamespace, ident.name()))
-          case None =>
-            throw new RuntimeException(s"namespace(${ident.namespace().mkString(".")}), name(${ident.name()}) is not defined")
-          case _ => throw new RuntimeException(s"invalid namespace : ${namespace(0)}")
-        }
-      case _ => throw new RuntimeException(s"namespace : ${ident.namespace()} doesn't exist")
-    }
-  }
-
   override def alterTable(ident: Identifier, changes: TableChange*): Table = {
     throw new RuntimeException("alter table is not supported")
   }
@@ -254,6 +221,105 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
       case jdbcTable : JDBCTable =>jdbcTable.copy(schema = ingestedSchema)
       case other => other
     }
+  }
+
+  private def validateNameSpace(namespace: Array[String]) = {
+    if (namespace.isEmpty) {
+      throw new RuntimeException(s"namespace: [${LightningModelFactory.toFqn(namespace)}] is not provided")
+    }
+
+    namespace(0).toLowerCase match {
+      case "metastore" | "datasource" =>
+      case _ => throw new RuntimeException(s"namespace: [${LightningModelFactory.toFqn(namespace)}] is not valid")
+    }
+  }
+
+  override def loadTable(ident: Identifier): Table = {
+    val namespace = ident.namespace()
+    validateNameSpace(namespace)
+
+    namespace(0).toLowerCase match {
+      case "metastore" =>
+        LightningCatalogUnit(namespace(0), model).loadTable(ident)
+      case "datasource" =>
+        findParentDataSource(ident.namespace(), ident.name()) match {
+          case Some(datasource) if datasource.dataSourceType.isInstanceOf[DataSourceType.FileTypeSource] =>
+            if ((datasource.namespace.sameElements(ident.namespace()) && datasource.name.equalsIgnoreCase(ident.name()))
+              || ident.name().equalsIgnoreCase(UnstructuredData.CONTENT)) {
+              val catalog = loadCatalogUnit(datasource)
+              val sourceNamespace = ident.namespace().drop(datasource.namespace.length + 1)
+              catalog.loadTable(Identifier.of(sourceNamespace, ident.name()))
+            } else {
+              throw new RuntimeException(s"namespace(${ident.namespace().mkString(".")}), name(${ident.name()}) is not defined")
+            }
+          case Some(datasource) =>
+            val catalog = loadCatalogUnit(datasource)
+            val sourceNamespace = ident.namespace().drop(datasource.namespace.length + 1)
+            catalog.loadTable(Identifier.of(sourceNamespace, ident.name()))
+          case _ =>
+            throw new RuntimeException(s"namespace(${ident.namespace().mkString(".")}), name(${ident.name()}) is not defined")
+        }
+    }
+  }
+
+  private def loadTableWithTmeTravel(ident: Identifier,
+                                     loadFunForMeta: () => Table,
+                                     loadFunForDataSource: (DataSource) => Table): Table = {
+    val namespace = ident.namespace()
+    validateNameSpace(namespace)
+
+    namespace(0).toLowerCase match {
+      case "metastore" =>
+        loadFunForMeta()
+      case "datasource" =>
+        findParentDataSource(ident.namespace(), ident.name()) match {
+          case Some(datasource) =>
+            loadFunForDataSource(datasource)
+          case None =>
+            throw new RuntimeException(s"namespace(${ident.namespace().mkString(".")}), name(${ident.name()}) is not defined")
+        }
+    }
+  }
+
+  override def loadTable(ident: Identifier, version: String): Table = {
+    val namespace = ident.namespace()
+
+    loadTableWithTmeTravel(ident, () => {
+      LightningCatalogUnit(namespace(0), model).loadTable(ident, version)
+    }, (dataSource: DataSource) => {
+      val catalog = loadCatalogUnit(dataSource)
+      val sourceNamespace = ident.namespace().drop(dataSource.namespace.length + 1)
+      catalog.loadTable(Identifier.of(sourceNamespace, ident.name), version)
+    })
+
+//    val namespace = ident.namespace()
+//    validateNameSpace(namespace)
+//
+//    namespace(0).toLowerCase match {
+//      case "metastore" =>
+//        LightningCatalogUnit(namespace(0), model).loadTable(ident, version)
+//      case "datasource" =>
+//        findParentDataSource(ident.namespace(), ident.name()) match {
+//          case Some(datasource) =>
+//            val catalog = loadCatalogUnit(datasource)
+//            val sourceNamespace = ident.namespace().drop(datasource.namespace.length + 1)
+//            catalog.loadTable(Identifier.of(sourceNamespace, ident.name), version)
+//          case None =>
+//            throw new RuntimeException(s"namespace(${ident.namespace().mkString(".")}), name(${ident.name()}) is not defined")
+//        }
+//    }
+  }
+
+  override def loadTable(ident: Identifier, timestamp: Long): Table = {
+    val namespace = ident.namespace()
+
+    loadTableWithTmeTravel(ident, () => {
+      LightningCatalogUnit(namespace(0), model).loadTable(ident, timestamp)
+    }, (dataSource: DataSource) => {
+      val catalog = loadCatalogUnit(dataSource)
+      val sourceNamespace = ident.namespace().drop(dataSource.namespace.length + 1)
+      catalog.loadTable(Identifier.of(sourceNamespace, ident.name), timestamp)
+    })
   }
 
   override def listTables(namespace: Array[String]): Array[Identifier] = {

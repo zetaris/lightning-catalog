@@ -57,6 +57,7 @@ abstract class SparkExtensionsTestBase extends AnyFunSuite with BeforeAndAfterAl
       .config(LIGHTNING_ACCESS_CONTROL_PROVIDER, "com.zetaris.lightning.analysis.NotAppliedAccessControlProvider")
       .config("spark.sql.legacy.respectNullabilityInTextDatasetConversion", "true")
       .config(SPARK_CATALOG, "org.apache.spark.sql.delta.catalog.DeltaCatalog")
+      //.config(SPARK_CATALOG, "org.apache.iceberg.spark.SparkSessionCatalog")
       .enableHiveSupport
       .getOrCreate
 

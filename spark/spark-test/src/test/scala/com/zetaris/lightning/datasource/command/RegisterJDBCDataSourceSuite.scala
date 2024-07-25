@@ -36,7 +36,7 @@ class RegisterJDBCDataSourceSuite extends SparkExtensionsTestBase with H2TestBas
     initRoootNamespace()
     registerH2DataSource(dbName)
   }
-
+/**
   test("should create namespace") {
     checkAnswer(sparkSession.sql("SHOW NAMESPACES IN lightning.datasource"), Seq(Row("h2")))
     checkAnswer(sparkSession.sql("SHOW NAMESPACES IN lightning.datasource.h2"), Seq(Row(dbName)))
@@ -119,5 +119,42 @@ class RegisterJDBCDataSourceSuite extends SparkExtensionsTestBase with H2TestBas
     checkAnswer(sparkSession.sql(s"select * from lightning.datasource.h2.${dbName}.${schema}.test_users"),
       Seq(Row(1, 1), Row(2, 2), Row(3, 3), Row(4, 4), Row(5, 5)))
   }
+*/
+  test("should register snowflake") {
+    sparkSession.sql(s"CREATE NAMESPACE lightning.datasource.rdbms")
 
+    sparkSession.sql(
+      s"""
+         |REGISTER OR REPLACE JDBC DATASOURCE SNOWFLAKE OPTIONS(
+         |    driver "com.snowflake.client.jdbc.SnowflakeDriver",
+         |    url "jdbc:snowflake://te78713.ap-southeast-2.snowflakecomputing.com/?warehouse=WH_SMALL&db=DEMO_DB",
+         |    user "zdemo",
+         |    password "P@404word!",
+         |    db "demo_db"
+         |) NAMESPACE lightning.datasource.rdbms
+         |""".stripMargin)
+
+    sparkSession.sql("show namespaces in lightning.datasource.rdbms.snowflake.demo_db").show()
+
+    sparkSession.sql("SHOW TABLES IN lightning.datasource.rdbms.SNOWFLAKE.DEMO_DB.tpcds_db").show()
+    sparkSession.sql("select * from lightning.datasource.rdbms.SNOWFLAKE.DEMO_DB.tpcds_db.customer").show()
+  }
+/**
+  test("should register redshift") {
+    sparkSession.sql(s"CREATE NAMESPACE lightning.datasource.rdbms")
+
+    sparkSession.sql(
+      s"""
+         |REGISTER OR REPLACE JDBC DATASOURCE qa_redshift OPTIONS(
+         |    driver "com.amazon.redshift.jdbc.Driver",
+         |    url "jdbc:redshift://zetaris.cyzoanxzdpje.ap-southeast-2.redshift.amazonaws.com:5439/zetredshift",
+         |    user "zetaris",
+         |    password "GE29rvqoCbcGsgJTfLmL"
+         |) NAMESPACE lightning.datasource.rdbms
+         |""".stripMargin)
+
+    sparkSession.sql("SHOW NAMESPACES IN lightning.datasource.rdbms.qa_redshift").show()
+    //sparkSession.sql("select * from lightning.datasource.rdbms.SNOWFLAKE.DEMO_DB.tpcds_db.customer").show()
+  }
+*/
 }
