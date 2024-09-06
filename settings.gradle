@@ -1,3 +1,5 @@
+import org.gradle.process.ExecResult
+
 rootProject.name = 'lightning-metastore'
 include 'spark'
 project(':spark').name = 'lightning-spark'
@@ -39,6 +41,59 @@ String scalaVersion = System.getProperty("scalaVersion") != null ? System.getPro
 if (!knownScalaVersions.contains(scalaVersion)) {
   throw new GradleException("Found unsupported Scala version: " + scalaVersion)
 }
+
+def detectSparkPathAndVersion() {
+    try {
+        // Check if `spark-submit` is available in the PATH
+        def sparkHome = System.getenv("SPARK_HOME")
+        if (!sparkHome) {
+            def sparkSubmitPath = ['which', 'spark-submit'].execute().text.trim()
+            if (sparkSubmitPath) {
+                println "Spark submit found at: $sparkSubmitPath"
+                
+                // Get Spark version using `spark-submit --version`
+                def sparkVersionOutput = ['spark-submit', '--version'].execute().text
+                def sparkVersionMatcher = sparkVersionOutput =~ /version (\d+\.\d+\.\d+)/
+                if (sparkVersionMatcher.find()) {
+                    def detectedVersion = sparkVersionMatcher.group(1)
+                    println "Detected Spark version: $detectedVersion"
+                    sparkHome = sparkSubmitPath.replace('/bin/spark-submit', '')
+                    return [sparkHome, detectedVersion]
+                } else {
+                    throw new GradleException("Could not detect Spark version.")
+                }
+            } else {
+                throw new GradleException("spark-submit not found in system path.")
+            }
+        } else {
+            println "Using SPARK_HOME from environment: $sparkHome"
+            return [sparkHome, "Unknown Version"]
+        }
+    } catch (Exception e) {
+        throw new GradleException("Failed to detect Spark version or path: ${e.message}")
+    }
+}
+
+def (sparkHome, sparkVersion) = detectSparkPathAndVersion()
+println "Spark Version: $sparkVersion"
+println "Spark Home: $sparkHome"
+
+// Now you can use sparkHome and sparkVersion dynamically
+ext {
+    sparkVersion = sparkVersion
+    scalaVersion = "2.12" // Default or detected Scala version
+}
+
+ext {
+    // Spark version fetched from system properties or default
+    sparkVersion = "3.5"
+    if (sparkVersions.contains("3.3")) {sparkVersion = "3.3"}
+    if (sparkVersions.contains("3.4")) {sparkVersion = "3.4"}
+    scalaVersion = scalaVersion
+}
+
+println "Spark Version is set to: ${sparkVersion}"
+println "Scala Version is set to: ${scalaVersion}"
 
 include ":lightning-spark:spark-common_${scalaVersion}"
 project(":lightning-spark:spark-common_${scalaVersion}").projectDir = file("spark/spark-common")
