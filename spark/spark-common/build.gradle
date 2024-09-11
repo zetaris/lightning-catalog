@@ -32,6 +32,10 @@ project(":lightning-spark:lightning-spark-common_${scalaVersion}") {
             resolutionStrategy {
                 force 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
             }
+            exclude group: 'commons-logging', module: 'commons-logging'
+            exclude group: 'javax.jdo', module: 'jdo-api'
+            exclude group: 'org.apache.hive', module: 'hive-storage-api'
+            exclude group: 'org.apache.hive', module: 'hive-common'
         }
 
         /*
@@ -44,6 +48,11 @@ project(":lightning-spark:lightning-spark-common_${scalaVersion}") {
         implementation {
             extendsFrom = extendsFrom.findAll { it != configurations.antlr }
         }
+
+        repositories {
+                mavenCentral()
+                mavenLocal()
+            }
     }
 
     dependencies {
@@ -75,6 +84,15 @@ project(":lightning-spark:lightning-spark-common_${scalaVersion}") {
         testImplementation "com.amazon.redshift:redshift-jdbc42:2.1.0.25"
         runtimeOnly "org.antlr:antlr4-runtime:4.8"
         antlr "org.antlr:antlr4:4.8"
+
+        // Akka HTTP and Akka Streams for IO and HTTP handling
+        implementation "com.typesafe.akka:akka-actor-typed_${scalaVersion}:2.6.20"
+        implementation "com.typesafe.akka:akka-http_${scalaVersion}:10.2.10"
+        implementation "com.typesafe.akka:akka-stream_${scalaVersion}:2.6.20"
+        implementation "com.typesafe.akka:akka-coordination_${scalaVersion}:2.6.20"
+
+        implementation "org.apache.spark:spark-hive-thriftserver_2.12:${sparkVersion}"
+
     }
 
     generateGrammarSource {
