@@ -220,7 +220,7 @@ exec "${SPARK_HOME}/bin/spark-submit" \
     --conf spark.sql.catalog.lightning.accessControlProvider=com.zetaris.lightning.analysis.NotAppliedAccessControlProvider \
     --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog \
     --driver-class-path $LIGT_HOME/lib/*:$COMMON_HOME/libs/lightning-spark-common_2.12-0.2.jar \
-    --jars $LIGT_HOME/lib/lightning-spark-extensions-${sparkVersion}_${scalaVersion}-0.2.jar,$COMMON_HOME/libs/lightning-spark-common_2.12-0.2.jar \
+    --jars $LIGT_HOME/lib/lightning-spark-extensions-${sparkVersion}_${scalaVersion}-0.2.jar,$COMMON_HOME/libs/lightning-spark-common_${scalaVersion}-0.2.jar \
     --num-executors 2 \
-    $COMMON_HOME/libs/lightning-spark-common_2.12-0.2.jar \
+    $COMMON_HOME/libs/lightning-spark-common_${scalaVersion}-0.2.jar \
     "$@"
