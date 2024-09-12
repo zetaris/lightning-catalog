@@ -124,7 +124,7 @@ zipFile="../../spark/v${sparkVersion}/spark-runtime/build/distributions/lightnin
 # echo ligt_home is $ligt_home
 ligt_home=$(realpath "../../spark/v${sparkVersion}/spark-runtime/build/distributions/lightning-metastore-${sparkVersion}_${scalaVersion}-0.2")
 export LIGT_HOME=$ligt_home
-export COMMON_HOME="../spark/spark-common/build"
+export COMMON_HOME="../../spark/spark-common/build"
 
 # Unzip the distribution if it's not already unzipped
 if [ ! -d "$LIGT_HOME" ]; then
@@ -167,7 +167,7 @@ set -o posix
 # CLASS="org.apache.spark.sql.hive.thriftserver.HiveThriftServer2"
 
 # Define the class for the API server
-CLASS="com.zetaris.lightning.catalog.LightningEndPoints"
+CLASS="com.zetaris.lightning.catalog.LightningAPIStarter"
 
 function usage {
   echo "Usage: ./sbin/start-thriftserver [options] [thrift server options]"
@@ -211,7 +211,7 @@ fi
 #############################################################
 
 exec "${SPARK_HOME}/bin/spark-submit" \
-    --class com.zetaris.lightning.catalog.LightningEndPoints \
+    --class com.zetaris.lightning.catalog.LightningAPIStarter \
     --name "API Server" \
     --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension,com.zetaris.lightning.spark.LightningSparkSessionExtension \
     --conf spark.sql.catalog.lightning=com.zetaris.lightning.catalog.LightningCatalog \
@@ -219,8 +219,19 @@ exec "${SPARK_HOME}/bin/spark-submit" \
     --conf spark.sql.catalog.lightning.warehouse=/tmp/ligt-model \
     --conf spark.sql.catalog.lightning.accessControlProvider=com.zetaris.lightning.analysis.NotAppliedAccessControlProvider \
     --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog \
-    --driver-class-path $LIGT_HOME/lib/*:$COMMON_HOME/libs/lightning-spark-common_2.12-0.2.jar \
-    --jars $LIGT_HOME/lib/lightning-spark-extensions-${sparkVersion}_${scalaVersion}-0.2.jar,$COMMON_HOME/libs/lightning-spark-common_${scalaVersion}-0.2.jar \
+    --driver-class-path $LIGT_HOME/lib/*:$COMMON_HOME/libs/lightning-spark-common_2.12-0.2.jar:$SPARK_HOME/jdbc-libs/* \
+    --jars $LIGT_HOME/lib/lightning-spark-extensions-${sparkVersion}_${scalaVersion}-0.2.jar,$COMMON_HOME/libs/lightning-spark-common_2.12-0.2.jar,$LIGT_HOME/lib/* \
     --num-executors 2 \
-    $COMMON_HOME/libs/lightning-spark-common_${scalaVersion}-0.2.jar \
+    --conf "spark.executor.extraJavaOptions=-Dlog4j.configuration=file:$SPARK_HOME/conf/log4j.properties" \
+    --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$SPARK_HOME/conf/log4j.properties" \
+    $COMMON_HOME/libs/lightning-spark-common_2.12-0.2.jar \
     "$@"
+
+
+
+
+
+
+  
+
+
