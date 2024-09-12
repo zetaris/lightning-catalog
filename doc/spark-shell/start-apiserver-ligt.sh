@@ -17,21 +17,6 @@
 # limitations under the License.
 #
 
-#
-# Shell script for starting the Spark SQL Thrift server
-
-# Function to check if HiveThriftServer2 is already running by checking the port
-# check_existing_thriftserver() {
-#   local port=10000  # Adjust the port number to the one used by HiveThriftServer2
-#   local thriftserver_pid=$(lsof -i :$port | grep LISTEN | awk '{print $2}')
-
-#   if [[ -n "$thriftserver_pid" ]]; then
-#     echo "HiveThriftServer2 is already running as process $thriftserver_pid."
-#     echo "Please stop the existing process using 'kill -9 $thriftserver_pid' and then restart this script."
-#     exit 1  # Exit to prevent starting a new instance
-#   fi
-# }
-
 # Function to download Spark if Spark-demon doesn't exist
 download_spark() {
   local spark_version=$1
@@ -121,9 +106,7 @@ export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # LIGT_HOME paths based on the versions
 zipFile="../../spark/v${sparkVersion}/spark-runtime/build/distributions/lightning-metastore-${sparkVersion}_${scalaVersion}-0.2.zip"
 # ligt_home="../../spark/v${sparkVersion}/spark-runtime/build/distributions/lightning-metastore-${sparkVersion}_${scalaVersion}-0.2"
-# echo ligt_home is $ligt_home
-ligt_home=$(realpath "../../spark/v${sparkVersion}/spark-runtime/build/distributions/lightning-metastore-${sparkVersion}_${scalaVersion}-0.2")
-export LIGT_HOME=$ligt_home
+export LIGT_HOME="../../spark/v${sparkVersion}/spark-runtime/build/distributions/lightning-metastore-${sparkVersion}_${scalaVersion}-0.2"
 export COMMON_HOME="../../spark/spark-common/build"
 
 # Unzip the distribution if it's not already unzipped
@@ -226,11 +209,6 @@ exec "${SPARK_HOME}/bin/spark-submit" \
     --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$SPARK_HOME/conf/log4j.properties" \
     $COMMON_HOME/libs/lightning-spark-common_2.12-0.2.jar \
     "$@"
-
-
-
-
-
 
   
 
