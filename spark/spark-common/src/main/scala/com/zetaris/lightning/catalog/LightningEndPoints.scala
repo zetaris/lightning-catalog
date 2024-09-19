@@ -48,7 +48,18 @@ class LightningResource {
     } catch {
       case sparkException: Exception =>
         LOGGER.error(s"Spark error: ${sparkException.getMessage}")
-        Response.ok(s"Spark error: ${sparkException.getMessage}").build()
+        
+        // Return structured error response with 500 status code
+        val errorResponse = s"""{
+          "error": "Spark execution error",
+          "message": "${sparkException.getMessage}"
+        }"""
+        
+        Response.status(Response.Status.OK)
+          .entity(errorResponse)
+          .build()
     }
   }
+  
+
 }

@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/static/css/main.f60397bd.css",
-    "main.js": "/static/js/main.6ca99df3.js",
+    "main.css": "/static/css/main.4cdfbe88.css",
+    "main.js": "/static/js/main.6ab4c13c.js",
     "static/js/453.3f6c423c.chunk.js": "/static/js/453.3f6c423c.chunk.js",
     "static/media/PlusJakartaSans-ExtraLightItalic.ttf": "/static/media/PlusJakartaSans-ExtraLightItalic.1002f1784360dd269f2c.ttf",
     "static/media/PlusJakartaSans-LightItalic.ttf": "/static/media/PlusJakartaSans-LightItalic.d695bd652bf9ce5d8ccc.ttf",
@@ -23,12 +23,12 @@
     "static/media/zetaris-logo.png": "/static/media/zetaris-logo.201dd52fb5bff1f8a0f3.png",
     "index.html": "/index.html",
     "static/media/xmark-solid.svg": "/static/media/xmark-solid.5201a0614c605c13a36331dfcec5d647.svg",
-    "main.f60397bd.css.map": "/static/css/main.f60397bd.css.map",
-    "main.6ca99df3.js.map": "/static/js/main.6ca99df3.js.map",
+    "main.4cdfbe88.css.map": "/static/css/main.4cdfbe88.css.map",
+    "main.6ab4c13c.js.map": "/static/js/main.6ab4c13c.js.map",
     "453.3f6c423c.chunk.js.map": "/static/js/453.3f6c423c.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.f60397bd.css",
-    "static/js/main.6ca99df3.js"
+    "static/css/main.4cdfbe88.css",
+    "static/js/main.6ab4c13c.js"
   ]
 }
