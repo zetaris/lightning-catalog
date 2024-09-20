@@ -48,11 +48,17 @@ class LightningResource {
     } catch {
       case sparkException: Exception =>
         LOGGER.error(s"Spark error: ${sparkException.getMessage}")
-        
-        // Return structured error response with 500 status code
+
+        // Escape special characters like newlines and double quotes
+        val safeMessage = sparkException.getMessage
+          .replace("\"", "'")  // Replace double quotes with single quotes
+          .replace("\n", " ")  // Replace newline characters with space
+          .replace("\r", "")   // Remove carriage return characters
+
+        // Return structured error response with escaped error message
         val errorResponse = s"""{
           "error": "Spark execution error",
-          "message": "${sparkException.getMessage}"
+          "message": "$safeMessage"
         }"""
         
         Response.status(Response.Status.OK)
