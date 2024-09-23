@@ -1,7 +1,7 @@
 {
   "files": {
-    "main.css": "/static/css/main.4cdfbe88.css",
-    "main.js": "/static/js/main.6ab4c13c.js",
+    "main.css": "/static/css/main.13735ccd.css",
+    "main.js": "/static/js/main.fd774753.js",
     "static/js/453.3f6c423c.chunk.js": "/static/js/453.3f6c423c.chunk.js",
     "static/media/PlusJakartaSans-ExtraLightItalic.ttf": "/static/media/PlusJakartaSans-ExtraLightItalic.1002f1784360dd269f2c.ttf",
     "static/media/PlusJakartaSans-LightItalic.ttf": "/static/media/PlusJakartaSans-LightItalic.d695bd652bf9ce5d8ccc.ttf",
@@ -20,15 +20,14 @@
     "static/media/HighlandGothicFLF.ttf": "/static/media/HighlandGothicFLF.2a8eb0cdc33b9cf068cb.ttf",
     "static/media/HighlandGothicFLF-Bold.ttf": "/static/media/HighlandGothicFLF-Bold.ee569e4c293083d66224.ttf",
     "static/media/HighlandGothicLightFLF.ttf": "/static/media/HighlandGothicLightFLF.5b04c8498cee1bc75857.ttf",
-    "static/media/zetaris-logo.png": "/static/media/zetaris-logo.201dd52fb5bff1f8a0f3.png",
     "index.html": "/index.html",
     "static/media/xmark-solid.svg": "/static/media/xmark-solid.5201a0614c605c13a36331dfcec5d647.svg",
-    "main.4cdfbe88.css.map": "/static/css/main.4cdfbe88.css.map",
-    "main.6ab4c13c.js.map": "/static/js/main.6ab4c13c.js.map",
+    "main.13735ccd.css.map": "/static/css/main.13735ccd.css.map",
+    "main.fd774753.js.map": "/static/js/main.fd774753.js.map",
     "453.3f6c423c.chunk.js.map": "/static/js/453.3f6c423c.chunk.js.map"
   },
   "entrypoints": [
-    "static/css/main.4cdfbe88.css",
-    "static/js/main.6ab4c13c.js"
+    "static/css/main.13735ccd.css",
+    "static/js/main.fd774753.js"
   ]
 }
