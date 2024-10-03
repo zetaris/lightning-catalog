@@ -37,6 +37,10 @@ class LightningResource {
       LOGGER.info(s"Executing query: $queryString")
       val df = spark.sql(queryString)
 
+      if (df == null) {
+        throw new RuntimeException("Query execution returned null DataFrame.")
+      }
+
       // Convert DataFrame rows to a JSON array
       val resultJson = df.toJSON.collect()
 
@@ -47,25 +51,24 @@ class LightningResource {
       Response.ok(jsonResponse).build()
     } catch {
       case sparkException: Exception =>
-        LOGGER.error(s"Spark error: ${sparkException.getMessage}")
+        LOGGER.error("Spark error occurred", sparkException)
 
         // Escape special characters like newlines and double quotes
-        val safeMessage = sparkException.getMessage
-          .replace("\"", "'")  // Replace double quotes with single quotes
-          .replace("\n", " ")  // Replace newline characters with space
-          .replace("\r", "")   // Remove carriage return characters
+        val errorMessage = Option(sparkException.getMessage).getOrElse("An unknown error occurred.")
+        val safeMessage = errorMessage
+          .replace("\"", "'")
+          .replace("\n", " ")
+          .replace("\r", "")
 
-        // Return structured error response with escaped error message
         val errorResponse = s"""{
           "error": "Spark execution error",
           "message": "$safeMessage"
         }"""
-        
+
         Response.status(Response.Status.OK)
           .entity(errorResponse)
           .build()
     }
   }
   
-
 }
