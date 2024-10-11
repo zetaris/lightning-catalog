@@ -19,29 +19,23 @@
  *
  */
 
-package com.zetaris.lightning.execution.command
+package com.zetaris.lightning.model.serde
 
-import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
-import com.zetaris.lightning.parser.LightningExtendedParser
-import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.types.StringType
-import org.apache.spark.sql.{Row, SparkSession}
+import com.zetaris.lightning.execution.command.CreateTableSpec
+import org.json4s.Formats
+import org.json4s.jackson.JsonMethods.parse
+import org.json4s.jackson.Serialization.write
 
-case class CompileUCLSpec(name: String,
-                          ifNotExit: Boolean,
-                          namespace: Seq[String],
-                          inputDDLs: String) extends LightningCommandBase {
-  override val output: Seq[AttributeReference] = Seq(
-    AttributeReference("json", StringType, false)()
-  )
+object UnifiedSemanticLayer {
+  implicit val formats: Formats = CreateTable.formats
 
-  override def runCommand(sparkSession: SparkSession): Seq[Row] = {
-    val parser = new LightningExtendedParser(sparkSession.sessionState.sqlParser)
-    val createTableSpecs = inputDDLs.split(";.*?\\n").map { ddl =>
-      val createTableSpec = parser.parseLightning(ddl).asInstanceOf[CreateTableSpec]
-      createTableSpec.copy(namespace = namespace)
-    }
+  case class UnifiedSemanticLayer(name: String, namespace: Seq[String], tables: Seq[CreateTableSpec])
 
-    Row(UnifiedSemanticLayer.toJson(name, namespace, createTableSpecs)) :: Nil
+  def toJson(name: String, namespace: Seq[String], tables: Seq[CreateTableSpec]): String = {
+    write(UnifiedSemanticLayer(name, namespace, tables))
+  }
+
+  def apply(json: String): UnifiedSemanticLayer = {
+    parse(json).extract[UnifiedSemanticLayer]
   }
 }

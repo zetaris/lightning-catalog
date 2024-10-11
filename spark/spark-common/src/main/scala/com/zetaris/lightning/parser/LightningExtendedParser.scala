@@ -170,7 +170,8 @@ class LightningExtendedParser(delegate: ParserInterface) extends ParserInterface
       (normalized.startsWith("register or replace") && checkDataSource(normalized) && checkNamespace(normalized)) ||
       (normalized.startsWith("register catalog") && checkSource(normalized) && checkNamespace(normalized)) ||
       (normalized.startsWith("register or replace catalog") && checkSource(normalized) && checkNamespace(normalized)) ||
-      normalized.contains("create table")
+      normalized.contains("create table") ||
+      normalized.contains("compile ucl")
   }
 
   def parseLightning(sqlText: String): LogicalPlan = {

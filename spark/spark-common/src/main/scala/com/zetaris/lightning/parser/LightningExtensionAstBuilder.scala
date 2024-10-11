@@ -62,7 +62,11 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
     val acAnnotations = tableAnnotations.filter(_.isInstanceOf[AccessControl]).map(_.asInstanceOf[AccessControl])
     val ifNotExist = ctx.EXISTS() != null
     val tableName = visitMultipartIdentifier(ctx.tablename)
-    val namespace = visitMultipartIdentifier(ctx.namespace)
+    val namespace = if (ctx.namespace != null) {
+      visitMultipartIdentifier(ctx.namespace)
+    } else {
+      Seq()
+    }
 
     val columnSpecs = visitCreateDefinitions(ctx.createDefinitions)
 

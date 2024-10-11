@@ -30,7 +30,7 @@ import org.json4s.jackson.Serialization
 import org.json4s.jackson.Serialization.write
 
 object CreateTable {
-  private class ReferenceControlSerializer
+  class ReferenceControlSerializer
     extends CustomSerializer[ReferenceControl.ReferenceControl](_ =>
       (
         { case JString(s) => ReferenceControl(s) },
@@ -38,7 +38,7 @@ object CreateTable {
       )
     )
 
-  private class DataTypeSerializer
+  class DataTypeSerializer
     extends CustomSerializer[DataType](_ =>
       (
         { case JString(s) => DataType.fromJson(s) },
