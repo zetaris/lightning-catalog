@@ -27,7 +27,7 @@ case class AnnotationStatement(name: String, params: Seq[Assignment])
 
 sealed trait Annotation
 
-case class DataQuality(name: String, expression: String) extends Annotation
+case class DataQuality(name: String, expression: String, cte: Map[String, String] = Map.empty) extends Annotation
 
 case class AccessControl(accessType: String,
                          regEx: Option[String],

@@ -26,9 +26,10 @@ import org.antlr.v4.runtime.atn.PredictionMode
 import org.antlr.v4.runtime.misc.{Interval, ParseCancellationException}
 import org.antlr.v4.runtime.tree.TerminalNodeImpl
 import org.apache.spark.sql.AnalysisException
+import org.apache.spark.sql.catalyst.analysis.{EliminateSubqueryAliases, UnresolvedRelation}
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.parser.ParserInterface
-import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
+import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, UpdateTable}
 import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
 import org.apache.spark.sql.catalyst.trees.Origin
 import org.apache.spark.sql.types.{DataType, StructType}
@@ -165,10 +166,11 @@ class LightningExtendedParser(delegate: ParserInterface) extends ParserInterface
       normalisedText.contains("source")
     }
 
-    (normalized.startsWith("register") && checkDataSource(normalized) && checkNamespace(normalized))  ||
+    (normalized.startsWith("register") && checkDataSource(normalized) && checkNamespace(normalized)) ||
       (normalized.startsWith("register or replace") && checkDataSource(normalized) && checkNamespace(normalized)) ||
       (normalized.startsWith("register catalog") && checkSource(normalized) && checkNamespace(normalized)) ||
-      (normalized.startsWith("register or replace catalog") && checkSource(normalized) && checkNamespace(normalized))
+      (normalized.startsWith("register or replace catalog") && checkSource(normalized) && checkNamespace(normalized)) ||
+      normalized.contains("create table")
   }
 
   def parseLightning(sqlText: String): LogicalPlan = {
@@ -200,7 +202,6 @@ class LightningExtendedParser(delegate: ParserInterface) extends ParserInterface
       case e: LightningParserException if e.command.isDefined =>
         throw e
       case e: LightningParserException =>
-        e.printStackTrace()
         throw e.withCommand(sqlText)
       case e: AnalysisException =>
         val position = Origin(e.line, e.startPosition)
@@ -212,7 +213,13 @@ class LightningExtendedParser(delegate: ParserInterface) extends ParserInterface
     if (isLightningCommand(sqlText)) {
       parseLightning(sqlText)
     } else {
-      delegate.parsePlan(sqlText)
+      val parsedPlan = delegate.parsePlan(sqlText)
+      parsedPlan match {
+        // Support UPDATE statement
+        case UpdateTable(UnresolvedLightningTable(aliasedTable), assignments, condition) => ???
+        case other => other
+      }
+
     }
   }
 
@@ -244,7 +251,6 @@ class LightningExtendedParser(delegate: ParserInterface) extends ParserInterface
     parsePlan(sqlText)
   }
 }
-
 
 
 /**
@@ -283,3 +289,18 @@ case object LightningExtensionsPostProcessor extends LightningParserBaseListener
   }
 }
 
+object UnresolvedLightningTable {
+  def unapply(plan: LogicalPlan): Option[LogicalPlan] = {
+    EliminateSubqueryAliases(plan) match {
+      case UnresolvedRelation(multipartIdentifier, _, _) if isLightningTable(multipartIdentifier) =>
+        Some(plan)
+      case _ =>
+        None
+    }
+  }
+
+  private def isLightningTable(multipartIdent: Seq[String]): Boolean = {
+    multipartIdent(0).equalsIgnoreCase("lightning")
+  }
+
+}

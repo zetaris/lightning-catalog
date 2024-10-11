@@ -36,6 +36,7 @@ import scala.collection.JavaConverters.mapAsJavaMap
 case class VideoReaderFactory(broadcastedConf: Broadcast[SerializableConfiguration],
                               readDataSchema: StructType,
                               partitionSchema: StructType,
+                              tagSchema: StructType,
                               rootPathsSpecified: Seq[Path],
                               pushedFilters: Array[Filter],
                               opts: Map[String, String],
@@ -43,6 +44,7 @@ case class VideoReaderFactory(broadcastedConf: Broadcast[SerializableConfigurati
   extends UnstructuredFilePartitionReaderFactory(broadcastedConf,
     readDataSchema,
     partitionSchema,
+    tagSchema,
     rootPathsSpecified,
     pushedFilters,
     opts,
@@ -51,12 +53,12 @@ case class VideoReaderFactory(broadcastedConf: Broadcast[SerializableConfigurati
   override def textPreviewFromBinary(content: Array[Byte]): String = ???
 
   override def getResolution(content: Array[Byte]): Dimension = {
-    if (tags == null) {
-      tags = extractTags(content)
+    if (embeddedTags == null) {
+      embeddedTags = extractEmbeddedTags(content)
     }
 
-    val widthTag = tags.find(_.getTagName.equals(UnstructuredData.WIDTH))
-    val heightTag = tags.find(_.getTagName.equals(UnstructuredData.HEIGHT))
+    val widthTag = embeddedTags.find(_.getTagName.equals(UnstructuredData.WIDTH))
+    val heightTag = embeddedTags.find(_.getTagName.equals(UnstructuredData.HEIGHT))
 
     if (widthTag.isDefined && heightTag.isDefined) {
       val width = widthTag.get.getDescription.toInt
@@ -68,12 +70,12 @@ case class VideoReaderFactory(broadcastedConf: Broadcast[SerializableConfigurati
   }
 
   override def getDuration(content: Array[Byte]): Float = {
-    if (tags == null) {
-      tags = extractTags(content)
+    if (embeddedTags == null) {
+      embeddedTags = extractEmbeddedTags(content)
     }
 
-    val durationTag = tags.find(_.getTagName.equalsIgnoreCase(UnstructuredData.DURATION))
-    val timeScaleTag = tags.find(_.getTagName.equalsIgnoreCase(UnstructuredData.MEDIA_TIME_SCALE))
+    val durationTag = embeddedTags.find(_.getTagName.equalsIgnoreCase(UnstructuredData.DURATION))
+    val timeScaleTag = embeddedTags.find(_.getTagName.equalsIgnoreCase(UnstructuredData.MEDIA_TIME_SCALE))
     if (durationTag.isDefined && timeScaleTag.isDefined) {
       durationTag.get.getDescription.toInt.toFloat / timeScaleTag.get.getDescription.toInt
     } else {
@@ -82,11 +84,11 @@ case class VideoReaderFactory(broadcastedConf: Broadcast[SerializableConfigurati
   }
 
   override def getFormat(content: Array[Byte]): String = {
-    if (tags == null) {
-      tags = extractTags(content)
+    if (embeddedTags == null) {
+      embeddedTags = extractEmbeddedTags(content)
     }
 
-    val formatTag = tags.find(_.getTagName.equalsIgnoreCase(UnstructuredData.DETECTED_FILE_TYPE_NAME))
+    val formatTag = embeddedTags.find(_.getTagName.equalsIgnoreCase(UnstructuredData.DETECTED_FILE_TYPE_NAME))
     if (formatTag.isDefined) {
       formatTag.get.getDescription
     } else {

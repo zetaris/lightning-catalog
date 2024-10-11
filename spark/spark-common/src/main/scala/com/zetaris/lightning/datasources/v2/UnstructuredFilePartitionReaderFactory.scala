@@ -24,18 +24,20 @@ package com.zetaris.lightning.datasources.v2
 import com.drew.imaging.ImageMetadataReader
 import com.drew.metadata.{Metadata, Tag}
 import com.zetaris.lightning.datasources.v2.UnstructuredData.{MetaData, createFilter}
+import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.spark.TaskContext
 import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.sql.catalyst.InternalRow
 import org.apache.spark.sql.catalyst.expressions.UnsafeRow
 import org.apache.spark.sql.catalyst.expressions.codegen.UnsafeRowWriter
+import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.connector.read.PartitionReader
 import org.apache.spark.sql.execution.datasources.PartitionedFile
 import org.apache.spark.sql.execution.datasources.text.TextOptions
 import org.apache.spark.sql.execution.datasources.v2._
 import org.apache.spark.sql.sources.Filter
-import org.apache.spark.sql.types.StructType
+import org.apache.spark.sql.types.{DateType, DoubleType, FloatType, IntegerType, LongType, StringType, StructType, TimestampType, VarcharType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.unsafe.types.UTF8String
 import org.apache.spark.util.SerializableConfiguration
@@ -48,15 +50,29 @@ import scala.util.Try
 abstract class UnstructuredFilePartitionReaderFactory(broadcastedConf: Broadcast[SerializableConfiguration],
                                                       readDataSchema: StructType,
                                                       partitionSchema: StructType,
+                                                      tagSchema: StructType,
                                                       rootPathsSpecified: Seq[Path],
                                                       pushedFilters: Array[Filter],
                                                       opts: Map[String, String],
                                                       isContentTable: Boolean = false) extends FilePartitionReaderFactory {
-  var tags: List[Tag] = null
+  var embeddedTags: List[Tag] = null
+  var fileTag: CaseInsensitiveMap[Any] = null
+
   val options = new TextOptions(opts)
 
+  /**
+   * generate preview text from binary contents.
+   *
+   * @param content, binary contents
+   * @return text preview
+   */
   def textPreviewFromBinary(content: Array[Byte]): String
 
+  /**
+   * generate text from binary contents
+   * @param content, binary contents
+   * @return text
+   */
   def textFromBinary(content: Array[Byte]): String = new String(content)
 
   def thumbnailImage(content: Array[Byte]): Array[Byte] = content
@@ -67,7 +83,7 @@ abstract class UnstructuredFilePartitionReaderFactory(broadcastedConf: Broadcast
 
   def getFormat(content: Array[Byte]): String = ???
 
-  def extractTags(content: Array[Byte]): List[Tag] = {
+  def extractEmbeddedTags(content: Array[Byte]): List[Tag] = {
     val stream = new ByteArrayInputStream(content)
     Try(ImageMetadataReader.readMetadata(stream)).map { md =>
       md.getDirectories.asScala.flatMap(_.getTags.asScala).toList
@@ -85,6 +101,52 @@ abstract class UnstructuredFilePartitionReaderFactory(broadcastedConf: Broadcast
   val previewLen: Int = {
     val ciMap = new CaseInsensitiveStringMap(mapAsJavaMap(opts))
     ciMap.getInt(UnstructuredData.PDF_PREVIEW_KEY, UnstructuredData.PDF_PREVIEW_LEN)
+  }
+
+  private def readFileTag(dataFile: PartitionedFile, configuration: Configuration): CaseInsensitiveMap[Any] = {
+    val tagFile = new Path(s"${dataFile.toPath.toUri.toString}.tag")
+    val fs = tagFile.getFileSystem(configuration)
+    val tagValue = if (fs.exists(tagFile)) {
+      Tags.loadTags(tagFile, configuration, tagSchema)
+    } else {
+      tagSchema.map{col => (col.name, null) }.toMap
+    }
+
+    CaseInsensitiveMap(tagValue)
+  }
+
+  private def isFileTagNeeded(): Boolean = {
+    tagSchema.foreach { field =>
+      if (readDataSchema.fields.find(f => f.name.equalsIgnoreCase(field.name)).isDefined) {
+        return true
+      }
+    }
+
+    false
+  }
+
+  private def writeTag(fileTag: Map[String, Any], tagName: String, index: Int, writer: UnsafeRowWriter): Unit = {
+    val tagValue = fileTag(tagName)
+    val field = tagSchema.find(_.name.equalsIgnoreCase(tagName)).get
+    field.dataType match {
+      case StringType => writer.write(index, if (tagValue == null) {
+        UTF8String.fromString("")
+      } else {
+        UTF8String.fromString(tagValue.toString)
+      })
+      case IntegerType => writer.write(index, tagValue.asInstanceOf[Integer])
+      case LongType => writer.write(index, tagValue.asInstanceOf[Long])
+      case FloatType => writer.write(index, tagValue.asInstanceOf[Float])
+      case DoubleType => writer.write(index, tagValue.asInstanceOf[Double])
+      case DateType => writer.write(index, tagValue.asInstanceOf[Long])
+      case TimestampType => writer.write(index, tagValue.asInstanceOf[Long])
+      case VarcharType(len) => writer.write(index, if (tagValue == null) {
+        UTF8String.fromString("")
+      } else {
+        UTF8String.fromString(tagValue.toString)
+      })
+      case other => throw new RuntimeException(s"not supported data type : $other")
+    }
   }
 
   private def buildMetaDataReader(file: PartitionedFile): PartitionReader[InternalRow] = {
@@ -125,7 +187,7 @@ abstract class UnstructuredFilePartitionReaderFactory(broadcastedConf: Broadcast
       }
 
       md = md.copy(fileType = typeStr)
-      md = md.copy(bincontent = bincontent)
+      md = md.copy(binContent = bincontent)
       md = md.copy(imageDim = imageDim)
 
       readDataSchema.fields.map(_.name).zipWithIndex.foreach {
@@ -151,8 +213,8 @@ abstract class UnstructuredFilePartitionReaderFactory(broadcastedConf: Broadcast
         case (UnstructuredData.HEIGHT, index) =>
           writer.write(index, md.imageDim.height)
         case (UnstructuredData.IMAGETHUMBNAIL, index) =>
-          val thumbnail = thumbnailImage(md.bincontent)
-          md = md.copy(bincontent = thumbnail)
+          val thumbnail = thumbnailImage(md.binContent)
+          md = md.copy(binContent = thumbnail)
           writer.write(index, thumbnail)
 
         case (UnstructuredData.SUBDIR, index) =>
@@ -169,22 +231,30 @@ abstract class UnstructuredFilePartitionReaderFactory(broadcastedConf: Broadcast
           writer.write(index, UTF8String.fromString(subDir))
 
         case (UnstructuredData.TAGS, index) =>
-          if (tags == null) {
-            tags = extractTags(md.bincontent)
+          if (embeddedTags == null) {
+            embeddedTags = extractEmbeddedTags(md.binContent)
           }
-          val tagJson = buildJSONTag(tags)
+          val tagJson = buildJSONTag(embeddedTags)
           md = md.copy(tags = tagJson)
           writer.write(index, UTF8String.fromString(tagJson))
 
         case (UnstructuredData.DURATION, index) =>
-          val duration = getDuration(md.bincontent)
+          val duration = getDuration(md.binContent)
           md = md.copy(duration = duration)
           writer.write(index, duration)
 
         case (UnstructuredData.FORMAT, index) =>
-          val format = getFormat(md.bincontent)
+          val format = getFormat(md.binContent)
           md = md.copy(format = format)
           writer.write(index, UTF8String.fromString(format))
+
+        case (tagName, index) =>
+          if (fileTag == null) {
+            fileTag = readFileTag(file, confValue)
+            md.copy(fileTag = fileTag)
+          }
+
+          writeTag(fileTag, tagName, index, writer)
       }
 
       if (pushedFilters.isEmpty) {
@@ -225,7 +295,7 @@ abstract class UnstructuredFilePartitionReaderFactory(broadcastedConf: Broadcast
         Array()
       }
 
-      md = md.copy(bincontent = bincontent)
+      md = md.copy(binContent = bincontent)
 
       readDataSchema.fields.map(_.name).zipWithIndex.foreach {
         case (UnstructuredData.PATH, index) =>
@@ -245,12 +315,17 @@ abstract class UnstructuredFilePartitionReaderFactory(broadcastedConf: Broadcast
           md = md.copy(subDir = subDir)
           writer.write(index, UTF8String.fromString(subDir))
         case (UnstructuredData.TEXTCONTENT, index) =>
-          val content = textFromBinary(md.bincontent)
+          val content = textFromBinary(md.binContent)
           writer.write(index, UTF8String.fromString(content))
         case (UnstructuredData.BINCONTENT, index) =>
-          writer.write(index, md.bincontent)
+          writer.write(index, md.binContent)
         case (UnstructuredData.IMAGECONTENT, index) =>
-          writer.write(index, md.bincontent)
+          writer.write(index, md.binContent)
+        case (tagName, index) =>
+          if (fileTag == null) {
+            fileTag = readFileTag(file, confValue)
+            md.copy(fileTag = fileTag)
+          }
       }
 
       if (pushedFilters.isEmpty) {

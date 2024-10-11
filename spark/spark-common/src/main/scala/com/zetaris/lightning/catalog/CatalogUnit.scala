@@ -38,15 +38,15 @@ trait CatalogUnit {
 
   def listTables(namespace: Array[String]): Array[Identifier]
 
-  def loadTable(ident: Identifier): Table
+  def loadTable(ident: Identifier, tagSchema: StructType): Table
 
-  def loadTable(ident: Identifier, version: String): Table = {
+  def loadTable(ident: Identifier, version: String, tagSchema: StructType): Table = {
     throw new RuntimeException(
       s"time travel is not supported for this datasource : ${ident.namespace().mkString(".")}.${ident.name()}"
     )
   }
 
-  def loadTable(ident: Identifier, timestamp: Long): Table = {
+  def loadTable(ident: Identifier, timestamp: Long, tagSchema: StructType): Table = {
     throw new RuntimeException(
       s"time travel is not supported for this datasource : ${ident.namespace().mkString(".")}.${ident.name()}"
     )

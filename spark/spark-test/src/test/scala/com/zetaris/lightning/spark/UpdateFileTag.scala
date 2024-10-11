@@ -19,19 +19,18 @@
  *
  */
 
-package com.zetaris.lightning.model
+package com.zetaris.lightning.spark
 
-import org.json4s.DefaultFormats
-import org.json4s.jackson.Serialization
+import com.zetaris.lightning.execution.command.LightningCommandBase
+import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.{Row, SparkSession}
+import org.apache.spark.sql.catalyst.plans.logical.{Assignment, LogicalPlan}
 
-package object serde {
-  implicit val formats = DefaultFormats
-
-  def mapToJson(map: Map[String, String]): String = {
-    Serialization.write(map)
+case class UpdateFileTag(table: LogicalPlan,
+                         assignments: Seq[Assignment],
+                         condition: Option[Expression]) extends LightningCommandBase {
+  override def runCommand(sparkSession: SparkSession): Seq[Row] = {
+    ???
   }
 
-  def jsonToMap(json: String): Map[String, String] = {
-    Serialization.read(json)
-  }
 }

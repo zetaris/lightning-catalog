@@ -52,8 +52,6 @@ abstract class AbstractDeltaCatalogUnit(properties: Map[String, String]) extends
       .toArray
   }
 
-  def loadTable(ident: Identifier): Table
-
   override def namespaceExists(namespace: Array[String]): Boolean = {
     throw new RuntimeException("delta lake doesn't support namespace exists")
   }

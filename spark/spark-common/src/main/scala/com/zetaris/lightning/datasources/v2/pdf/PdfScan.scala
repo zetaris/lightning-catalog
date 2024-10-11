@@ -41,6 +41,7 @@ case class PdfScan(
   readDataSchema: StructType, // required(selected) schema from data schema
   readPartitionSchema: StructType, // required(selected) schema from partition schema
   recursiveScanSchema: StructType,
+  tagSchema: StructType,
   rootPathsSpecified: Seq[Path],
   pushedFilters: Array[Filter],
   opts: Map[String, String],
@@ -56,6 +57,7 @@ case class PdfScan(
     PdfReaderFactory(broadcastedConf,
       readDataSchema,
       readPartitionSchema,
+      tagSchema,
       rootPathsSpecified,
       pushedFilters,
       opts,

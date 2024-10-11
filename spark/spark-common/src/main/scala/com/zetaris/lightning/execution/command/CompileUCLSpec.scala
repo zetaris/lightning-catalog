@@ -19,19 +19,23 @@
  *
  */
 
-package com.zetaris.lightning.model
+package com.zetaris.lightning.execution.command
 
-import org.json4s.DefaultFormats
-import org.json4s.jackson.Serialization
+import com.zetaris.lightning.model.serde.CreateTable
+import com.zetaris.lightning.parser.LightningExtendedParser
+import org.apache.spark.sql.{Row, SparkSession}
 
-package object serde {
-  implicit val formats = DefaultFormats
-
-  def mapToJson(map: Map[String, String]): String = {
-    Serialization.write(map)
-  }
-
-  def jsonToMap(json: String): Map[String, String] = {
-    Serialization.read(json)
+case class CompileUCLSpec(name: String,
+                          ifNotExit: Boolean,
+                          namespace: Seq[String],
+                          inputDDLs: String) extends LightningCommandBase {
+  override def runCommand(sparkSession: SparkSession): Seq[Row] = {
+    val parser = new LightningExtendedParser(sparkSession.sessionState.sqlParser)
+    val createTableSpecs = inputDDLs.split(";.*?\\n").map { ddl =>
+      val createTableSpec = parser.parseLightning(ddl).asInstanceOf[CreateTableSpec]
+      val withNameSpace = createTableSpec.copy(namespace = namespace)
+      val json = CreateTable.toJson(withNameSpace)
+    }
+    ???
   }
 }

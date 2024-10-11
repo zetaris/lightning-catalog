@@ -50,4 +50,17 @@ object SparkSQLBridge {
 
   def dataTypeUnsupportedByDataSourceError(format: String, column: StructField): Throwable =
     QueryCompilationErrors.dataTypeUnsupportedByDataSourceError(format, column)
+
+  def dataSchemaNotSpecifiedError(format: String): Throwable =
+    throw QueryCompilationErrors.dataSchemaNotSpecifiedError(format)
+
+  def asNullable(schema: StructType): StructType = {
+    val newFields = schema.fields.map {
+      case StructField(name, dataType, nullable, metadata) =>
+        StructField(name, dataType.asNullable, nullable = true, metadata)
+    }
+
+    StructType(newFields)
+  }
+
 }

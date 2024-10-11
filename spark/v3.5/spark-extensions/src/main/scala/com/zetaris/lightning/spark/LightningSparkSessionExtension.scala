@@ -22,7 +22,7 @@ package com.zetaris.lightning.spark
 import com.zetaris.lightning.parser.LightningExtendedParser
 import org.apache.spark.sql.SparkSessionExtensions
 
-class LightningSparkSessionExtension extends (SparkSessionExtensions => Unit){
+class LightningSparkSessionExtension extends (SparkSessionExtensions => Unit) {
   override def apply(extensions: SparkSessionExtensions): Unit = {
 
 //    val deltaExtension = new io.delta.sql.DeltaSparkSessionExtension
