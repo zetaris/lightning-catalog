@@ -42,7 +42,7 @@ abstract class AbstractIcebergCatalogUnit  extends CatalogUnit {
 
   override def listTables(namespace: Array[String]): Array[Identifier] = tableCatalog.listTables(namespace)
 
-  override def loadTable(ident: Identifier): Table = tableCatalog.loadTable(ident)
+  override def loadTable(ident: Identifier, tagSchema: StructType): Table = tableCatalog.loadTable(ident)
 
   override def createTable(ident: Identifier,
                            schema: StructType,
@@ -54,8 +54,10 @@ abstract class AbstractIcebergCatalogUnit  extends CatalogUnit {
 
   override def tableExists(ident: Identifier): Boolean = tableCatalog.tableExists(ident)
 
-  override def loadTable(ident: Identifier, version: String): Table = tableCatalog.loadTable(ident, version)
+  override def loadTable(ident: Identifier, version: String, tagSchema: StructType): Table
+  = tableCatalog.loadTable(ident, version)
 
-  override def loadTable(ident: Identifier, timestamp: Long): Table = tableCatalog.loadTable(ident, timestamp)
+  override def loadTable(ident: Identifier, timestamp: Long, tagSchema: StructType): Table
+  = tableCatalog.loadTable(ident, timestamp)
 
 }

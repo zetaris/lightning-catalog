@@ -240,7 +240,7 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
 
     namespace(0).toLowerCase match {
       case "metastore" =>
-        LightningCatalogUnit(namespace(0), model).loadTable(ident)
+        LightningCatalogUnit(namespace(0), model).loadTable(ident, StructType(List.empty))
       case "datasource" =>
         findParentDataSource(ident.namespace(), ident.name()) match {
           case Some(datasource) if datasource.dataSourceType.isInstanceOf[DataSourceType.FileTypeSource] =>
@@ -248,14 +248,14 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
               || ident.name().equalsIgnoreCase(UnstructuredData.CONTENT)) {
               val catalog = loadCatalogUnit(datasource)
               val sourceNamespace = ident.namespace().drop(datasource.namespace.length + 1)
-              catalog.loadTable(Identifier.of(sourceNamespace, ident.name()))
+              catalog.loadTable(Identifier.of(sourceNamespace, ident.name()), datasource.toTagSchema())
             } else {
               throw new RuntimeException(s"namespace(${ident.namespace().mkString(".")}), name(${ident.name()}) is not defined")
             }
           case Some(datasource) =>
             val catalog = loadCatalogUnit(datasource)
             val sourceNamespace = ident.namespace().drop(datasource.namespace.length + 1)
-            catalog.loadTable(Identifier.of(sourceNamespace, ident.name()))
+            catalog.loadTable(Identifier.of(sourceNamespace, ident.name()), datasource.toTagSchema())
           case _ =>
             throw new RuntimeException(s"namespace(${ident.namespace().mkString(".")}), name(${ident.name()}) is not defined")
         }
@@ -285,11 +285,11 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
     val namespace = ident.namespace()
 
     loadTableWithTmeTravel(ident, () => {
-      LightningCatalogUnit(namespace(0), model).loadTable(ident, version)
+      LightningCatalogUnit(namespace(0), model).loadTable(ident, version, StructType(List.empty))
     }, (dataSource: DataSource) => {
       val catalog = loadCatalogUnit(dataSource)
       val sourceNamespace = ident.namespace().drop(dataSource.namespace.length + 1)
-      catalog.loadTable(Identifier.of(sourceNamespace, ident.name), version)
+      catalog.loadTable(Identifier.of(sourceNamespace, ident.name), version, dataSource.toTagSchema())
     })
 
 //    val namespace = ident.namespace()
@@ -314,11 +314,11 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
     val namespace = ident.namespace()
 
     loadTableWithTmeTravel(ident, () => {
-      LightningCatalogUnit(namespace(0), model).loadTable(ident, timestamp)
+      LightningCatalogUnit(namespace(0), model).loadTable(ident, timestamp, StructType(List.empty))
     }, (dataSource: DataSource) => {
       val catalog = loadCatalogUnit(dataSource)
       val sourceNamespace = ident.namespace().drop(dataSource.namespace.length + 1)
-      catalog.loadTable(Identifier.of(sourceNamespace, ident.name), timestamp)
+      catalog.loadTable(Identifier.of(sourceNamespace, ident.name), timestamp, dataSource.toTagSchema())
     })
   }
 

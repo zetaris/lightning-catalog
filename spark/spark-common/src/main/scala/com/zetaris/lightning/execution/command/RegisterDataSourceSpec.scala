@@ -26,6 +26,7 @@ import com.zetaris.lightning.datasources.v2.UnstructuredData
 import com.zetaris.lightning.execution.command.DataSourceType._
 import com.zetaris.lightning.model.LightningModelFactory
 import com.zetaris.lightning.model.serde.DataSource
+import com.zetaris.lightning.model.serde.DataSource.Tag
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
@@ -40,6 +41,7 @@ case class RegisterDataSourceSpec(namespace: Array[String],
                                   name: String,
                                   dataSourceType: DataSourceType.DataSourceType,
                                   opts: Map[String, String],
+                                  tags: List[Tag],
                                   replace: Boolean) extends LightningCommandBase {
   val ciMap = CaseInsensitiveMap(opts)
 
@@ -54,17 +56,6 @@ case class RegisterDataSourceSpec(namespace: Array[String],
   override val output: Seq[AttributeReference] = Seq(
     AttributeReference("registered", StringType, false)()
   )
-
-  private def catalogOptions(conf: SQLConf) = {
-    val prefix = Pattern.compile("^spark\\.sql\\.catalog\\." + name + "\\.(.+)")
-    val options = new java.util.HashMap[String, String]
-    conf.getAllConfs.foreach {
-      case (key, value) =>
-        val matcher = prefix.matcher(key)
-        if (matcher.matches && matcher.groupCount > 0) options.put(matcher.group(1), value)
-    }
-    new CaseInsensitiveStringMap(options)
-  }
 
   private def validateFileParams(): Unit = {
     ciMap.getOrElse("path", {
@@ -121,7 +112,7 @@ case class RegisterDataSourceSpec(namespace: Array[String],
       throw new RuntimeException(s"parent namespace: ${namespace.mkString(".")} is not existing")
     }
 
-    val dataSource = DataSource.DataSource(dataSourceType, withoutCatalog, name, DataSource.toProperties(opts))
+    val dataSource = DataSource.DataSource(dataSourceType, withoutCatalog, name, DataSource.toProperties(opts), tags)
 
     val filePath = model.saveDataSource(dataSource, replace)
     Row(filePath) :: Nil

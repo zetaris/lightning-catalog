@@ -38,7 +38,7 @@ case class DeltaCatalogUnit(dsName: String, properties: Map[String, String])
     catalog
   }
 
-  override def loadTable(ident: Identifier): Table = {
+  override def loadTable(ident: Identifier, tagSchema: StructType): Table = {
     val table = tablePath(ident.name())
     deltaCatalog.loadTable(Identifier.of(Array("delta"), table))
   }

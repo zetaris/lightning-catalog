@@ -21,6 +21,7 @@ package com.zetaris.lightning.model.serde
 
 import com.zetaris.lightning.execution.command.DataSourceType
 import com.zetaris.lightning.execution.command.DataSourceType.DataSourceType
+import org.apache.spark.sql.types.{DataType, StructField, StructType}
 import org.json4s.jackson.JsonMethods.parse
 import org.json4s.jackson.Serialization
 import org.json4s.jackson.Serialization.write
@@ -33,10 +34,21 @@ object DataSource {
     override def toString: String = s"Property(${MASKED_VALUE})"
   }
 
+  case class Tag(name: String, dataType: DataType)
+
   case class DataSource(dataSourceType: DataSourceType,
                         namespace: Array[String],
                         name: String,
-                        properties: List[Property])
+                        properties: List[Property],
+                        tags: List[Tag]) {
+    def toTagSchema(): StructType = {
+      StructType(
+        tags.map { tag =>
+          StructField(tag.name, tag.dataType)
+        }
+      )
+    }
+  }
 
   // todo : check with java version other than 1.8
   def simpleClassName(clazz: Class[_]): String = {
@@ -46,13 +58,26 @@ object DataSource {
 
   private class DataSourceTypeSerializer
     extends CustomSerializer[DataSourceType](_ =>
-      (
-        { case JString(s) => DataSourceType(s) },
-        { case ds: DataSourceType => JString(simpleClassName(ds.getClass))}
+      ( {
+        case JString(s) => DataSourceType(s)
+      }, {
+        case ds: DataSourceType => JString(simpleClassName(ds.getClass))
+      }
       )
     )
 
-  implicit val formats: Formats = Serialization.formats(NoTypeHints) + new DataSourceTypeSerializer
+  private class DataTypeSerializer
+    extends CustomSerializer[DataType](_ =>
+      ( {
+        case JString(s) => DataType.fromJson(s)
+      }, {
+        case dt: DataType => JString(dt.json)
+      }
+      )
+    )
+
+  implicit val formats: Formats = Serialization.formats(NoTypeHints) +
+    new DataSourceTypeSerializer + new DataTypeSerializer
 
   def toJson(dataSource: DataSource): String = {
     write(dataSource)

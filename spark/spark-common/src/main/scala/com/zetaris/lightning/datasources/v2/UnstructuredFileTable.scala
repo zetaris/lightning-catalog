@@ -24,6 +24,7 @@ package com.zetaris.lightning.datasources.v2
 import com.zetaris.lightning.datasources.v2.UnstructuredData.ScanType
 import org.apache.hadoop.fs.{FileStatus, Path}
 import org.apache.spark.sql.connector.write.{LogicalWriteInfo, WriteBuilder}
+import org.apache.spark.sql.errors.QueryCompilationErrors
 import org.apache.spark.sql.execution.datasources._
 import org.apache.spark.sql.execution.datasources.v2.FileTable
 import org.apache.spark.sql.execution.streaming.{FileStreamSink, MetadataLogFileIndex}
@@ -45,6 +46,8 @@ abstract class UnstructuredFileTable(sparkSession: SparkSession,
     val scanType = options.getOrDefault("scanType", "file_scan")
     ScanType(scanType)
   }
+
+  val tagSchema: StructType
 
   private def globPaths: Boolean = {
     val entry = options.get(DataSource.GLOB_PATHS_KEY)
@@ -78,7 +81,7 @@ abstract class UnstructuredFileTable(sparkSession: SparkSession,
 
       // see private val pathFilters = PathFilterFactory.create(caseInsensitiveMap) for glob filter
       // in PartitioningAwareFileIndex
-      val parameters =  opts ++ fileScanOption
+      val parameters = opts ++ fileScanOption
       new InMemoryFileIndex(
         sparkSession, rootPathsSpecified, parameters, userSpecifiedSchema, fileStatusCache)
     }
@@ -93,7 +96,7 @@ abstract class UnstructuredFileTable(sparkSession: SparkSession,
   }
 
   override lazy val schema: StructType = {
-    val caseSensitive = false//sparkSession.sessionState.conf.caseSensitiveAnalysis
+    val caseSensitive = false //sparkSession.sessionState.conf.caseSensitiveAnalysis
     SparkSQLBridge.checkSchemaColumnNameDuplication(dataSchema, caseSensitive)
     dataSchema.foreach { field =>
       if (!supportsDataType(field.dataType)) {
@@ -101,22 +104,42 @@ abstract class UnstructuredFileTable(sparkSession: SparkSession,
       }
     }
 
+    val dataSchemaWithTags = new StructType(dataSchema.fields)
+
     scanType match {
       case UnstructuredData.FILE_SCAN =>
-        dataSchema
+        dataSchemaWithTags
       case UnstructuredData.RECURSIVE_SCAN =>
-        StructType(dataSchema.fields ++ recursiveScanSchema.fields)
+        StructType(dataSchemaWithTags.fields ++ recursiveScanSchema.fields)
       case UnstructuredData.PARTS_SCAN =>
         val partitionSchema = fileIndex.partitionSchema
         SparkSQLBridge.checkSchemaColumnNameDuplication(partitionSchema, caseSensitive)
         val partitionNameSet: Set[String] =
           partitionSchema.fields.map(PartitioningUtils.getColName(_, caseSensitive)).toSet
 
-        val fields = dataSchema.fields.filterNot { field =>
+        val fields = dataSchemaWithTags.fields.filterNot { field =>
           val colName = PartitioningUtils.getColName(field, caseSensitive)
           partitionNameSet.contains(colName)
         } ++ partitionSchema.fields
         StructType(fields)
+    }
+  }
+
+  override lazy val dataSchema: StructType = {
+    val schema = userSpecifiedSchema.map { schema =>
+      val partitionSchema = fileIndex.partitionSchema
+      val resolver = sparkSession.sessionState.conf.resolver
+      StructType(schema.filterNot(f => partitionSchema.exists(p => resolver(p.name, f.name))))
+    }.orElse {
+      inferSchema(fileIndex.allFiles())
+    }.getOrElse {
+      throw SparkSQLBridge.dataSchemaNotSpecifiedError(formatName)
+    }
+
+    val schemaWithTag = new StructType(schema.fields ++ tagSchema.fields)
+    fileIndex match {
+      case _: MetadataLogFileIndex => schemaWithTag
+      case _ => SparkSQLBridge.asNullable(schemaWithTag)
     }
   }
 

@@ -33,7 +33,7 @@ class DataSourceTestSuite extends SparkExtensionsTestBase {
       Property("user", "user"),
       Property("password","password"))
 
-    val oracle = DataSource.DataSource(DataSourceType.JDBC, Array("oracle"), "crm", options)
+    val oracle = DataSource.DataSource(DataSourceType.JDBC, Array("oracle"), "crm", options, List.empty)
     val json = DataSource.toJson(oracle)
     val deser = DataSource(json)
 

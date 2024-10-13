@@ -19,19 +19,23 @@
  *
  */
 
-package com.zetaris.lightning.model
+package com.zetaris.lightning.model.serde
 
-import org.json4s.DefaultFormats
-import org.json4s.jackson.Serialization
+import com.zetaris.lightning.execution.command.CreateTableSpec
+import org.json4s.Formats
+import org.json4s.jackson.JsonMethods.parse
+import org.json4s.jackson.Serialization.write
 
-package object serde {
-  implicit val formats = DefaultFormats
+object UnifiedSemanticLayer {
+  implicit val formats: Formats = CreateTable.formats
 
-  def mapToJson(map: Map[String, String]): String = {
-    Serialization.write(map)
+  case class UnifiedSemanticLayer(name: String, namespace: Seq[String], tables: Seq[CreateTableSpec])
+
+  def toJson(name: String, namespace: Seq[String], tables: Seq[CreateTableSpec]): String = {
+    write(UnifiedSemanticLayer(name, namespace, tables))
   }
 
-  def jsonToMap(json: String): Map[String, String] = {
-    Serialization.read(json)
+  def apply(json: String): UnifiedSemanticLayer = {
+    parse(json).extract[UnifiedSemanticLayer]
   }
 }

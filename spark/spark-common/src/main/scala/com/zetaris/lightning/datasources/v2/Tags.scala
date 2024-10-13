@@ -19,19 +19,32 @@
  *
  */
 
-package com.zetaris.lightning.model
+package com.zetaris.lightning.datasources.v2
 
+import org.apache.hadoop.conf.Configuration
+import org.apache.hadoop.fs.Path
+import org.apache.hadoop.io.IOUtils
+import org.apache.spark.sql.types.StructType
 import org.json4s.DefaultFormats
 import org.json4s.jackson.Serialization
 
-package object serde {
+object Tags {
   implicit val formats = DefaultFormats
 
-  def mapToJson(map: Map[String, String]): String = {
+  def loadTags(tagFile: Path, conf: Configuration, tagSchema: StructType): Map[String, Any] = {
+    val fs = tagFile.getFileSystem(conf)
+    val is = fs.open(tagFile)
+
+    val contents = IOUtils.readFullyToByteArray(is)
+    is.close()
+    jsonToMap(new String(contents))
+  }
+
+  def mapToJson(map: Map[String, Any]): String = {
     Serialization.write(map)
   }
 
-  def jsonToMap(json: String): Map[String, String] = {
+  def jsonToMap(json: String): Map[String, Any] = {
     Serialization.read(json)
   }
 }

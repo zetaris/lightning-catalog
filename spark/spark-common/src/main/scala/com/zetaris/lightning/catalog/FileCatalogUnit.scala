@@ -104,7 +104,7 @@ case class FileCatalogUnit(dataSource: DataSource,
       .toArray
   }
 
-  override def loadTable(ident: Identifier): Table = {
+  override def loadTable(ident: Identifier, tagSchema: StructType): Table = {
     val paths = getPaths()
     val optionsWithoutPaths = getOptionsWithoutPaths()
     dataSource.dataSourceType match {
@@ -123,13 +123,17 @@ case class FileCatalogUnit(dataSource: DataSource,
       case AVRO =>
         AvroTable(ident.name(), SparkSession.active, optionsWithoutPaths, paths, None, fallbackFileFormat)
       case PDF =>
-        PdfTable(ident.name(), SparkSession.active, UnstructuredData.mapWithFileFormat(opts, PDF), paths, fallbackFileFormat)
+        PdfTable(ident.name(), SparkSession.active,
+          UnstructuredData.mapWithFileFormat(opts, PDF), paths, fallbackFileFormat, tagSchema)
       case TEXT =>
-        TextTable(ident.name(), SparkSession.active, UnstructuredData.mapWithFileFormat(opts, TEXT), paths, fallbackFileFormat)
+        TextTable(ident.name(), SparkSession.active,
+          UnstructuredData.mapWithFileFormat(opts, TEXT), paths, fallbackFileFormat, tagSchema)
       case IMAGE =>
-        ImageTable(ident.name(), SparkSession.active, UnstructuredData.mapWithFileFormat(opts, IMAGE), paths, fallbackFileFormat)
+        ImageTable(ident.name(), SparkSession.active,
+          UnstructuredData.mapWithFileFormat(opts, IMAGE), paths, fallbackFileFormat, tagSchema)
       case VIDEO =>
-        VideoTable(ident.name(), SparkSession.active, UnstructuredData.mapWithFileFormat(opts, VIDEO), paths, fallbackFileFormat)
+        VideoTable(ident.name(), SparkSession.active,
+          UnstructuredData.mapWithFileFormat(opts, VIDEO), paths, fallbackFileFormat, tagSchema)
       case other =>
         ???
     }

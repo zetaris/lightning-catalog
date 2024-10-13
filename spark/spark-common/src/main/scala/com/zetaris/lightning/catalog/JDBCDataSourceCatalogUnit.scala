@@ -131,7 +131,7 @@ case class JDBCDataSourceCatalogUnit(catalog: String, properties: Map[String, St
     }
   }
 
-  override def loadTable(ident: Identifier): Table = {
+  override def loadTable(ident: Identifier, tagSchema: StructType): Table = {
     val jdbcTableCatalog = buildJDBCTableCatalog(ident.namespace())
     val fromSchema = if (isSnowflake()) {
       ident.namespace()

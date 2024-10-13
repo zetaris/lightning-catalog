@@ -21,20 +21,15 @@
 
 package com.zetaris.lightning.datasources.v2.image
 
-import com.zetaris.lightning.datasources.v2.UnstructuredData
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.connector.read.PartitionReaderFactory
 import org.apache.spark.sql.execution.datasources.PartitioningAwareFileIndex
-import org.apache.spark.sql.execution.datasources.text.TextOptions
 import org.apache.spark.sql.execution.datasources.v2.FileScan
 import org.apache.spark.sql.sources.Filter
 import org.apache.spark.sql.types.StructType
-import org.apache.spark.sql.util.CaseInsensitiveStringMap
 import org.apache.spark.util.SerializableConfiguration
-
-import scala.collection.JavaConverters._
 
 case class ImageScan(sparkSession: SparkSession,
                      fileIndex: PartitioningAwareFileIndex,
@@ -42,6 +37,7 @@ case class ImageScan(sparkSession: SparkSession,
                      readDataSchema: StructType, // required(selected) schema from data schema
                      readPartitionSchema: StructType, // required(selected) schema from partition schema
                      recursiveScanSchema: StructType,
+                     tagSchema: StructType,
                      rootPathsSpecified: Seq[Path],
                      pushedFilters: Array[Filter],
                      opts: Map[String, String],
@@ -57,6 +53,7 @@ case class ImageScan(sparkSession: SparkSession,
     ImageReaderFactory(broadcastedConf,
       readDataSchema,
       readPartitionSchema,
+      tagSchema,
       rootPathsSpecified,
       pushedFilters,
       opts,
@@ -64,7 +61,7 @@ case class ImageScan(sparkSession: SparkSession,
   }
 
   override def readSchema(): StructType =
-    StructType(readDataSchema.fields ++ recursiveScanSchema ++ readPartitionSchema.fields)
+    StructType(readDataSchema.fields ++ recursiveScanSchema ++ readPartitionSchema.fields ++ tagSchema.fields)
 
 }
 

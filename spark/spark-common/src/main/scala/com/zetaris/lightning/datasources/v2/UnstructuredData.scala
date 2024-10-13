@@ -25,6 +25,7 @@ import com.drew.metadata.{Metadata, Tag}
 import com.zetaris.lightning.execution.command.DataSourceType
 import com.zetaris.lightning.execution.command.DataSourceType.DataSourceType
 import net.coobird.thumbnailator.Thumbnails
+import org.apache.spark.sql.catalyst.util.CaseInsensitiveMap
 import org.apache.spark.sql.sources._
 import org.apache.spark.sql.types.MetadataBuilder
 
@@ -94,13 +95,14 @@ object UnstructuredData {
                                   preview: String,
                                   subDir: String,
                                   tags: String = null,
-                                  textcontent: String = null,
-                                  bincontent: Array[Byte] = null,
+                                  textContent: String = null,
+                                  binContent: Array[Byte] = null,
                                   imageDim: Dimension = null,
                                   duration: Float = -1.0f,
-                                  format: String = null)
+                                  format: String = null,
+                                  fileTag: CaseInsensitiveMap[Any] = null)
 
-  def extractTags(metadata: Metadata): List[Tag] = {
+  def extractEmbeddedTags(metadata: Metadata): List[Tag] = {
     metadata.getDirectories.asScala
       .flatMap(dir => dir.getTags.asScala)
       .toList
@@ -128,7 +130,17 @@ object UnstructuredData {
       case UnstructuredData.SUBDIR => metaData.subDir
       case UnstructuredData.WIDTH => metaData.imageDim.width
       case UnstructuredData.HEIGHT => metaData.imageDim.height
-      case UnstructuredData.IMAGETHUMBNAIL => metaData.bincontent
+      case UnstructuredData.IMAGETHUMBNAIL => metaData.binContent
+      case UnstructuredData.TAGS => metaData.tags
+      case UnstructuredData.TEXTCONTENT => metaData.textContent
+      case UnstructuredData.BINCONTENT => metaData.binContent
+      case UnstructuredData.DURATION => metaData.duration
+      case UnstructuredData.FORMAT => metaData.format
+      case other => if (metaData.fileTag == null ) {
+        null
+      } else {
+        metaData.fileTag.getOrElse(other, null)
+      }
     }
   }
 

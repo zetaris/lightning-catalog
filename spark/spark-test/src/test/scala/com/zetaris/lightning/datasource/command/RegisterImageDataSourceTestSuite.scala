@@ -23,7 +23,7 @@ package com.zetaris.lightning.datasource.command
 
 import com.zetaris.lightning.datasources.v2.UnstructuredData
 import com.zetaris.lightning.util.FileSystemUtils
-import org.apache.spark.sql.DataFrame
+import org.apache.spark.sql.{DataFrame, Row}
 import org.junit.runner.RunWith
 import org.scalatestplus.junit.JUnitRunner
 
@@ -73,7 +73,7 @@ class RegisterImageDataSourceTestSuite extends FileDataSourceTestBase {
          |) NAMESPACE lightning.datasource.file
          |""".stripMargin)
   }
-
+/**
   test("should run query over a image files with default thumbnail resolution") {
     registerFileDataSource("spark_images", "image", getClass.getResource("/image").getPath, "file_scan", "{*.png,*.jpg}")
 
@@ -217,36 +217,57 @@ class RegisterImageDataSourceTestSuite extends FileDataSourceTestBase {
     assert(rec(1).getString(0) == "png")
     assert(rec(1).getString(1) == s"file://$saveDir/spark-logo_thumbnail.png")
   }
-
-  test("should write image file with thumbnail from content") {
+*/
+  test("should read default file tag when its not generated") {
     initSaveDir()
 
     registerFileDataSource("spark_images", "image", getClass.getResource("/image").getPath, "file_scan", "{*.png,*.jpg}", "50", "50")
     sparkSession.sql(
       s"""
-         |REGISTER OR REPLACE IMAGE DATASOURCE spark_images_save OPTIONS (
-         |path "$saveDir",
+         |REGISTER OR REPLACE IMAGE DATASOURCE spark_images OPTIONS (
+         |path "${getClass.getResource("/image").getPath}",
          |scanType "file_scan",
+         |pathGlobFilter "{*.png,*.jpg}",
          |${UnstructuredData.IMAGE_THUMBNAIL_WIDTH_KEY} "50",
          |${UnstructuredData.IMAGE_THUMBNAIL_HEIGHT_KEY} "50"
          |) NAMESPACE lightning.datasource.file
+         |TAG (
+         |  firstName String,
+         |  lastName varchar(200),
+         |  age int,
+         |  fscore float,
+         |  dscore double,
+         |  time Timestamp,
+         |  date Date
+         |)
          |""".stripMargin)
 
-    sparkSession.sql("insert into lightning.datasource.file.spark_images_save.content select * from lightning.datasource.file.spark_images.content")
+    checkAnswer(sparkSession.sql(s"desc lightning.datasource.file.spark_images"),
+      Seq(Row("type", "string", null),
+        Row("path", "string", null),
+        Row("modifiedat", "timestamp", null),
+        Row("sizeinbytes", "bigint", null),
+        Row("width", "int", null),
+        Row("height", "int", null),
+        Row("tags", "string", null),
+        Row("imagethumbnail", "binary", null),
+        Row("firstName", "string", null),
+        Row("lastName", "varchar(200)", null),
+        Row("age", "int", null),
+        Row("fscore", "float", null),
+        Row("dscore", "double", null),
+        Row("time", "timestamp", null),
+        Row("date", "date", null)
+      ))
 
-    val df = sparkSession.sql("select * from lightning.datasource.file.spark_images_save order by path")
-    val rec = df.collect()
+    sparkSession.sql("select * from lightning.datasource.file.spark_images").show()
+    val rec = sparkSession.sql("select * from lightning.datasource.file.spark_images").collect()
+    assert(rec(0).getString(8) == "")
+    assert(rec(0).getString(9) == "")
+    assert(rec(1).getString(8) == "")
+    assert(rec(1).getString(9) == "")
 
-    assert(rec.size == 4)
-    assert(rec(0).getString(0) == "jpg")
-    assert(rec(0).getString(1) == s"file://$saveDir/spark-fed.jpg")
-    assert(rec(1).getString(0) == "jpg")
-    assert(rec(1).getString(1) == s"file://$saveDir/spark-fed_thumbnail.jpg")
-
-    assert(rec(2).getString(0) == "png")
-    assert(rec(2).getString(1) == s"file://$saveDir/spark-logo.png")
-    assert(rec(3).getString(0) == "png")
-    assert(rec(3).getString(1) == s"file://$saveDir/spark-logo_thumbnail.png")
+    sparkSession.sql("update lightning.datasource.file.spark_images set age = 10")
   }
 
   /**

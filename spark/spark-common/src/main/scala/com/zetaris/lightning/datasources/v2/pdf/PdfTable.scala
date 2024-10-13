@@ -32,7 +32,8 @@ case class PdfTable(name: String,
                     sparkSession: SparkSession,
                     opts: Map[String, String],
                     paths: Seq[String],
-                    fallbackFileFormat: Class[_ <: FileFormat])
+                    fallbackFileFormat: Class[_ <: FileFormat],
+                    tagSchema: StructType)
   extends UnstructuredFileTable(sparkSession, opts, paths, if (name.toLowerCase == UnstructuredData.CONTENT) {
     Some(StructType(
       StructField(PATH, StringType, false) ::
@@ -58,6 +59,7 @@ case class PdfTable(name: String,
           readDataSchema(),
           readPartitionSchema(),
           recursiveScanSchema,
+          tagSchema,
           rootPathsSpecified,
           pushedDataFilters,
           opts,

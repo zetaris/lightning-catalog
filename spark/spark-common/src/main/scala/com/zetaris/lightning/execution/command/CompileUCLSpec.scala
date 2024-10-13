@@ -19,19 +19,29 @@
  *
  */
 
-package com.zetaris.lightning.model
+package com.zetaris.lightning.execution.command
 
-import org.json4s.DefaultFormats
-import org.json4s.jackson.Serialization
+import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
+import com.zetaris.lightning.parser.LightningExtendedParser
+import org.apache.spark.sql.catalyst.expressions.AttributeReference
+import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.{Row, SparkSession}
 
-package object serde {
-  implicit val formats = DefaultFormats
+case class CompileUCLSpec(name: String,
+                          ifNotExit: Boolean,
+                          namespace: Seq[String],
+                          inputDDLs: String) extends LightningCommandBase {
+  override val output: Seq[AttributeReference] = Seq(
+    AttributeReference("json", StringType, false)()
+  )
 
-  def mapToJson(map: Map[String, String]): String = {
-    Serialization.write(map)
-  }
+  override def runCommand(sparkSession: SparkSession): Seq[Row] = {
+    val parser = new LightningExtendedParser(sparkSession.sessionState.sqlParser)
+    val createTableSpecs = inputDDLs.split(";.*?\\n").map { ddl =>
+      val createTableSpec = parser.parseLightning(ddl).asInstanceOf[CreateTableSpec]
+      createTableSpec.copy(namespace = namespace)
+    }
 
-  def jsonToMap(json: String): Map[String, String] = {
-    Serialization.read(json)
+    Row(UnifiedSemanticLayer.toJson(name, namespace, createTableSpecs)) :: Nil
   }
 }
