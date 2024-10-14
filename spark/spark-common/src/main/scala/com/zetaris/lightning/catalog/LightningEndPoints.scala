@@ -211,5 +211,40 @@ class LightningResource {
           .build()
     }
   }
+
+  @POST
+  @Path("/parse-ddl")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Consumes(Array(MediaType.TEXT_PLAIN))
+  def parseDDL(ddlQuery: String): Response = {
+    try {
+      LOGGER.info(s"Parsing DDL query: $ddlQuery")
+      
+      // Extending the SQL parser of SparkSession to parse DDL statements
+      val parser = new LightningExtendedParser(spark.sessionState.sqlParser)
+      
+      // Parsing the DDL statement with the parser and converting it into a LogicalPlan
+      val logicalPlan = parser.parseLightning(ddlQuery)
+      
+      // Extracting table information from the DDL statement and converting it to JSON
+      // Converted to CreateTableSpec and then Serialized to JSON
+      val createTableSpec = logicalPlan.asInstanceOf[CreateTableSpec]
+      val jsonResult = UnifiedSemanticLayer.toJson("ddl_output", Seq("namespace_placeholder"), Seq(createTableSpec))
+      
+      // Returning the JSON result to the client
+      Response.ok(jsonResult).build()
+      
+    } catch {
+      case ex: Exception =>
+        LOGGER.error("Failed to parse DDL", ex)
+        val errorResponse = s"""{
+          "error": "Failed to parse DDL",
+          "message": "${ex.getMessage}"
+        }"""
+        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(errorResponse)
+          .build()
+    }
+  }
   
 }
