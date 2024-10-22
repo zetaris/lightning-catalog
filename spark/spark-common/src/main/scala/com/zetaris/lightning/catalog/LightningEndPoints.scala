@@ -246,5 +246,51 @@ class LightningResource {
           .build()
     }
   }
+
+  @POST
+  @Path("/compile-ucl")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def compileUCL(uclData: String): Response = {
+    try {
+      val mapper = new ObjectMapper()
+      val jsonNode = mapper.readTree(uclData)
+      var ddlQuery = jsonNode.get("ddl").asText()
+
+      LOGGER.info(s"Original ddlQuery: $ddlQuery")
+
+      // Remove all \n, \r, and extra spaces
+      ddlQuery = ddlQuery
+        .replaceAll("\\\\n", " ")
+        .replaceAll("\\\\r", " ")
+        .replaceAll("\\s+", " ")
+        .trim()
+
+      LOGGER.info(s"Processed ddlQuery: $ddlQuery")
+
+      if (ddlQuery.isEmpty) {
+        throw new IllegalArgumentException("DDL Query cannot be empty.")
+      }
+
+      LOGGER.info(s"Compiling UCL with DDL Query: $ddlQuery")
+
+      val df = spark.sql(ddlQuery)
+
+      val result = df.collect()
+      val jsonResult = mapper.writeValueAsString(result)
+
+      Response.ok(jsonResult).build()
+    } catch {
+      case ex: Exception =>
+        LOGGER.error("Failed to compile UCL", ex)
+        val errorResponse = s"""{
+          "error": "Failed to compile UCL",
+          "message": "${ex.getMessage}"
+        }"""
+        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(errorResponse)
+          .build()
+    }
+  }
   
 }
