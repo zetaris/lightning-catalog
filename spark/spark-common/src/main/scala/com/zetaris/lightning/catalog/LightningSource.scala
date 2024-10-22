@@ -21,6 +21,8 @@
 
 package com.zetaris.lightning.catalog
 
+import org.apache.spark.sql.types._
+
 trait LightningSource {
   val LIGHTNING_CATALOG_NAME = "lightning"
   val LIGHTNING_CATALOG = s"spark.sql.catalog.$LIGHTNING_CATALOG_NAME"
@@ -46,5 +48,28 @@ trait LightningSource {
     fqn.split("\\.")
   } else {
     Seq(fqn)
+  }
+
+  /**
+   * true as long as queried type is bigger than defined type
+   *
+   * @param defined
+   * @param queried
+   * @return
+   */
+  def dataTypeQueryable(defined: DataType, queried: DataType): Boolean = {
+    defined match {
+      case BooleanType => queried.isInstanceOf[BooleanType]
+      case ByteType => queried.isInstanceOf[ByteType] || queried.isInstanceOf[CharType]
+      case DateType => queried.isInstanceOf[DateType]
+      case TimestampType => queried.isInstanceOf[TimestampType]
+      case _: DecimalType | _: FloatType => queried.isInstanceOf[DecimalType] || queried.isInstanceOf[FloatType] ||
+        queried.isInstanceOf[DoubleType]
+      case IntegerType | LongType | ShortType => queried.isInstanceOf[IntegerType] || queried.isInstanceOf[LongType] ||
+        queried.isInstanceOf[ShortType]
+      case _: VarcharType | _: StringType | _: CharType => queried.isInstanceOf[VarcharType] ||
+        queried.isInstanceOf[StringType] || queried.isInstanceOf[CharType]
+      case _ => DataType.equalsStructurally(defined, queried, true)
+    }
   }
 }

@@ -12,11 +12,15 @@ statement
     ;
 
 ddlStatement
-    : registerDataSource | registerCatalog | createTable | compileUCL
+    : registerDataSource | registerCatalog | createTable | compileUCL | activateUCLTable
+    ;
+
+activateUCLTable
+    : ACTIVATE UCL TABLE table=multipartIdentifier AS query = restOfInput
     ;
 
 compileUCL
-    : COMPILE UCL (IF NOT EXISTS)? dbName = identifier NAMESPACE namespace = multipartIdentifier DDL ddls = restOfInput
+    : COMPILE UCL (IF NOT EXISTS)? dbName = identifier (DEPLOY)? NAMESPACE namespace = multipartIdentifier DDL ddls = restOfInput
     ;
 
 registerDataSource
@@ -117,7 +121,7 @@ registerCatalog
 
 createTable
     : (hintAnnotations+=hintAnnotation)* CREATE TABLE (IF NOT EXISTS)?
-      (tablename = multipartIdentifier) LEFT_PAREN createDefinitions (COMMA tableConstraint)* RIGHT_PAREN
+      (tablename = identifier) LEFT_PAREN createDefinitions (COMMA tableConstraint)* RIGHT_PAREN
       (NAMESPACE namespace = multipartIdentifier)?
     ;
 

@@ -29,13 +29,29 @@ import org.json4s.jackson.Serialization.write
 object UnifiedSemanticLayer {
   implicit val formats: Formats = CreateTable.formats
 
-  case class UnifiedSemanticLayer(name: String, namespace: Seq[String], tables: Seq[CreateTableSpec])
+  case class UnifiedSemanticLayer(namespace: Seq[String], name: String, tables: Seq[CreateTableSpec])
 
-  def toJson(name: String, namespace: Seq[String], tables: Seq[CreateTableSpec]): String = {
-    write(UnifiedSemanticLayer(name, namespace, tables))
+  def toJson(namespace: Seq[String], name: String, tables: Seq[CreateTableSpec]): String = {
+    write(UnifiedSemanticLayer(namespace, name, tables))
   }
 
   def apply(json: String): UnifiedSemanticLayer = {
     parse(json).extract[UnifiedSemanticLayer]
+  }
+
+  case class UnifiedSemanticLayerException(message: String, cause: Throwable) extends RuntimeException(message, cause)
+}
+
+object UnifiedSemanticLayerTable {
+  implicit val formats: Formats = CreateTable.formats
+
+  case class UnifiedSemanticLayerTable(name: String, query: String)
+
+  def toJson(name: String, query: String): String = {
+    write(UnifiedSemanticLayerTable(name, query))
+  }
+
+  def apply(json: String): UnifiedSemanticLayerTable = {
+    parse(json).extract[UnifiedSemanticLayerTable]
   }
 }

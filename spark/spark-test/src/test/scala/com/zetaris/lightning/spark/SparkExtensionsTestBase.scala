@@ -72,8 +72,8 @@ abstract class SparkExtensionsTestBase extends AnyFunSuite with BeforeAndAfterAl
     model.dropNamespace(Array("datasource"), true)
     model.dropNamespace(Array("metastore"), true)
 
-    model.createNamespace(Array("datasource"), mapAsJavaMap(Map.empty[String, String]))
-    model.createNamespace(Array("metastore"), mapAsJavaMap(Map.empty[String, String]))
+    model.createNamespace(Array("datasource"), Map.empty[String, String])
+    model.createNamespace(Array("metastore"), Map.empty[String, String])
   }
 
   protected def checkAnswer(df: => DataFrame, expectedAnswer: Seq[Row]): Unit = {

@@ -20,9 +20,12 @@
 package com.zetaris.lightning.model
 
 import com.zetaris.lightning.catalog.LightningCatalogCache
+import com.zetaris.lightning.execution.command.CreateTableSpec
 import com.zetaris.lightning.execution.command.DataSourceType.FileTypeSource
 import com.zetaris.lightning.model.serde.DataSource.{DataSource, toJson}
-import com.zetaris.lightning.model.serde.mapToJson
+import com.zetaris.lightning.model.serde.UnifiedSemanticLayerTable
+import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
+import com.zetaris.lightning.model.serde.{mapToJson, jsonToMap}
 import com.zetaris.lightning.util.FileSystemUtils
 import org.apache.spark.sql.connector.catalog.{Identifier, Table}
 import org.apache.spark.sql.types.StructType
@@ -161,14 +164,29 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
    * @param namespace
    * @param metadata
    */
-  override def createNamespace(namespace: Array[String], metadata: java.util.Map[String, String]): Unit = {
-    import scala.collection.JavaConverters.mapAsScalaMap
+  override def createNamespace(namespace: Array[String], metadata: Map[String, String]): Unit = {
     val subDir = nameSpaceToDir(namespace)
     val fullPath = s"$modelDir/$subDir"
     FileSystemUtils.createFolderIfNotExist(fullPath)
 
-    val json = mapToJson(mapAsScalaMap(metadata).toMap)
+    val json = mapToJson(metadata)
     FileSystemUtils.saveFile(s"$fullPath/.properties", json)
+  }
+
+  /**
+   * Load namespace metadata
+   * @param namespace
+   * @return
+   */
+  override def loadNamespaceMeta(namespace: Array[String]): Map[String, String] = {
+    val subDir = nameSpaceToDir(namespace)
+    if (!FileSystemUtils.folderExist(s"$modelDir/$subDir")) {
+      throw NamespaceNotFoundException(s"$modelDir/$subDir")
+    }
+    val fullPath = s"$modelDir/$subDir/.properties"
+    val json = FileSystemUtils.readFile(fullPath)
+
+    jsonToMap(json)
   }
 
   /**
@@ -190,20 +208,19 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
 
   /**
    * save table under the given namespace
-   *
-   * @param dsNamespace
-   * @param namespace
+   * @param srcNamespace namespace of data source definition
+   * @param destNamespace
    * @param name
    * @param schema
    */
-  override def saveTable(dsNamespace: Array[String],
-                         namespace: Array[String],
+  override def saveTable(srcNamespace: Array[String],
+                         destNamespace: Array[String],
                          name: String,
                          schema: StructType): Unit = {
-    val subDir = nameSpaceToDir(namespace)
+    val subDir = nameSpaceToDir(destNamespace)
     FileSystemUtils.createFolderIfNotExist(s"$modelDir/$subDir")
 
-    val table = serde.Table.Table(LightningModelFactory.toFqn(dsNamespace), schema)
+    val table = serde.Table.Table(LightningModelFactory.toFqn(srcNamespace), schema)
     val json = serde.Table.toJson(table)
 
     val fullPath = s"$modelDir/$subDir/${name}_table.json"
@@ -224,4 +241,65 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
     val targetNamespace = LightningModelFactory.toMultiPartIdentifier(table.dsNamespace).toArray
     LightningCatalogCache.catalog.loadTable(table.schema, Identifier.of(targetNamespace, ident.name()))
   }
+
+  /**
+   * Save unified semantic layer
+   * @param namespace
+   * @param name
+   * @param tables
+   */
+  override def saveUnifiedSemanticLayer(namespace: Seq[String], name: String, tables: Seq[CreateTableSpec]): Unit = {
+    val json = UnifiedSemanticLayer.toJson(namespace, name, tables)
+    val subDir = nameSpaceToDir(namespace)
+    FileSystemUtils.createFolderIfNotExist(s"$modelDir/$subDir")
+
+    val fullPath = s"$modelDir/$subDir/${name}_usl.json"
+    FileSystemUtils.saveFile(fullPath, json)
+  }
+
+  /**
+   * load unified semantic layer
+   * @param namespace
+   * @param name
+   */
+  override def loadUnifiedSemanticLayer(namespace: Seq[String],
+                                        name: String): UnifiedSemanticLayer.UnifiedSemanticLayer = {
+    val subDir = nameSpaceToDir(namespace)
+    if (!FileSystemUtils.folderExist(s"$modelDir/$subDir")) {
+      throw NamespaceNotFoundException(s"$modelDir/$subDir")
+    }
+    val fullPath = s"$modelDir/$subDir/${name}_usl.json"
+    val json = FileSystemUtils.readFile(fullPath)
+    UnifiedSemanticLayer(json)
+  }
+
+  /**
+   * save mapping query for the given USL table
+   * @param namespace
+   * @param name
+   * @param query
+   */
+  override def saveUnifiedSemanticLayerTableQuery(namespace: Seq[String], name: String, query: String): Unit = {
+    val json = UnifiedSemanticLayerTable.toJson(name, query)
+    val subDir = nameSpaceToDir(namespace)
+    FileSystemUtils.createFolderIfNotExist(s"$modelDir/$subDir")
+
+    val fullPath = s"$modelDir/$subDir/${name}_table_query.json"
+    FileSystemUtils.saveFile(fullPath, json)
+  }
+
+  /**
+   * load mapping query for the given USL table
+   * @param namespace
+   * @param name
+   */
+  override def loadUnifiedSemanticLayerTableQuery(namespace: Seq[String],
+                                                  name: String): UnifiedSemanticLayerTable.UnifiedSemanticLayerTable = {
+    val subDir = nameSpaceToDir(namespace)
+    val fullPath = s"$modelDir/$subDir/${name}_table_query.json"
+    val json = FileSystemUtils.readFile(fullPath)
+    UnifiedSemanticLayerTable(json)
+  }
+
+
 }

@@ -21,18 +21,6 @@
 
 package com.zetaris.lightning.model
 
-import org.json4s.NoTypeHints
-import org.json4s.jackson.JsonMethods.parse
-import org.json4s.jackson.Serialization
+case class NamespaceNotFoundException(message: String) extends RuntimeException(message)
 
-package object serde {
-  implicit val formats = Serialization.formats(NoTypeHints)
-
-  def mapToJson(map: Map[String, String]): String = {
-    Serialization.write(map)
-  }
-
-  def jsonToMap(json: String): Map[String, String] = {
-    parse(json).extract[Map[String, String]]
-  }
-}
+case class InvalidNamespaceException(message: String) extends RuntimeException(message)

@@ -102,18 +102,12 @@ case class RegisterDataSourceSpec(namespace: Array[String],
   }
 
   override def runCommand(sparkSession: SparkSession): Seq[Row] = {
-    val model = LightningModelFactory(dataSourceConfigMap(s"${LightningModelFactory.LIGHTNING_CATALOG}.",
-      sparkSession))
+    val model = LightningModelFactory(dataSourceConfigMap(sparkSession))
     val withoutCatalog = namespace.drop(1)
-    val parentNamespace = withoutCatalog.dropRight(1)
-    val lastNamespace = namespace.last
 
-    if (!model.listNamespaces(parentNamespace).exists(_.equalsIgnoreCase(lastNamespace))) {
-      throw new RuntimeException(s"parent namespace: ${namespace.mkString(".")} is not existing")
-    }
+    validateNamespace(model, withoutCatalog)
 
     val dataSource = DataSource.DataSource(dataSourceType, withoutCatalog, name, DataSource.toProperties(opts), tags)
-
     val filePath = model.saveDataSource(dataSource, replace)
     Row(filePath) :: Nil
   }

@@ -20,8 +20,8 @@
 package com.zetaris.lightning.parser
 
 import com.zetaris.lightning.execution.command.ReferenceControl.{Cascade, NoAction, ReferenceControl, Restrict, SetDefault, SetNull}
-import com.zetaris.lightning.execution.command.{AccessControl, Annotation, AnnotationStatement, Assignment, ColumnSpec, CompileUCLSpec, CreateTableSpec, DataQuality, DataSourceType, ForeignKey, NotNullColumn, PrimaryKeyColumn, RegisterCatalogSpec, RegisterDataSourceSpec, UniqueKeyColumn}
-import com.zetaris.lightning.model.LightningModelFactory
+import com.zetaris.lightning.execution.command.{AccessControl, ActivateUCLTableSpec, Annotation, AnnotationStatement, Assignment, ColumnSpec, CompileUCLSpec, CreateTableSpec, DataQuality, DataSourceType, ForeignKey, NotNullColumn, PrimaryKeyColumn, RegisterCatalogSpec, RegisterDataSourceSpec, UniqueKeyColumn}
+import com.zetaris.lightning.model.{InvalidNamespaceException, LightningModelFactory}
 import com.zetaris.lightning.parser.LightningParserUtils.validateTableConstraints
 import org.antlr.v4.runtime.ParserRuleContext
 import org.antlr.v4.runtime.misc.Interval
@@ -57,11 +57,12 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
   }
 
   override def visitCreateTable(ctx: CreateTableContext): CreateTableSpec = withOrigin(ctx) {
-    val tableAnnotations =  ctx.hintAnnotations.asScala.map(visitHintAnnotation)
+    val tableAnnotations = ctx.hintAnnotations.asScala.map(visitHintAnnotation)
     val dqAnnotations = tableAnnotations.filter(_.isInstanceOf[DataQuality]).map(_.asInstanceOf[DataQuality])
     val acAnnotations = tableAnnotations.filter(_.isInstanceOf[AccessControl]).map(_.asInstanceOf[AccessControl])
     val ifNotExist = ctx.EXISTS() != null
-    val tableName = visitMultipartIdentifier(ctx.tablename)
+    val tableName =  ctx.tablename.getText()
+
     val namespace = if (ctx.namespace != null) {
       visitMultipartIdentifier(ctx.namespace)
     } else {
@@ -140,11 +141,19 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
 
   override def visitReferenceAction(ctx: ReferenceActionContext)
   : (Option[ReferenceControl], Option[ReferenceControl]) = withOrigin(ctx) {
-    (Some(visitReferenceControlType(ctx.onDelete)), Some(visitReferenceControlType(ctx.onUpdate)))
+    (if (ctx.onDelete == null) {
+      None
+    } else {
+      Some(visitReferenceControlType(ctx.onDelete))
+    }, if (ctx.onUpdate == null) {
+      None
+    } else {
+      Some(visitReferenceControlType(ctx.onUpdate))
+    })
   }
 
-  override def visitReferenceControlType(ctx: ReferenceControlTypeContext): ReferenceControl = withOrigin(ctx) {
-    ctx.getText match {
+  override def visitReferenceControlType(ctx: ReferenceControlTypeContext): ReferenceControl = {
+    ctx.getText.toUpperCase match {
       case "RESTRICT" => Restrict
       case "CASCADE" => Cascade
       case "SET NULL" => SetNull
@@ -211,11 +220,11 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
 
   private def validateNamespace(namespace: Seq[String]): Unit = {
     if (namespace.size < 3) {
-      throw new IllegalArgumentException(s"namespace must have at least three namespace : lightning.datasource|metastore.namespace")
+      throw InvalidNamespaceException(s"namespace must have at least three namespace : lightning.datasource|metastore.namespace")
     } else {
       val fqn = namespace.take(2).mkString(".").toLowerCase
       if (!LightningModelFactory.DEFAULT_NAMESPACES.exists(_.equals(fqn))) {
-        throw new IllegalArgumentException(s"name space must be formed : lightning.datasource|metastore(.namespace)*")
+        throw InvalidNamespaceException(s"name space must be formed : lightning.datasource|metastore(.namespace)*")
       }
     }
   }
@@ -280,7 +289,7 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
     val name = ctx.identifier().getText
     val namespace = visitMultipartIdentifier(ctx.multipartIdentifier())
     validateNamespace(namespace)
-    val tags =  if (ctx.tagDefinitions() != null ) {
+    val tags = if (ctx.tagDefinitions() != null) {
       visitTagDefinitions(ctx.tagDefinitions())
     } else {
       Seq.empty
@@ -422,12 +431,24 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
     Assignment(ctx.name.getText, string(ctx.value))
   }
 
-  override def visitCompileUCL(ctx: CompileUCLContext): CompileUCLSpec =  withOrigin(ctx) {
+  override def visitCompileUCL(ctx: CompileUCLContext): CompileUCLSpec = withOrigin(ctx) {
     val ifNotExist = ctx.EXISTS() != null
-    val tableName =  ctx.dbName.getText()
+    val deploy = ctx.DEPLOY() != null
+    val tableName = ctx.dbName.getText()
     val namespace = visitMultipartIdentifier(ctx.namespace)
     val inputDDLs = getFullText(ctx.ddls)
-    CompileUCLSpec(tableName, ifNotExist, namespace, inputDDLs)
+
+    validateNamespace(namespace)
+    CompileUCLSpec(tableName, deploy, ifNotExist, namespace, inputDDLs)
+  }
+
+  override def visitActivateUCLTable(ctx: ActivateUCLTableContext): ActivateUCLTableSpec = withOrigin(ctx) {
+    val name = visitMultipartIdentifier(ctx.table)
+    val query = getFullText(ctx.query)
+
+    validateNamespace(name)
+
+    ActivateUCLTableSpec(name, query)
   }
 }
 
