@@ -20,6 +20,7 @@
 package com.zetaris.lightning.execution.command
 
 import com.zetaris.lightning.catalog.LightningSource
+import com.zetaris.lightning.model.{LightningModel, LightningModelFactory}
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.Row
@@ -39,11 +40,32 @@ abstract class LightningCommandBase extends LeafRunnableCommand with LightningSo
 
   def runCommand(sparkSession: SparkSession): Seq[Row]
 
-  protected def dataSourceConfigMap(prefix: String, sparkSession: SparkSession): CaseInsensitiveStringMap = {
+  protected def dataSourceConfigMap(sparkSession: SparkSession): CaseInsensitiveStringMap = {
     val sparkConf = sparkSession.sparkContext.getConf
     new CaseInsensitiveStringMap(
       mapAsJavaMap(sparkConf.getAllWithPrefix(s"${LIGHTNING_CATALOG}.").toMap)
     )
+  }
+
+  protected def validateNamespace(model: LightningModel, namespace: Array[String]): Unit = {
+    val meta = model.loadNamespaceMeta(namespace)
+  }
+
+  protected def checkTableNamespaceLen(table: Seq[String]): Unit = {
+    if (table.size < 3) {
+      throw new RuntimeException(s"table name identifier should be at least 3 level")
+    }
+  }
+
+
+  protected def saveJson(model: LightningModel, namespace: Array[String], fileName: String): Unit = {
+    val withoutCatalog = namespace.drop(1)
+    val parentNamespace = withoutCatalog.dropRight(1)
+    val lastNamespace = namespace.last
+
+    if (!model.listNamespaces(parentNamespace).exists(_.equalsIgnoreCase(lastNamespace))) {
+      throw new RuntimeException(s"parent namespace: ${namespace.mkString(".")} is not existing")
+    }
   }
 
   override def run(sparkSession: SparkSession): Seq[Row] = {

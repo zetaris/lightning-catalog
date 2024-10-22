@@ -166,13 +166,15 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
   }
 
   override def createNamespace(namespace: Array[String], metadata: java.util.Map[String, String]): Unit = {
+    import scala.collection.JavaConverters.mapAsScalaMap
+
     findParentDataSource(namespace) match {
       case Some(datasource) =>
         val catalog = loadCatalogUnit(datasource)
         val sourceNamespace = namespace.drop(datasource.namespace.length + 1)
         catalog.createNamespace(sourceNamespace, metadata)
       case None =>
-        model.createNamespace(namespace, metadata)
+        model.createNamespace(namespace, mapAsScalaMap(metadata).toMap)
     }
   }
 

@@ -63,4 +63,7 @@ object SparkSQLBridge {
     StructType(newFields)
   }
 
+  def equalsIgnoreNameAndCompatibleNullability(from: DataType, to: DataType): Boolean =
+    DataType.equalsIgnoreNameAndCompatibleNullability(from, to)
+
 }

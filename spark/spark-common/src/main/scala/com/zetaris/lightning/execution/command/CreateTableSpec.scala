@@ -82,7 +82,7 @@ case class ColumnSpec(name: String,
 
 class ColumnConstraintException(msg: String) extends RuntimeException(msg)
 
-case class CreateTableSpec(fqn: Seq[String],
+case class CreateTableSpec(name: String,
                            columnSpecs: Seq[ColumnSpec],
                            primaryKey: Option[PrimaryKeyColumn],
                            unique: Seq[UniqueKeyColumn],

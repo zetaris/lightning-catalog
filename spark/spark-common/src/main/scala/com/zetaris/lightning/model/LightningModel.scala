@@ -19,7 +19,10 @@
 
 package com.zetaris.lightning.model
 
+import com.zetaris.lightning.execution.command.CreateTableSpec
 import com.zetaris.lightning.model.serde.DataSource.DataSource
+import com.zetaris.lightning.model.serde.UnifiedSemanticLayer.UnifiedSemanticLayer
+import com.zetaris.lightning.model.serde.UnifiedSemanticLayerTable.UnifiedSemanticLayerTable
 import org.apache.spark.sql.connector.catalog.{Identifier, Table}
 import org.apache.spark.sql.types._
 
@@ -68,19 +71,26 @@ trait LightningModel {
 
   /**
    * save table under the given namespace
-   * @param dsNamespace namespace of data source definition
-   * @param namespace
+   * @param srcNamespace namespace of data source definition
+   * @param destNamespace
    * @param name
    * @param schema
    */
-  def saveTable(dsNamespace: Array[String], namespace: Array[String], name: String, schema: StructType): Unit
+  def saveTable(srcNamespace: Array[String], destNamespace: Array[String], name: String, schema: StructType): Unit
 
   /**
    * Create child namespace under the given namespace
    * @param namespace
    * @param metadata
    */
-  def createNamespace(namespace: Array[String], metadata: java.util.Map[String, String]): Unit
+  def createNamespace(namespace: Array[String], metadata: Map[String, String]): Unit
+
+  /**
+   * Load namespace metadata
+   * @param namespace
+   * @return
+   */
+  def loadNamespaceMeta(namespace: Array[String]): Map[String, String]
 
   /**
    * drop namespace
@@ -95,5 +105,35 @@ trait LightningModel {
    * @return
    */
   def loadTable(ident: Identifier): Table
+
+  /**
+   * Save unified semantic layer
+   * @param namespace
+   * @param name
+   * @param tables
+   */
+  def saveUnifiedSemanticLayer(namespace: Seq[String], name: String, tables: Seq[CreateTableSpec]): Unit
+
+  /**
+   * load unified semantic layer
+   * @param namespace
+   * @param name
+   */
+  def loadUnifiedSemanticLayer(namespace: Seq[String], name: String): UnifiedSemanticLayer
+
+  /**
+   * save mapping query for the given USL table
+   * @param namespace
+   * @param name
+   * @param query
+   */
+  def saveUnifiedSemanticLayerTableQuery(namespace: Seq[String], name: String, query: String): Unit
+
+  /**
+   * load mapping query for the given USL table
+   * @param namespace
+   * @param name
+   */
+  def loadUnifiedSemanticLayerTableQuery(namespace: Seq[String], name: String): UnifiedSemanticLayerTable
 
 }

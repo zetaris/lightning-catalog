@@ -21,16 +21,49 @@
 
 package com.zetaris.lightning.datasource.command
 
+import com.zetaris.lightning.model.{InvalidNamespaceException, NamespaceNotFoundException}
 import com.zetaris.lightning.spark.SparkExtensionsTestBase
 import org.junit.runner.RunWith
 import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
 class CompileUCLTestSuite extends SparkExtensionsTestBase {
-  test("compile DDLs") {
+  override def beforeAll(): Unit = {
+    super.beforeAll()
+    initRoootNamespace()
+  }
+
+  test("throw InvalidNamespaceException if no namespace is defined") {
+    intercept[NamespaceNotFoundException] {
+      val df = sparkSession.sql(
+        """
+          |COMPILE UCL IF NOT EXISTS crm NAMESPACE lightning.metastore.crm DDL
+          |-- create table customer
+          |CREATE TABLE IF NOT EXISTS customer (
+          | id int NOT NULL PRIMARY KEY,
+          | name varchar(200),
+          | /*+@AccessControl(accessType="REGEX", regex="$ss", users = "*", groups = "*")*/
+          | uid int UNIQUE,
+          | address varchar(200),
+          | part_id int FOREIGN KEY REFERENCES department(id) ON DELETE RESTRICT ON UPDATE CASCADE
+          |);
+          |
+          |CREATE TABLE IF NOT EXISTS department (
+          | id int NOT NULL,
+          | name varchar(200),
+          | CONSTRAINT pk_id PRIMARY KEY(id)
+          |)
+          |""".stripMargin)
+
+    }
+  }
+
+  test("deploy DDLs") {
+    sparkSession.sql(s"CREATE NAMESPACE lightning.metastore.crm")
+
     val df = sparkSession.sql(
       """
-        |COMPILE UCL IF NOT EXISTS crm NAMESPACE lightning.catalog.crm DDL
+        |COMPILE UCL IF NOT EXISTS crmdb DEPLOY NAMESPACE lightning.metastore.crm DDL
         |-- create table customer
         |CREATE TABLE IF NOT EXISTS customer (
         | id int NOT NULL PRIMARY KEY,
@@ -38,7 +71,7 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
         | /*+@AccessControl(accessType="REGEX", regex="$ss", users = "*", groups = "*")*/
         | uid int UNIQUE,
         | address varchar(200),
-        | part_id int FOREIGN KEY REFERENCES department(id)
+        | part_id int FOREIGN KEY REFERENCES department(id) ON DELETE RESTRICT ON UPDATE CASCADE
         |);
         |
         |CREATE TABLE IF NOT EXISTS department (
@@ -49,117 +82,5 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
         |""".stripMargin)
     val json = df.collect()(0).getString(0)
     println(json)
-
-    /**
-    {
-    "name": "crm",
-    "namespace": [
-        "lightning",
-        "catalog",
-        "crm"
-    ],
-    "tables": [
-        {
-            "fqn": [
-                "customer"
-            ],
-            "columnSpecs": [
-                {
-                    "name": "id",
-                    "dataType": "\"integer\"",
-                    "primaryKey": {
-                        "columns": []
-                    },
-                    "notNull": {
-                        "columns": []
-                    }
-                },
-                {
-                    "name": "name",
-                    "dataType": "\"varchar(200)\""
-                },
-                {
-                    "name": "uid",
-                    "dataType": "\"integer\"",
-                    "unique": {
-                        "columns": []
-                    },
-                    "accessControl": {
-                        "accessType": "REGEX",
-                        "regEx": "$ss",
-                        "users": [
-                            "*"
-                        ],
-                        "groups": [
-                            "*"
-                        ]
-                    }
-                },
-                {
-                    "name": "address",
-                    "dataType": "\"varchar(200)\""
-                },
-                {
-                    "name": "part_id",
-                    "dataType": "\"integer\"",
-                    "foreignKey": {
-                        "columns": [],
-                        "refTable": [
-                            "department"
-                        ],
-                        "refColumns": [
-                            "id"
-                        ]
-                    }
-                }
-            ],
-            "unique": [],
-            "foreignKeys": [],
-            "ifNotExit": true,
-            "namespace": [
-                "lightning",
-                "catalog",
-                "crm"
-            ],
-            "dqAnnotations": [],
-            "acAnnotations": []
-        },
-        {
-            "fqn": [
-                "department"
-            ],
-            "columnSpecs": [
-                {
-                    "name": "id",
-                    "dataType": "\"integer\"",
-                    "notNull": {
-                        "columns": []
-                    }
-                },
-                {
-                    "name": "name",
-                    "dataType": "\"varchar(200)\""
-                }
-            ],
-            "primaryKey": {
-                "columns": [
-                    "id"
-                ],
-                "name": "pk_id"
-            },
-            "unique": [],
-            "foreignKeys": [],
-            "ifNotExit": true,
-            "namespace": [
-                "lightning",
-                "catalog",
-                "crm"
-            ],
-            "dqAnnotations": [],
-            "acAnnotations": []
-        }
-    ]
-}}  */
   }
-
 }

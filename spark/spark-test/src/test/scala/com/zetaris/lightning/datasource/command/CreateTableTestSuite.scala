@@ -33,7 +33,7 @@ class CreateTableTestSuite extends SparkExtensionsTestBase {
     val df = sparkSession.sql(
       """
         |-- create table customer
-        |CREATE TABLE IF NOT EXISTS customer.churn (
+        |CREATE TABLE IF NOT EXISTS customer_churn (
         | id int NOT NULL PRIMARY KEY,
         | name varchar(200),
         | /*+@AccessControl(accessType="REGEX", regex="$ss", users = "*", groups = "*")*/
@@ -46,7 +46,7 @@ class CreateTableTestSuite extends SparkExtensionsTestBase {
     val json = df.collect()(0).getString(0)
     val createTableSpec = CreateTable(json)
 
-    assert(createTableSpec.fqn.mkString(".") == "customer.churn")
+    assert(createTableSpec.name == "customer_churn")
     assert(createTableSpec.columnSpecs.size == 5)
     assert(createTableSpec.columnSpecs(0).name == "id")
     assert(createTableSpec.columnSpecs(0).dataType == IntegerType)
@@ -80,7 +80,7 @@ class CreateTableTestSuite extends SparkExtensionsTestBase {
   test("create table with table constraints with name") {
     val df = sparkSession.sql(
       """
-        |CREATE TABLE IF NOT EXISTS customer.churn (
+        |CREATE TABLE IF NOT EXISTS customer_churn (
         | id int NOT NULL,
         | name varchar(200),
         | uid int,
@@ -96,7 +96,7 @@ class CreateTableTestSuite extends SparkExtensionsTestBase {
   test("create table with table constraints without name") {
     val df = sparkSession.sql(
       """
-        |CREATE TABLE IF NOT EXISTS customer.churn (
+        |CREATE TABLE IF NOT EXISTS customer_churn (
         | id int NOT NULL,
         | name varchar(200),
         | uid int,
@@ -112,7 +112,7 @@ class CreateTableTestSuite extends SparkExtensionsTestBase {
       """
         |/*+ @DataQuality(name="name_length", expression="length(name) > 10") */
         |/*+ @DataQuality(name="part_id", expression="part_id > 0") */
-        |CREATE TABLE IF NOT EXISTS customer.churn (
+        |CREATE TABLE IF NOT EXISTS customer_churn (
         | id int NOT NULL,
         | name varchar(200),
         | uid int,
@@ -127,7 +127,7 @@ class CreateTableTestSuite extends SparkExtensionsTestBase {
     val df = sparkSession.sql(
       """
         | /*+ @AccessControl(accessType = "regex", regex = "aa", users = "*", groups = "*") */
-        | CREATE TABLE IF NOT EXISTS customer.churn (
+        | CREATE TABLE IF NOT EXISTS customer_churn (
         | id int NOT NULL,
         | name varchar(200),
         | uid int,
