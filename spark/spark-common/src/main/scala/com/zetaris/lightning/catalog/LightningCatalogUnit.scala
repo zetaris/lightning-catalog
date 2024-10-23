@@ -37,6 +37,7 @@ case class LightningCatalogUnit(lakehouse: String, model: LightningModel) extend
   }
 
   override def loadTable(ident: Identifier, tagSchema: StructType): Table = {
+
     model.loadTable(ident)
   }
 

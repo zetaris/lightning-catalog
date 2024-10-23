@@ -20,12 +20,13 @@
 package com.zetaris.lightning.model
 
 import com.zetaris.lightning.catalog.LightningCatalogCache
+import com.zetaris.lightning.datasources.v2.usl.USLTable
 import com.zetaris.lightning.execution.command.CreateTableSpec
 import com.zetaris.lightning.execution.command.DataSourceType.FileTypeSource
 import com.zetaris.lightning.model.serde.DataSource.{DataSource, toJson}
 import com.zetaris.lightning.model.serde.UnifiedSemanticLayerTable
 import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
-import com.zetaris.lightning.model.serde.{mapToJson, jsonToMap}
+import com.zetaris.lightning.model.serde.{jsonToMap, mapToJson}
 import com.zetaris.lightning.util.FileSystemUtils
 import org.apache.spark.sql.connector.catalog.{Identifier, Table}
 import org.apache.spark.sql.types.StructType
@@ -234,12 +235,30 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
    * @return
    */
   def loadTable(ident: Identifier): Table = {
-    val subDir = nameSpaceToDir(ident.namespace())
-    val fullPath = s"$modelDir/$subDir/${ident.name()}_table.json"
-    val json = FileSystemUtils.readFile(fullPath)
-    val table = serde.Table(json)
-    val targetNamespace = LightningModelFactory.toMultiPartIdentifier(table.dsNamespace).toArray
-    LightningCatalogCache.catalog.loadTable(table.schema, Identifier.of(targetNamespace, ident.name()))
+    val uslNameSpace = ident.namespace().dropRight(1)
+    val uslName = ident.namespace().last
+    val subDir = nameSpaceToDir(uslNameSpace)
+
+    val uslFullPath = s"$modelDir/$subDir/${uslName}_usl.json"
+    if (FileSystemUtils.fileExists(uslFullPath)) {
+      val usl = loadUnifiedSemanticLayer(uslNameSpace, uslName)
+      val createTableSpec = usl.tables.find(_.name.equalsIgnoreCase(ident.name())).getOrElse(
+        throw TableNotFoundException(s"${ident.namespace().mkString(".")}.${ident.name()}")
+      )
+
+      val tableFullPath = s"$modelDir/$subDir/${ident.name()}_table_query.json"
+      val tableJson = FileSystemUtils.readFile(tableFullPath)
+      val uslTable = UnifiedSemanticLayerTable(tableJson)
+
+      USLTable(createTableSpec, uslTable.query)
+
+    } else {
+      val fullPath = s"$modelDir/$subDir/${ident.name()}_table.json"
+      val json = FileSystemUtils.readFile(fullPath)
+      val table = serde.Table(json)
+      val targetNamespace = LightningModelFactory.toMultiPartIdentifier(table.dsNamespace).toArray
+      LightningCatalogCache.catalog.loadTable(table.schema, Identifier.of(targetNamespace, ident.name()))
+    }
   }
 
   /**

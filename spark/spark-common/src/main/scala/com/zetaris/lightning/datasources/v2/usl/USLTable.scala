@@ -19,11 +19,30 @@
  *
  */
 
-package com.zetaris.lightning.model
+package com.zetaris.lightning.datasources.v2.usl
 
-case class NamespaceNotFoundException(message: String) extends RuntimeException(message)
+import com.zetaris.lightning.catalog.LightningSource
+import com.zetaris.lightning.execution.command.CreateTableSpec
+import org.apache.spark.sql.connector.catalog.{SupportsRead, Table, TableCapability}
+import org.apache.spark.sql.connector.catalog.TableCapability.BATCH_READ
+import org.apache.spark.sql.types.{StructField, StructType}
+import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-case class InvalidNamespaceException(message: String) extends RuntimeException(message)
+case class USLTable(createTableSpec: CreateTableSpec, registeredSql: String) extends Table
+  with SupportsRead with LightningSource {
+  override def name(): String = toFqn(createTableSpec.namespace :+ createTableSpec.name)
 
-case class TableNotFoundException(message: String) extends RuntimeException(message)
+  override def schema(): StructType = {
+    val fields = createTableSpec.columnSpecs.map { colSpec =>
+      StructField(colSpec.name, colSpec.dataType, colSpec.notNull.isEmpty)
+    }
 
+    StructType(fields)
+  }
+
+  override def capabilities(): java.util.Set[TableCapability] =  java.util.EnumSet.of(BATCH_READ)
+
+  override def newScanBuilder(options: CaseInsensitiveStringMap): USLTableScanBuilder =
+    USLTableScanBuilder(createTableSpec, registeredSql)
+
+}

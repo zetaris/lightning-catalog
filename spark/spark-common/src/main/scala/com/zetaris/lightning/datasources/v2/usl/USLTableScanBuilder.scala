@@ -19,11 +19,21 @@
  *
  */
 
-package com.zetaris.lightning.model
+package com.zetaris.lightning.datasources.v2.usl
 
-case class NamespaceNotFoundException(message: String) extends RuntimeException(message)
+import com.zetaris.lightning.execution.command.CreateTableSpec
+import org.apache.spark.sql.connector.read.{Scan, ScanBuilder}
+import org.apache.spark.sql.types.{StructField, StructType}
 
-case class InvalidNamespaceException(message: String) extends RuntimeException(message)
+case class USLTableScanBuilder(createTableSpec: CreateTableSpec, registeredSql: String) extends ScanBuilder {
+  override def build(): Scan = {
+    val schema = {
+      val fields = createTableSpec.columnSpecs.map { colSpec =>
+        StructField(colSpec.name, colSpec.dataType, colSpec.notNull.isEmpty)
+      }
+      StructType(fields)
+    }
 
-case class TableNotFoundException(message: String) extends RuntimeException(message)
-
+    USLTableScan(schema, registeredSql)
+  }
+}

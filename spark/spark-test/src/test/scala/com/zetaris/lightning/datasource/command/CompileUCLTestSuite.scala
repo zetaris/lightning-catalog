@@ -22,6 +22,7 @@
 package com.zetaris.lightning.datasource.command
 
 import com.zetaris.lightning.model.{InvalidNamespaceException, NamespaceNotFoundException}
+import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
 import com.zetaris.lightning.spark.SparkExtensionsTestBase
 import org.junit.runner.RunWith
 import org.scalatestplus.junit.JUnitRunner
@@ -37,7 +38,7 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
     intercept[NamespaceNotFoundException] {
       val df = sparkSession.sql(
         """
-          |COMPILE UCL IF NOT EXISTS crm NAMESPACE lightning.metastore.crm DDL
+          |COMPILE USL IF NOT EXISTS crm NAMESPACE lightning.metastore.crm DDL
           |-- create table customer
           |CREATE TABLE IF NOT EXISTS customer (
           | id int NOT NULL PRIMARY KEY,
@@ -58,17 +59,17 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
     }
   }
 
-  test("deploy DDLs") {
+  test("deploy DDLs & load, update USL") {
     sparkSession.sql(s"CREATE NAMESPACE lightning.metastore.crm")
 
     val df = sparkSession.sql(
-      """
-        |COMPILE UCL IF NOT EXISTS crmdb DEPLOY NAMESPACE lightning.metastore.crm DDL
+      s"""
+        |COMPILE USL IF NOT EXISTS crmdb DEPLOY NAMESPACE lightning.metastore.crm DDL
         |-- create table customer
         |CREATE TABLE IF NOT EXISTS customer (
         | id int NOT NULL PRIMARY KEY,
         | name varchar(200),
-        | /*+@AccessControl(accessType="REGEX", regex="$ss", users = "*", groups = "*")*/
+        | /*+@AccessControl(accessType="REGEX", regex="ss", users = "*", groups = "*")*/
         | uid int UNIQUE,
         | address varchar(200),
         | part_id int FOREIGN KEY REFERENCES department(id) ON DELETE RESTRICT ON UPDATE CASCADE
@@ -80,7 +81,36 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
         | CONSTRAINT pk_id PRIMARY KEY(id)
         |)
         |""".stripMargin)
-    val json = df.collect()(0).getString(0)
-    println(json)
+    val srcJson = df.collect()(0).getString(0)
+    val srcUSL = UnifiedSemanticLayer(srcJson)
+
+    val loadJson = sparkSession.sql("LOAD USL crmdb NAMESPACE lightning.metastore.crm").collect()(0).getString(0)
+    val loadUSL = UnifiedSemanticLayer(loadJson)
+
+    assert(srcUSL.namespace.mkString(".") == loadUSL.namespace.mkString("."))
+    assert(srcUSL.name == loadUSL.name)
+
+    assert(srcUSL.tables(0).name == loadUSL.tables(0).name)
+    assert(srcUSL.tables(0).columnSpecs(0).name == loadUSL.tables(0).columnSpecs(0).name)
+    assert(srcUSL.tables(0).columnSpecs(0).dataType == loadUSL.tables(0).columnSpecs(0).dataType)
+
+    assert(srcUSL.tables(0).columnSpecs(1).name == loadUSL.tables(0).columnSpecs(1).name)
+    assert(srcUSL.tables(0).columnSpecs(1).dataType == loadUSL.tables(0).columnSpecs(1).dataType)
+
+    assert(srcUSL.tables(0).columnSpecs(2).name == loadUSL.tables(0).columnSpecs(2).name)
+    assert(srcUSL.tables(0).columnSpecs(2).dataType == loadUSL.tables(0).columnSpecs(2).dataType)
+
+    assert(srcUSL.tables(0).columnSpecs(3).name == loadUSL.tables(0).columnSpecs(3).name)
+    assert(srcUSL.tables(0).columnSpecs(3).dataType == loadUSL.tables(0).columnSpecs(3).dataType)
+
+    assert(srcUSL.tables(0).columnSpecs(4).name == loadUSL.tables(0).columnSpecs(4).name)
+    assert(srcUSL.tables(0).columnSpecs(4).dataType == loadUSL.tables(0).columnSpecs(4).dataType)
+
+    assert(srcUSL.tables(1).name == loadUSL.tables(1).name)
+    assert(srcUSL.tables(1).columnSpecs(0).name == loadUSL.tables(1).columnSpecs(0).name)
+    assert(srcUSL.tables(1).columnSpecs(0).dataType == loadUSL.tables(1).columnSpecs(0).dataType)
+
+    assert(srcUSL.tables(1).columnSpecs(1).name == loadUSL.tables(1).columnSpecs(1).name)
+    assert(srcUSL.tables(1).columnSpecs(1).dataType == loadUSL.tables(1).columnSpecs(1).dataType)
   }
 }
