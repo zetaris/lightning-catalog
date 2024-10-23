@@ -10,6 +10,12 @@ import scala.io.Source
 import java.nio.file.Paths
 import java.text.SimpleDateFormat
 import java.util.Date
+import com.zetaris.lightning.parser.LightningParserExtension
+import com.zetaris.lightning.execution.command.{CompileUCLSpec, CreateTableSpec, ActivateUCLTableSpec}
+import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
+import com.zetaris.lightning.parser.LightningExtendedParser
+import com.zetaris.lightning.model.LightningModelFactory
+import com.zetaris.lightning.execution.command.LightningCommandBase
 
 // SparkSession Init
 @Path("/api")
@@ -219,21 +225,26 @@ class LightningResource {
   def parseDDL(ddlQuery: String): Response = {
     try {
       LOGGER.info(s"Parsing DDL query: $ddlQuery")
-      
+
       // Extending the SQL parser of SparkSession to parse DDL statements
       val parser = new LightningExtendedParser(spark.sessionState.sqlParser)
-      
+
       // Parsing the DDL statement with the parser and converting it into a LogicalPlan
       val logicalPlan = parser.parseLightning(ddlQuery)
-      
+
       // Extracting table information from the DDL statement and converting it to JSON
-      // Converted to CreateTableSpec and then Serialized to JSON
       val createTableSpec = logicalPlan.asInstanceOf[CreateTableSpec]
-      val jsonResult = UnifiedSemanticLayer.toJson("ddl_output", Seq("namespace_placeholder"), Seq(createTableSpec))
-      
+
+      // Call the updated `toJson` method with the new signature
+      val jsonResult = UnifiedSemanticLayer.toJson(
+        namespace = Seq("namespace_placeholder"), 
+        name = "ddl_output", 
+        tables = Seq(createTableSpec)
+      )
+
       // Returning the JSON result to the client
       Response.ok(jsonResult).build()
-      
+
     } catch {
       case ex: Exception =>
         LOGGER.error("Failed to parse DDL", ex)
@@ -253,38 +264,78 @@ class LightningResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   def compileUCL(uclData: String): Response = {
     try {
+      LOGGER.info(s"Received UCL data: $uclData")
       val mapper = new ObjectMapper()
       val jsonNode = mapper.readTree(uclData)
-      var ddlQuery = jsonNode.get("ddl").asText()
+      val ddlQuery = jsonNode.get("ddl").asText()
 
-      LOGGER.info(s"Original ddlQuery: $ddlQuery")
-
-      // Remove all \n, \r, and extra spaces
-      ddlQuery = ddlQuery
-        .replaceAll("\\\\n", " ")
-        .replaceAll("\\\\r", " ")
-        .replaceAll("\\s+", " ")
-        .trim()
-
-      LOGGER.info(s"Processed ddlQuery: $ddlQuery")
-
-      if (ddlQuery.isEmpty) {
-        throw new IllegalArgumentException("DDL Query cannot be empty.")
+      // Validate DDL query
+      if (ddlQuery == null || ddlQuery.trim.isEmpty) {
+        throw new IllegalArgumentException("DDL query cannot be null or empty.")
       }
+
+      val deploy = jsonNode.get("deploy").asBoolean(false)
+      val ifNotExists = jsonNode.get("ifNotExists").asBoolean(false)
+      val namespace = jsonNode.get("namespace").asText().split("\\.").toSeq
 
       LOGGER.info(s"Compiling UCL with DDL Query: $ddlQuery")
 
-      val df = spark.sql(ddlQuery)
+      // Compile UCL using CompileUCLSpec
+      val compileUCLSpec = CompileUCLSpec(
+        name = "compiled_ucl",
+        deploy = deploy,
+        ifNotExit = ifNotExists,
+        namespace = namespace,
+        inputDDLs = ddlQuery
+      )
 
-      val result = df.collect()
-      val jsonResult = mapper.writeValueAsString(result)
-
+      // Execute and return the result
+      val result = compileUCLSpec.runCommand(spark)
+      val jsonResult = result.head.getString(0)
       Response.ok(jsonResult).build()
+
     } catch {
+      case ex: IllegalArgumentException =>
+        LOGGER.error("Invalid DDL format", ex)
+        Response.status(Response.Status.BAD_REQUEST)
+          .entity(s"""{"error": "Invalid DDL format", "message": "${ex.getMessage}"}""")
+          .build()
+
       case ex: Exception =>
         LOGGER.error("Failed to compile UCL", ex)
+        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(s"""{"error": "Failed to compile UCL", "message": "${ex.getMessage}"}""")
+          .build()
+    }
+  }
+
+
+  @POST
+  @Path("/activate-ucl-table")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def activateUCLTable(uclData: String): Response = {
+    try {
+      val mapper = new ObjectMapper()
+      val jsonNode = mapper.readTree(uclData)
+      val namespace = jsonNode.get("namespace").asText().split("\\.").toSeq
+      val table = jsonNode.get("table").asText().split("\\.").toSeq
+      val query = jsonNode.get("query").asText()
+
+      LOGGER.info(s"Activating UCL table: ${table.mkString(".")} with query: $query")
+
+      // Activate UCL table
+      val activateTableSpec = ActivateUCLTableSpec(table, query)
+      val result = activateTableSpec.runCommand(spark)
+
+      val jsonResult = result.map(_.getString(0)).mkString
+      Response.ok(jsonResult).build()
+
+    } catch {
+      case ex: Exception =>
+        LOGGER.error("Failed to activate UCL table", ex)
         val errorResponse = s"""{
-          "error": "Failed to compile UCL",
+          "error": "Failed to activate UCL table",
           "message": "${ex.getMessage}"
         }"""
         Response.status(Response.Status.INTERNAL_SERVER_ERROR)
