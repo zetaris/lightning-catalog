@@ -45,7 +45,7 @@ class ActivateUCLTableTestSuite extends SparkExtensionsTestBase with H2TestBase 
 
     sparkSession.sql(
       """
-        |COMPILE UCL IF NOT EXISTS ordermart DEPLOY NAMESPACE lightning.metastore.crm DDL
+        |COMPILE USL IF NOT EXISTS ordermart DEPLOY NAMESPACE lightning.metastore.crm DDL
         |-- create table customer
         |create table customer (id BIGINT primary key, name varchar(30), address varchar(50));
         |
@@ -64,7 +64,7 @@ class ActivateUCLTableTestSuite extends SparkExtensionsTestBase with H2TestBase 
 
     sparkSession.sql(
       s"""
-        |ACTIVATE UCL TABLE lightning.metastore.crm.ordermart.customer AS
+        |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.customer AS
         |select * from lightning.datasource.h2.$dbName.$schema.customer
         |""".stripMargin
     )
