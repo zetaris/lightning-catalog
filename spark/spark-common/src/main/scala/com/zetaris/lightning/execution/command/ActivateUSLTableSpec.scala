@@ -24,13 +24,13 @@ package com.zetaris.lightning.execution.command
 import com.zetaris.lightning.model.LightningModelFactory
 import com.zetaris.lightning.model.serde.UnifiedSemanticLayer.UnifiedSemanticLayerException
 import com.zetaris.lightning.model.serde.UnifiedSemanticLayerTable
-import org.apache.spark.sql.{Row, SparkSQLBridge, SparkSession}
+import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.types.StringType
 
 import scala.util.{Failure, Success, Try}
 
-case class ActivateUCLTableSpec(table: Seq[String], query: String) extends LightningCommandBase {
+case class ActivateUSLTableSpec(table: Seq[String], query: String) extends LightningCommandBase {
   override val output: Seq[AttributeReference] = Seq(
     AttributeReference("registered", StringType, false)()
   )

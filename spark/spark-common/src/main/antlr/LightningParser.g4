@@ -12,15 +12,23 @@ statement
     ;
 
 ddlStatement
-    : registerDataSource | registerCatalog | createTable | compileUCL | activateUCLTable
+    : registerDataSource | registerCatalog | createTable | compileUSL | activateUSLTable | loadUSL | updateUSL
     ;
 
-activateUCLTable
-    : ACTIVATE UCL TABLE table=multipartIdentifier AS query = restOfInput
+loadUSL
+    : LOAD USL dbName = identifier NAMESPACE namespace=multipartIdentifier
     ;
 
-compileUCL
-    : COMPILE UCL (IF NOT EXISTS)? dbName = identifier (DEPLOY)? NAMESPACE namespace = multipartIdentifier DDL ddls = restOfInput
+updateUSL
+    : UPDATE USL dbName = identifier NAMESPACE namespace=multipartIdentifier AS json = restOfInput
+    ;
+
+activateUSLTable
+    : ACTIVATE USL TABLE table=multipartIdentifier AS query = restOfInput
+    ;
+
+compileUSL
+    : COMPILE USL (IF NOT EXISTS)? dbName = identifier (DEPLOY)? NAMESPACE namespace = multipartIdentifier DDL ddls = restOfInput
     ;
 
 registerDataSource

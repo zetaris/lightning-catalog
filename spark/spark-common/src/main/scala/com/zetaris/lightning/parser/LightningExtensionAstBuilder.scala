@@ -20,7 +20,7 @@
 package com.zetaris.lightning.parser
 
 import com.zetaris.lightning.execution.command.ReferenceControl.{Cascade, NoAction, ReferenceControl, Restrict, SetDefault, SetNull}
-import com.zetaris.lightning.execution.command.{AccessControl, ActivateUCLTableSpec, Annotation, AnnotationStatement, Assignment, ColumnSpec, CompileUCLSpec, CreateTableSpec, DataQuality, DataSourceType, ForeignKey, NotNullColumn, PrimaryKeyColumn, RegisterCatalogSpec, RegisterDataSourceSpec, UniqueKeyColumn}
+import com.zetaris.lightning.execution.command.{AccessControl, ActivateUSLTableSpec, Annotation, AnnotationStatement, Assignment, ColumnSpec, CompileUSLSpec, CreateTableSpec, DataQuality, DataSourceType, ForeignKey, LoadUSL, NotNullColumn, PrimaryKeyColumn, RegisterCatalogSpec, RegisterDataSourceSpec, UniqueKeyColumn, UpdateUSL}
 import com.zetaris.lightning.model.{InvalidNamespaceException, LightningModelFactory}
 import com.zetaris.lightning.parser.LightningParserUtils.validateTableConstraints
 import org.antlr.v4.runtime.ParserRuleContext
@@ -431,7 +431,7 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
     Assignment(ctx.name.getText, string(ctx.value))
   }
 
-  override def visitCompileUCL(ctx: CompileUCLContext): CompileUCLSpec = withOrigin(ctx) {
+  override def visitCompileUSL(ctx: CompileUSLContext): CompileUSLSpec = withOrigin(ctx) {
     val ifNotExist = ctx.EXISTS() != null
     val deploy = ctx.DEPLOY() != null
     val tableName = ctx.dbName.getText()
@@ -439,17 +439,34 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
     val inputDDLs = getFullText(ctx.ddls)
 
     validateNamespace(namespace)
-    CompileUCLSpec(tableName, deploy, ifNotExist, namespace, inputDDLs)
+    CompileUSLSpec(tableName, deploy, ifNotExist, namespace, inputDDLs)
   }
 
-  override def visitActivateUCLTable(ctx: ActivateUCLTableContext): ActivateUCLTableSpec = withOrigin(ctx) {
+  override def visitActivateUSLTable(ctx: ActivateUSLTableContext): ActivateUSLTableSpec = withOrigin(ctx) {
     val name = visitMultipartIdentifier(ctx.table)
     val query = getFullText(ctx.query)
 
     validateNamespace(name)
 
-    ActivateUCLTableSpec(name, query)
+    ActivateUSLTableSpec(name, query)
   }
+
+  override def visitLoadUSL(ctx: LoadUSLContext): LoadUSL = withOrigin(ctx) {
+    val tableName = ctx.dbName.getText()
+    val namespace = visitMultipartIdentifier(ctx.namespace)
+    validateNamespace(namespace)
+
+    LoadUSL(namespace, tableName)
+  }
+
+  override def visitUpdateUSL(ctx: UpdateUSLContext): UpdateUSL = withOrigin(ctx) {
+    val tableName = ctx.dbName.getText()
+    val namespace = visitMultipartIdentifier(ctx.namespace)
+    val json = getFullText(ctx.json)
+
+    UpdateUSL(namespace, tableName, json)
+  }
+
 }
 
 

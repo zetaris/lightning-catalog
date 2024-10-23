@@ -293,23 +293,6 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
       val sourceNamespace = ident.namespace().drop(dataSource.namespace.length + 1)
       catalog.loadTable(Identifier.of(sourceNamespace, ident.name), version, dataSource.toTagSchema())
     })
-
-//    val namespace = ident.namespace()
-//    validateNameSpace(namespace)
-//
-//    namespace(0).toLowerCase match {
-//      case "metastore" =>
-//        LightningCatalogUnit(namespace(0), model).loadTable(ident, version)
-//      case "datasource" =>
-//        findParentDataSource(ident.namespace(), ident.name()) match {
-//          case Some(datasource) =>
-//            val catalog = loadCatalogUnit(datasource)
-//            val sourceNamespace = ident.namespace().drop(datasource.namespace.length + 1)
-//            catalog.loadTable(Identifier.of(sourceNamespace, ident.name), version)
-//          case None =>
-//            throw new RuntimeException(s"namespace(${ident.namespace().mkString(".")}), name(${ident.name()}) is not defined")
-//        }
-//    }
   }
 
   override def loadTable(ident: Identifier, timestamp: Long): Table = {

@@ -21,54 +21,44 @@
 
 package com.zetaris.lightning.execution.command
 
+import com.zetaris.lightning.catalog.LightningSource
 import com.zetaris.lightning.model.LightningModelFactory
 import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
-import com.zetaris.lightning.parser.LightningExtendedParser
+import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.types.StringType
-import org.apache.spark.sql.{Row, SparkSession}
 
-case class CompileUCLSpec(name: String,
-                          deploy: Boolean,
-                          ifNotExit: Boolean,
-                          namespace: Seq[String],
-                          inputDDLs: String) extends LightningCommandBase {
+case class LoadUSL(namespace: Seq[String], name: String) extends LightningCommandBase {
   override val output: Seq[AttributeReference] = Seq(
     AttributeReference("json", StringType, false)()
   )
 
-  private def checkTableDuplication(createTableSpecs: Seq[CreateTableSpec]): Unit = {
-    val duplications = scala.collection.mutable.ArrayBuffer.empty[String]
-    createTableSpecs.groupBy(_.name).foreach { grouped =>
-      if(grouped._2.size > 1) {
-        duplications += grouped._1
-      }
-    }
+  override def runCommand(sparkSession: SparkSession): Seq[Row] = {
+    checkTableNamespaceLen(namespace)
 
-    if (duplications.nonEmpty) {
-      throw new RuntimeException(s"duplicated tables : ${duplications.mkString(",")}")
-    }
+    val model = LightningModelFactory(dataSourceConfigMap(sparkSession))
+    val usl = model.loadUnifiedSemanticLayer(namespace.drop(1), name)
+    val json = UnifiedSemanticLayer.toJson(usl.namespace, usl.name, usl.tables)
+
+    Row(json) :: Nil
   }
+}
+
+case class UpdateUSL(namespace: Seq[String], name: String, json: String)
+  extends LightningCommandBase with LightningSource{
+  override val output: Seq[AttributeReference] = Seq(
+    AttributeReference("updated", StringType, false)()
+  )
 
   override def runCommand(sparkSession: SparkSession): Seq[Row] = {
+    checkTableNamespaceLen(namespace)
     val model = LightningModelFactory(dataSourceConfigMap(sparkSession))
-    val withoutPrefix = namespace.drop(1)
 
-    validateNamespace(model, withoutPrefix.toArray)
+    val namespaceWithoutPrefix = namespace.drop(1)
+    model.loadUnifiedSemanticLayer(namespaceWithoutPrefix, name)
+    val usl = UnifiedSemanticLayer(json)
+    model.saveUnifiedSemanticLayer(namespaceWithoutPrefix, name, usl.tables)
 
-    val parser = new LightningExtendedParser(sparkSession.sessionState.sqlParser)
-    val createTableSpecs = inputDDLs.split(";.*?\\n").map { ddl =>
-      val createTableSpec = parser.parseLightning(ddl).asInstanceOf[CreateTableSpec]
-      createTableSpec.copy(namespace = namespace)
-    }
-
-    checkTableDuplication(createTableSpecs)
-
-    if (deploy) {
-      model.saveUnifiedSemanticLayer(withoutPrefix, name, createTableSpecs)
-    }
-
-    val json = UnifiedSemanticLayer.toJson(withoutPrefix, name, createTableSpecs)
-    Row(json) :: Nil
+    Row(s"${toFqn(namespace)}.$name") :: Nil
   }
 }

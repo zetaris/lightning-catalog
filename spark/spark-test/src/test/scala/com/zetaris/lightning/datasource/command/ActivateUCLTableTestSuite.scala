@@ -22,6 +22,7 @@
 package com.zetaris.lightning.datasource.command
 
 import com.zetaris.lightning.spark.{H2TestBase, SparkExtensionsTestBase}
+import org.apache.spark.sql.Row
 import org.junit.runner.RunWith
 import org.scalatestplus.junit.JUnitRunner
 
@@ -44,7 +45,7 @@ class ActivateUCLTableTestSuite extends SparkExtensionsTestBase with H2TestBase 
 
     sparkSession.sql(
       """
-        |COMPILE UCL IF NOT EXISTS ordermart DEPLOY NAMESPACE lightning.metastore.crm DDL
+        |COMPILE USL IF NOT EXISTS ordermart DEPLOY NAMESPACE lightning.metastore.crm DDL
         |-- create table customer
         |create table customer (id BIGINT primary key, name varchar(30), address varchar(50));
         |
@@ -63,10 +64,15 @@ class ActivateUCLTableTestSuite extends SparkExtensionsTestBase with H2TestBase 
 
     sparkSession.sql(
       s"""
-        |ACTIVATE UCL TABLE lightning.metastore.crm.ordermart.customer AS
+        |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.customer AS
         |select * from lightning.datasource.h2.$dbName.$schema.customer
         |""".stripMargin
     )
+
+    checkAnswer(sparkSession.sql(s"select * from lightning.metastore.crm.ordermart.customer"),
+      Seq(Row(1, "chris lynch", "100 VIC"),
+        Row(2, "wayne bourne", "200 NSW"),
+        Row(3, "scott mayson", "300 TAS")))
 
   }
 }
