@@ -11,7 +11,7 @@ import java.nio.file.Paths
 import java.text.SimpleDateFormat
 import java.util.Date
 import com.zetaris.lightning.parser.LightningParserExtension
-import com.zetaris.lightning.execution.command.{CompileUCLSpec, CreateTableSpec, ActivateUCLTableSpec}
+import com.zetaris.lightning.execution.command.{CompileUSLSpec, CreateTableSpec, ActivateUSLTableSpec, LoadUSL, UpdateUSL}
 import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
 import com.zetaris.lightning.parser.LightningExtendedParser
 import com.zetaris.lightning.model.LightningModelFactory
@@ -259,30 +259,38 @@ class LightningResource {
   }
 
   @POST
-  @Path("/compile-ucl")
+  @Path("/compile-usl")
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def compileUCL(uclData: String): Response = {
+  def compileUSL(uslData: String): Response = {
     try {
-      LOGGER.info(s"Received UCL data: $uclData")
+      LOGGER.info(s"Received USL data: $uslData")
       val mapper = new ObjectMapper()
-      val jsonNode = mapper.readTree(uclData)
-      val ddlQuery = jsonNode.get("ddl").asText()
+      val jsonNode = mapper.readTree(uslData)
+      var ddlQuery = jsonNode.get("ddl").asText()
 
       // Validate DDL query
       if (ddlQuery == null || ddlQuery.trim.isEmpty) {
         throw new IllegalArgumentException("DDL query cannot be null or empty.")
       }
 
+      val name = jsonNode.get("name").asText()
       val deploy = jsonNode.get("deploy").asBoolean(false)
       val ifNotExists = jsonNode.get("ifNotExists").asBoolean(false)
       val namespace = jsonNode.get("namespace").asText().split("\\.").toSeq
 
-      LOGGER.info(s"Compiling UCL with DDL Query: $ddlQuery")
+      LOGGER.info(s"Compiling USL with DDL Query: $ddlQuery")
 
-      // Compile UCL using CompileUCLSpec
-      val compileUCLSpec = CompileUCLSpec(
-        name = "compiled_ucl",
+      // Extract only the DDL part after the command (e.g., after "COMPILE USL IF NOT EXISTS")
+      val ddlParts = ddlQuery.split("DDL", 2)  // Split to get the query part after "DDL"
+      if (ddlParts.length < 2) {
+        throw new IllegalArgumentException("Invalid DDL query format.")
+      }
+      ddlQuery = ddlParts(1).trim  // Use only the actual query after DDL
+
+      // Compile USL using CompileUSLSpec
+      val compileUSLSpec = CompileUSLSpec(
+        name = name,
         deploy = deploy,
         ifNotExit = ifNotExists,
         namespace = namespace,
@@ -290,7 +298,7 @@ class LightningResource {
       )
 
       // Execute and return the result
-      val result = compileUCLSpec.runCommand(spark)
+      val result = compileUSLSpec.runCommand(spark)
       val jsonResult = result.head.getString(0)
       Response.ok(jsonResult).build()
 
@@ -302,30 +310,116 @@ class LightningResource {
           .build()
 
       case ex: Exception =>
-        LOGGER.error("Failed to compile UCL", ex)
+        LOGGER.error("Failed to compile USL", ex)
         Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-          .entity(s"""{"error": "Failed to compile UCL", "message": "${ex.getMessage}"}""")
+          .entity(s"""{"error": "Failed to compile USL", "message": "${ex.getMessage}"}""")
           .build()
     }
   }
 
-
   @POST
-  @Path("/activate-ucl-table")
+  @Path("/load-usl")
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Consumes(Array(MediaType.APPLICATION_JSON))
-  def activateUCLTable(uclData: String): Response = {
+  def loadUSL(uslData: String): Response = {
+    try {
+      LOGGER.info(s"Received USL load request: $uslData")
+      val mapper = new ObjectMapper()
+      val jsonNode = mapper.readTree(uslData)
+      val namespace = jsonNode.get("namespace").asText().split("\\.").toSeq
+      val name = jsonNode.get("name").asText()
+
+      LOGGER.info(s"Loading USL: $name in namespace: ${namespace.mkString(".")}")
+
+      // Load USL using LoadUSL class
+      val loadUSLSpec = LoadUSL(namespace = namespace, name = name)
+
+      // Execute and return the result
+      val result = loadUSLSpec.runCommand(spark)
+      val jsonResult = result.head.getString(0)
+      Response.ok(jsonResult).build()
+
+    } catch {
+      case ex: IllegalArgumentException =>
+        LOGGER.error("Invalid load request", ex)
+        Response.status(Response.Status.BAD_REQUEST)
+          .entity(s"""{"error": "Invalid load request", "message": "${ex.getMessage}"}""")
+          .build()
+
+      case ex: Exception =>
+        LOGGER.error("Failed to load USL", ex)
+        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(s"""{"error": "Failed to load USL", "message": "${ex.getMessage}"}""")
+          .build()
+    }
+  }
+
+  @POST
+  @Path("/update-usl")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def updateUSL(uslData: String): Response = {
+    try {
+      LOGGER.info(s"Received USL update request: $uslData")
+      val mapper = new ObjectMapper()
+      val jsonNode = mapper.readTree(uslData)
+      val namespace = jsonNode.get("namespace").asText().split("\\.").toSeq
+      val name = jsonNode.get("name").asText()
+      val uslJson = jsonNode.get("uslJson").asText()
+
+      LOGGER.info(s"Updating USL: $name in namespace: ${namespace.mkString(".")}")
+
+      // Update USL using UpdateUSL class
+      val updateUSLSpec = UpdateUSL(namespace = namespace, name = name, json = uslJson)
+
+      // Execute and return the result
+      val result = updateUSLSpec.runCommand(spark)
+      val updatedResult = result.head.getString(0)
+      Response.ok(s"""{"updated": "$updatedResult"}""").build()
+
+    } catch {
+      case ex: IllegalArgumentException =>
+        LOGGER.error("Invalid update request", ex)
+        Response.status(Response.Status.BAD_REQUEST)
+          .entity(s"""{"error": "Invalid update request", "message": "${ex.getMessage}"}""")
+          .build()
+
+      case ex: Exception =>
+        LOGGER.error("Failed to update USL", ex)
+        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(s"""{"error": "Failed to update USL", "message": "${ex.getMessage}"}""")
+          .build()
+    }
+  }
+
+  @POST
+  @Path("/activate-usl-table")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  def activateUSLTable(uslData: String): Response = {
     try {
       val mapper = new ObjectMapper()
-      val jsonNode = mapper.readTree(uclData)
-      val namespace = jsonNode.get("namespace").asText().split("\\.").toSeq
-      val table = jsonNode.get("table").asText().split("\\.").toSeq
+      val jsonNode = mapper.readTree(uslData)
+
+      // tableFull is received in the form "namespace.uslName.tableName"
+      val tableFull = jsonNode.get("table").asText()
+      val tableParts = tableFull.split("\\.").toSeq
+
+      // Make sure there are at least 3 levels (namespace.uslName.tableName)
+      if (tableParts.size < 3) {
+        throw new RuntimeException("table name identifier should be at least 3 level")
+      }
+
+      val namespace = tableParts.dropRight(2)  // ex) "lightning.metastore.crm"
+      val uslName = tableParts.dropRight(1).last  // ex) "USLName"
+      val tableName = tableParts.last  // ex) "region_master"
+      
       val query = jsonNode.get("query").asText()
 
-      LOGGER.info(s"Activating UCL table: ${table.mkString(".")} with query: $query")
+      LOGGER.info(s"Activating USL table: ${tableParts.mkString(".")} with query: $query")
 
-      // Activate UCL table
-      val activateTableSpec = ActivateUCLTableSpec(table, query)
+      // Activate USL table using ActivateUSLTableSpec
+      val activateTableSpec = ActivateUSLTableSpec(tableParts, query)
       val result = activateTableSpec.runCommand(spark)
 
       val jsonResult = result.map(_.getString(0)).mkString
@@ -333,9 +427,9 @@ class LightningResource {
 
     } catch {
       case ex: Exception =>
-        LOGGER.error("Failed to activate UCL table", ex)
+        LOGGER.error("Failed to activate USL table", ex)
         val errorResponse = s"""{
-          "error": "Failed to activate UCL table",
+          "error": "Failed to activate USL table",
           "message": "${ex.getMessage}"
         }"""
         Response.status(Response.Status.INTERNAL_SERVER_ERROR)
