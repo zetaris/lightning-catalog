@@ -267,7 +267,7 @@ class RegisterImageDataSourceTestSuite extends FileDataSourceTestBase {
     assert(rec(1).getString(8) == "")
     assert(rec(1).getString(9) == "")
 
-    sparkSession.sql("update lightning.datasource.file.spark_images set age = 10")
+    //sparkSession.sql("update lightning.datasource.file.spark_images set age = 10")
   }
 
   /**

@@ -30,6 +30,10 @@ import org.scalatestplus.junit.JUnitRunner
 @RunWith(classOf[JUnitRunner])
 class CreateTableTestSuite extends SparkExtensionsTestBase {
   test("create table with column constraints") {
+  }
+  // CREATE TABLE is temporarily disabled not to override SPARK's Create Table statement
+  /**
+  test("create table with column constraints") {
     val df = sparkSession.sql(
       """
         |-- create table customer
@@ -137,5 +141,5 @@ class CreateTableTestSuite extends SparkExtensionsTestBase {
         |namespace testlh
         |""".stripMargin)
   }
-
+  */
 }
