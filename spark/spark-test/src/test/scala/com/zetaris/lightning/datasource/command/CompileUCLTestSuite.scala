@@ -145,7 +145,7 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
     checkAnswer(sparkSession.sql(s"SHOW NAMESPACES IN lightning.metastore.crm"),
       Seq(Row("crmdb")))
 
-    checkAnswer(sparkSession.sql(s"SHOW TABLES in lightning.metastore.crm.crmdb"),
-      Seq(Row("crmdb", "customer", false), Row("crmdb", "department", false)))
+    //not visible unless activated
+    checkAnswer(sparkSession.sql(s"SHOW TABLES in lightning.metastore.crm.crmdb"), Seq())
   }
 }

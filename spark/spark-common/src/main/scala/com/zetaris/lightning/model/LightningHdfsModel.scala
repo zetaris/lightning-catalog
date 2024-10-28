@@ -167,7 +167,14 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
       val uslFullPath = s"$modelDir/${nameSpaceToDir(namespace.dropRight(1))}/${namespace.last}_usl.json"
       if (FileSystemUtils.fileExists(uslFullPath)) {
         val json = FileSystemUtils.readFile(uslFullPath)
-        UnifiedSemanticLayer(json).tables.map(_.name)
+        UnifiedSemanticLayer(json).tables.flatMap { tableSpec =>
+          val queryFullPath = s"$modelDir/${nameSpaceToDir(namespace.dropRight(1))}/${tableSpec.name}_table_query.json"
+          if (FileSystemUtils.fileExists(queryFullPath)) {
+            Some(tableSpec.name)
+          } else {
+            None
+          }
+        }
       } else {
         Seq.empty
       }
