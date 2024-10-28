@@ -61,7 +61,7 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
     val dqAnnotations = tableAnnotations.filter(_.isInstanceOf[DataQuality]).map(_.asInstanceOf[DataQuality])
     val acAnnotations = tableAnnotations.filter(_.isInstanceOf[AccessControl]).map(_.asInstanceOf[AccessControl])
     val ifNotExist = ctx.EXISTS() != null
-    val tableName =  ctx.tablename.getText()
+    val tableName = ctx.tablename.getText()
 
     val namespace = if (ctx.namespace != null) {
       visitMultipartIdentifier(ctx.namespace)
@@ -467,6 +467,11 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
     UpdateUSL(namespace, tableName, json)
   }
 
+  //  override def visitRegisterDQ(ctx: RegisterDQContext): UpdateUSL = withOrigin(ctx) {
+  //
+  //  }
+
 }
+
 
 

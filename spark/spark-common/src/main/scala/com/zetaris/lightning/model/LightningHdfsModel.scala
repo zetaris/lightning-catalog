@@ -167,14 +167,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
       val uslFullPath = s"$modelDir/${nameSpaceToDir(namespace.dropRight(1))}/${namespace.last}_usl.json"
       if (FileSystemUtils.fileExists(uslFullPath)) {
         val json = FileSystemUtils.readFile(uslFullPath)
-        UnifiedSemanticLayer(json).tables.flatMap { tableSpec =>
-          val queryFullPath = s"$modelDir/${nameSpaceToDir(namespace.dropRight(1))}/${tableSpec.name}_table_query.json"
-          if (FileSystemUtils.fileExists(queryFullPath)) {
-            Some(tableSpec.name)
-          } else {
-            None
-          }
-        }
+        UnifiedSemanticLayer(json).tables.map(_.name)
       } else {
         Seq.empty
       }
@@ -273,10 +266,14 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
       )
 
       val tableFullPath = s"$modelDir/$subDir/${ident.name()}_table_query.json"
-      val tableJson = FileSystemUtils.readFile(tableFullPath)
-      val uslTable = UnifiedSemanticLayerTable(tableJson)
+      if (FileSystemUtils.fileExists(tableFullPath)) {
+        val tableJson = FileSystemUtils.readFile(tableFullPath)
+        val uslTable = UnifiedSemanticLayerTable(tableJson)
 
-      USLTable(createTableSpec, uslTable.query)
+        USLTable(createTableSpec, Some(uslTable.query))
+      } else {
+        USLTable(createTableSpec, None)
+      }
 
     } else {
       val fullPath = s"$modelDir/${nameSpaceToDir(ident.namespace())}/${ident.name()}_table.json"

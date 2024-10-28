@@ -23,6 +23,7 @@ package com.zetaris.lightning.datasource.command
 
 import com.zetaris.lightning.model.NamespaceNotFoundException
 import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
+import com.zetaris.lightning.model.serde.UnifiedSemanticLayer.UnifiedSemanticLayerException
 import com.zetaris.lightning.spark.SparkExtensionsTestBase
 import org.apache.spark.sql.Row
 import org.junit.runner.RunWith
@@ -145,7 +146,56 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
     checkAnswer(sparkSession.sql(s"SHOW NAMESPACES IN lightning.metastore.crm"),
       Seq(Row("crmdb")))
 
-    //not visible unless activated
-    checkAnswer(sparkSession.sql(s"SHOW TABLES in lightning.metastore.crm.crmdb"), Seq())
+    checkAnswer(sparkSession.sql(s"SHOW TABLES in lightning.metastore.crm.crmdb"), Seq(
+      Row("crmdb", "customer", false),
+      Row("crmdb", "department", false)))
+
+    checkAnswer(sparkSession.sql(s"describe lightning.metastore.crm.crmdb.customer"),
+      Seq(Row("id", "int", null),
+        Row("name", "varchar(200)", null),
+        Row("uid", "int", null),
+        Row("address", "varchar(200)", null),
+        Row("part_id", "int", null)))
+
+    checkAnswer(sparkSession.sql(s"describe lightning.metastore.crm.crmdb.department"),
+      Seq(Row("id", "int", null),
+        Row("name", "varchar(200)", null)))
+
+    intercept[UnifiedSemanticLayerException] {
+      sparkSession.sql(s"select * from lightning.metastore.crm.crmdb.customer").show()
+    }
+
+  }
+
+  test("new namespace should have properties file") {
+    sparkSession.sql(s"CREATE NAMESPACE lightning.metastore.newnamespace")
+
+    sparkSession.sql(
+      s"""
+         |COMPILE USL IF NOT EXISTS crmdb DEPLOY NAMESPACE lightning.metastore.newnamespace DDL
+         |-- create table customer
+         |CREATE TABLE IF NOT EXISTS customer (
+         | id int NOT NULL PRIMARY KEY,
+         | name varchar(200),
+         | /*+@AccessControl(accessType="REGEX", regex="ss", users = "*", groups = "*")*/
+         | uid int UNIQUE,
+         | address varchar(200),
+         | part_id int FOREIGN KEY REFERENCES department(id) ON DELETE RESTRICT ON UPDATE CASCADE
+         |);
+         |
+         |CREATE TABLE IF NOT EXISTS department (
+         | id int NOT NULL,
+         | name varchar(200),
+         | CONSTRAINT pk_id PRIMARY KEY(id)
+         |)
+         |""".stripMargin)
+
+    checkAnswer(sparkSession.sql(s"SHOW NAMESPACES IN lightning.metastore.newnamespace"),
+      Seq(Row("crmdb")))
+
+    checkAnswer(sparkSession.sql(s"SHOW TABLES in lightning.metastore.newnamespace.crmdb"), Seq(
+      Row("crmdb", "customer", false),
+      Row("crmdb", "department", false)))
+
   }
 }
