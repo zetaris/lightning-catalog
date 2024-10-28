@@ -29,7 +29,8 @@ class LightningResource {
     .config("spark.sql.extensions", "com.zetaris.lightning.spark.LightningSparkSessionExtension")
     .config("spark.sql.catalog.lightning", "com.zetaris.lightning.catalog.LightningCatalog")
     .config("spark.sql.catalog.lightning.type", "hadoop")
-    .config("spark.sql.catalog.lightning.warehouse", "/tmp/ligt-model")
+    // .config("spark.sql.catalog.lightning.warehouse", "/tmp/ligt-model")
+    .config("spark.sql.catalog.lightning.warehouse", "./../../env/ligt-model")
     .config("spark.sql.catalog.lightning.accessControlProvider", "com.zetaris.lightning.analysis.NotAppliedAccessControlProvider")
     .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
     .enableHiveSupport()
@@ -38,8 +39,11 @@ class LightningResource {
   // Jackson ObjectMapper for JSON conversion
   val mapper = new ObjectMapper()
   // Directory to save the semantic layer info files
-  val envFilesDir = Paths.get("./../../env/").toAbsolutePath.toString + "/"
+  // val envFilesDir = Paths.get("./../../env/").toAbsolutePath.toString + "/"
+  val uslFilesDir = Paths.get("./../../env/ligt-model/metastore/usl/").toAbsolutePath.toString + "/"
+  val envFilesDir = Paths.get("./../../env/ligt-model/").toAbsolutePath.toString + "/"
   // Ensure the directory exists
+  new File(uslFilesDir).mkdirs()
   new File(envFilesDir).mkdirs()
 
   // SQL query execute endpoint
@@ -102,7 +106,7 @@ class LightningResource {
 
       LOGGER.info(s"Retrieving semantic layer info from $correctedFileName")
 
-      val filePath = s"$envFilesDir$correctedFileName"
+      val filePath = s"$uslFilesDir$correctedFileName"
       val file = new File(filePath)
 
       if (!file.exists()) {
@@ -150,7 +154,7 @@ class LightningResource {
         s"semantic_layer_$timestamp.json"
       }
 
-      val filePath = s"$envFilesDir/$fileName"
+      val filePath = s"$uslFilesDir/$fileName"
 
       // Write the JSON content to a file
       val writer = new PrintWriter(new File(filePath))
@@ -180,17 +184,17 @@ class LightningResource {
     }
   }
 
-  // API to get the list of files in envFilesDir
+  // API to get the list of files in uslFilesDir
   @GET
   @Path("/list-semantic-layers")
   @Produces(Array(MediaType.APPLICATION_JSON))
   def listSemanticLayers(): Response = {
     try {
-      LOGGER.info(s"Listing files in directory: $envFilesDir")
+      LOGGER.info(s"Listing files in directory: $uslFilesDir")
 
-      val directory = new File(envFilesDir)
+      val directory = new File(uslFilesDir)
       if (!directory.exists() || !directory.isDirectory) {
-        throw new RuntimeException(s"Directory not found or is not a directory: $envFilesDir")
+        throw new RuntimeException(s"Directory not found or is not a directory: $uslFilesDir")
       }
 
       // List files in the directory and filter only .json files
@@ -432,6 +436,64 @@ class LightningResource {
           "error": "Failed to activate USL table",
           "message": "${ex.getMessage}"
         }"""
+        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(errorResponse)
+          .build()
+    }
+  }
+
+  // API to save content to the file system with specified file name and extension
+  @POST
+  @Path("/save-to-file")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def saveToFile(jsonString: String, @QueryParam("fileName") fileNameParam: String, @QueryParam("extension") extensionParam: String): Response = {
+    try {
+      LOGGER.info(s"Saving content to file")
+
+      // Parse the JSON string to check validity
+      val jsonData = mapper.readTree(jsonString)
+
+      // Check if fileName and extension are provided, if not, set defaults
+      val fileName = if (Option(fileNameParam).exists(_.trim.nonEmpty)) {
+        fileNameParam.trim
+      } else {
+        val dateFormat = new SimpleDateFormat("ddMMyyyyHHmmss")
+        val timestamp = dateFormat.format(new Date())
+        s"file_$timestamp"
+      }
+
+      val extension = if (Option(extensionParam).exists(_.trim.nonEmpty)) {
+        extensionParam.trim
+      } else {
+        "txt"
+      }
+
+      val fullFileName = if (fileName.endsWith(s".$extension")) fileName else s"$fileName.$extension"
+      val filePath = s"$envFilesDir/$fullFileName"
+
+      // Write the JSON content to a file
+      val writer = new PrintWriter(new File(filePath))
+      writer.write(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jsonData))
+      writer.close()
+
+      LOGGER.info(s"Content saved to $filePath")
+
+      val responseJson = s"""{
+        "message": "Content saved successfully",
+        "file": "$filePath"
+      }"""
+
+      Response.ok(responseJson).build()
+    } catch {
+      case ex: Exception =>
+        LOGGER.error("Failed to save content to file", ex)
+
+        val errorResponse = s"""{
+          "error": "Failed to save content",
+          "message": "${ex.getMessage}"
+        }"""
+
         Response.status(Response.Status.INTERNAL_SERVER_ERROR)
           .entity(errorResponse)
           .build()
