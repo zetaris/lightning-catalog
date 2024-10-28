@@ -23,12 +23,13 @@ package com.zetaris.lightning.datasources.v2.usl
 
 import com.zetaris.lightning.catalog.LightningSource
 import com.zetaris.lightning.execution.command.CreateTableSpec
+import com.zetaris.lightning.model.serde.UnifiedSemanticLayer.UnifiedSemanticLayerException
 import org.apache.spark.sql.connector.catalog.{SupportsRead, Table, TableCapability}
 import org.apache.spark.sql.connector.catalog.TableCapability.BATCH_READ
 import org.apache.spark.sql.types.{StructField, StructType}
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
-case class USLTable(createTableSpec: CreateTableSpec, registeredSql: String) extends Table
+case class USLTable(createTableSpec: CreateTableSpec, registeredSql: Option[String]) extends Table
   with SupportsRead with LightningSource {
   override def name(): String = toFqn(createTableSpec.namespace :+ createTableSpec.name)
 
@@ -42,7 +43,11 @@ case class USLTable(createTableSpec: CreateTableSpec, registeredSql: String) ext
 
   override def capabilities(): java.util.Set[TableCapability] =  java.util.EnumSet.of(BATCH_READ)
 
-  override def newScanBuilder(options: CaseInsensitiveStringMap): USLTableScanBuilder =
-    USLTableScanBuilder(createTableSpec, registeredSql)
+  override def newScanBuilder(options: CaseInsensitiveStringMap): USLTableScanBuilder = {
+    if (registeredSql.isEmpty) {
+      throw UnifiedSemanticLayerException("table is not activated", null)
+    }
+    USLTableScanBuilder(createTableSpec, registeredSql.get)
+  }
 
 }

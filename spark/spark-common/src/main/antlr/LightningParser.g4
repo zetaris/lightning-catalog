@@ -12,7 +12,12 @@ statement
     ;
 
 ddlStatement
-    : registerDataSource | registerCatalog | createTable | compileUSL | activateUSLTable | loadUSL | updateUSL
+    : registerDataSource | registerCatalog | createTable | compileUSL | activateUSLTable | loadUSL | updateUSL |
+      registerDQ
+    ;
+
+registerDQ
+    : REGISTER DQ name = identifier TABLE table=multipartIdentifier AS expression = restOfInput
     ;
 
 loadUSL
