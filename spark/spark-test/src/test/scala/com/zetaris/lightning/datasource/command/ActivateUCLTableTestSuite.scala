@@ -62,12 +62,29 @@ class ActivateUCLTableTestSuite extends SparkExtensionsTestBase with H2TestBase 
         |)
         |""".stripMargin)
 
+
+    checkAnswer(sparkSession.sql(s"SHOW NAMESPACES IN lightning.metastore.crm"),
+      Seq(Row("ordermart")))
+
+    // hidden unless they are activated
+    checkAnswer(sparkSession.sql(s"SHOW TABLES in lightning.metastore.crm.ordermart"), Seq())
+
     sparkSession.sql(
       s"""
-        |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.customer AS
-        |select * from lightning.datasource.h2.$dbName.$schema.customer
-        |""".stripMargin
+         |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.customer AS
+         |select * from lightning.datasource.h2.$dbName.$schema.customer
+         |""".stripMargin
     )
+
+    // only customer table is poped up because its activated
+    checkAnswer(sparkSession.sql(s"SHOW TABLES in lightning.metastore.crm.ordermart"),
+      Seq(Row("ordermart", "customer", false)))
+
+    checkAnswer(sparkSession.sql(s"DESC TABLE lightning.metastore.crm.ordermart.customer"),
+      Seq(Row("id", "bigint", null),
+        Row("name", "varchar(30)", null),
+        Row("address", "varchar(50)", null)))
+
 
     checkAnswer(sparkSession.sql(s"select * from lightning.metastore.crm.ordermart.customer"),
       Seq(Row(1, "chris lynch", "100 VIC"),

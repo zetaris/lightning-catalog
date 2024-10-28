@@ -124,7 +124,8 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
 
   /**
    * list namespace, sub directories or data source definition under the given namespace
-   * _fs.json suffix is for file source and _ds.json suffix is for other type of data source
+   * _fs.json suffix is for file source and _ds.json suffix is for other type of data source.
+   * _usl.json suffix is for unified semantic layer
    *
    * @param namespace
    * @return namespaces
@@ -135,12 +136,16 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
     FileSystemUtils.listDirectories(fullPath) ++
       FileSystemUtils.listFiles(fullPath).filter { file =>
         file.endsWith("_ds.json")
-      }.map(_.dropRight(8))
+      }.map(_.dropRight(8)) ++
+      FileSystemUtils.listFiles(fullPath).filter { file =>
+        file.endsWith("_usl.json")
+      }.map(_.dropRight(9))
 
   }
 
   /**
-   * list tables under the given namespace, table definition should have _table.json suffix
+   * list tables under the given namespace, table definition should have _table.json suffix for data source.
+   * Tables ared defined in *_usl.json for unified semantic layser
    *
    * @param namespace
    * @return table names
@@ -148,7 +153,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
   override def listTables(namespace: Array[String]): Seq[String] = {
     val subDir = nameSpaceToDir(namespace)
     val fullPath = s"$modelDir/$subDir"
-    FileSystemUtils.listFiles(fullPath).filter(file =>
+    val dsTables = FileSystemUtils.listFiles(fullPath).filter(file =>
       file.endsWith("_table.json") || file.endsWith("_fs.json"))
       .map { file =>
         if (file.endsWith("_table.json")) {
@@ -157,6 +162,27 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
           file.dropRight(8)
         }
       }
+
+    val uslTables = if (namespace.length > 2) {
+      val uslFullPath = s"$modelDir/${nameSpaceToDir(namespace.dropRight(1))}/${namespace.last}_usl.json"
+      if (FileSystemUtils.fileExists(uslFullPath)) {
+        val json = FileSystemUtils.readFile(uslFullPath)
+        UnifiedSemanticLayer(json).tables.flatMap { tableSpec =>
+          val queryFullPath = s"$modelDir/${nameSpaceToDir(namespace.dropRight(1))}/${tableSpec.name}_table_query.json"
+          if (FileSystemUtils.fileExists(queryFullPath)) {
+            Some(tableSpec.name)
+          } else {
+            None
+          }
+        }
+      } else {
+        Seq.empty
+      }
+    } else {
+      Seq.empty
+    }
+
+    dsTables ++ uslTables
   }
 
   /**
@@ -253,7 +279,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
       USLTable(createTableSpec, uslTable.query)
 
     } else {
-      val fullPath = s"$modelDir/$subDir/${ident.name()}_table.json"
+      val fullPath = s"$modelDir/${nameSpaceToDir(ident.namespace())}/${ident.name()}_table.json"
       val json = FileSystemUtils.readFile(fullPath)
       val table = serde.Table(json)
       val targetNamespace = LightningModelFactory.toMultiPartIdentifier(table.dsNamespace).toArray

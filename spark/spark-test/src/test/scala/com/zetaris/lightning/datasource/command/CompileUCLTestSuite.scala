@@ -21,9 +21,10 @@
 
 package com.zetaris.lightning.datasource.command
 
-import com.zetaris.lightning.model.{InvalidNamespaceException, NamespaceNotFoundException}
+import com.zetaris.lightning.model.NamespaceNotFoundException
 import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
 import com.zetaris.lightning.spark.SparkExtensionsTestBase
+import org.apache.spark.sql.Row
 import org.junit.runner.RunWith
 import org.scalatestplus.junit.JUnitRunner
 
@@ -32,6 +33,10 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
   override def beforeAll(): Unit = {
     super.beforeAll()
     initRoootNamespace()
+  }
+
+  override def beforeEach(): Unit = {
+    sparkSession.sql(s"DROP NAMESPACE IF EXISTS lightning.metastore.crm")
   }
 
   test("throw InvalidNamespaceException if no namespace is defined") {
@@ -112,5 +117,35 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
 
     assert(srcUSL.tables(1).columnSpecs(1).name == loadUSL.tables(1).columnSpecs(1).name)
     assert(srcUSL.tables(1).columnSpecs(1).dataType == loadUSL.tables(1).columnSpecs(1).dataType)
+  }
+
+  test("should list namespace, tables") {
+    sparkSession.sql(s"CREATE NAMESPACE lightning.metastore.crm")
+
+    sparkSession.sql(
+      s"""
+         |COMPILE USL IF NOT EXISTS crmdb DEPLOY NAMESPACE lightning.metastore.crm DDL
+         |-- create table customer
+         |CREATE TABLE IF NOT EXISTS customer (
+         | id int NOT NULL PRIMARY KEY,
+         | name varchar(200),
+         | /*+@AccessControl(accessType="REGEX", regex="ss", users = "*", groups = "*")*/
+         | uid int UNIQUE,
+         | address varchar(200),
+         | part_id int FOREIGN KEY REFERENCES department(id) ON DELETE RESTRICT ON UPDATE CASCADE
+         |);
+         |
+         |CREATE TABLE IF NOT EXISTS department (
+         | id int NOT NULL,
+         | name varchar(200),
+         | CONSTRAINT pk_id PRIMARY KEY(id)
+         |)
+         |""".stripMargin)
+
+    checkAnswer(sparkSession.sql(s"SHOW NAMESPACES IN lightning.metastore.crm"),
+      Seq(Row("crmdb")))
+
+    //not visible unless activated
+    checkAnswer(sparkSession.sql(s"SHOW TABLES in lightning.metastore.crm.crmdb"), Seq())
   }
 }
