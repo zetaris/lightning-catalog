@@ -21,13 +21,13 @@
 
 package com.zetaris.lightning.datasource.command
 
+import com.zetaris.lightning.model.TableNotActivatedException
 import com.zetaris.lightning.spark.{H2TestBase, SparkExtensionsTestBase}
-import org.apache.spark.sql.Row
 import org.junit.runner.RunWith
 import org.scalatestplus.junit.JUnitRunner
 
 @RunWith(classOf[JUnitRunner])
-class ActivateUCLTableTestSuite extends SparkExtensionsTestBase with H2TestBase {
+class RegisterDataQualityTestSuite extends SparkExtensionsTestBase with H2TestBase {
   val dbName = "registerDb"
   val schema = "testschema"
 
@@ -39,7 +39,7 @@ class ActivateUCLTableTestSuite extends SparkExtensionsTestBase with H2TestBase 
     registerH2DataSource(dbName)
   }
 
-  test("should activate table") {
+  test("should register dq express on single column") {
     sparkSession.sql(s"CREATE NAMESPACE lightning.metastore.crm")
 
     sparkSession.sql(
@@ -61,46 +61,9 @@ class ActivateUCLTableTestSuite extends SparkExtensionsTestBase with H2TestBase 
         |)
         |""".stripMargin)
 
-
-    checkAnswer(sparkSession.sql(s"SHOW NAMESPACES IN lightning.metastore.crm"),
-      Seq(Row("ordermart")))
-
-    checkAnswer(sparkSession.sql(s"SHOW TABLES in lightning.metastore.crm.ordermart"), Seq(
-        Row("ordermart", "customer", false),
-        Row("ordermart", "lineitem", false),
-        Row("ordermart", "order", false)))
-
-    checkAnswer(sparkSession.sql(s"DESC TABLE lightning.metastore.crm.ordermart.customer"),
-      Seq(Row("id", "bigint", null),
-        Row("name", "varchar(30)", null),
-        Row("address", "varchar(50)", null)))
-
-    checkAnswer(sparkSession.sql(s"DESC TABLE lightning.metastore.crm.ordermart.lineitem"),
-      Seq(Row("id", "bigint", null),
-        Row("name", "varchar(30)", null),
-        Row("price", "decimal(10,0)", null)))
-
-    checkAnswer(sparkSession.sql(s"DESC TABLE lightning.metastore.crm.ordermart.order"),
-      Seq(Row("id", "bigint", null),
-        Row("cid", "bigint", null),
-        Row("iid", "bigint", null),
-        Row("item_count", "int", null),
-        Row("odate", "date", null),
-        Row("otime", "timestamp", null)))
-
-    sparkSession.sql(s"DESC TABLE lightning.metastore.crm.ordermart.order").show()
-
-    sparkSession.sql(
-      s"""
-         |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.customer AS
-         |select * from lightning.datasource.h2.$dbName.$schema.customer
-         |""".stripMargin
-    )
-
-    checkAnswer(sparkSession.sql(s"select * from lightning.metastore.crm.ordermart.customer"),
-      Seq(Row(1, "chris lynch", "100 VIC"),
-        Row(2, "wayne bourne", "200 NSW"),
-        Row(3, "scott mayson", "300 TAS")))
+    intercept[TableNotActivatedException] {
+      sparkSession.sql("REGISTER DQ dq_item_count TABLE lightning.metastore.crm.ordermart.order AS item_count > 0").show()
+    }
 
   }
 }

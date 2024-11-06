@@ -277,6 +277,10 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
 
     } else {
       val fullPath = s"$modelDir/${nameSpaceToDir(ident.namespace())}/${ident.name()}_table.json"
+      if (!FileSystemUtils.fileExists(fullPath)) {
+        throw TableNotFoundException(s"${ident.namespace().mkString(".")}.${ident.name()}")
+      }
+
       val json = FileSystemUtils.readFile(fullPath)
       val table = serde.Table(json)
       val targetNamespace = LightningModelFactory.toMultiPartIdentifier(table.dsNamespace).toArray
@@ -339,6 +343,11 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
                                                   name: String): UnifiedSemanticLayerTable.UnifiedSemanticLayerTable = {
     val subDir = nameSpaceToDir(namespace)
     val fullPath = s"$modelDir/$subDir/${name}_table_query.json"
+
+    if (FileSystemUtils.fileExists(fullPath)) {
+      throw TableNotActivatedException(s"${namespace.mkString(".")}.${name}")
+    }
+
     val json = FileSystemUtils.readFile(fullPath)
     UnifiedSemanticLayerTable(json)
   }

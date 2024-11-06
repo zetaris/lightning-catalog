@@ -174,7 +174,8 @@ class LightningExtendedParser(delegate: ParserInterface) extends ParserInterface
       normalized.contains("compile usl") ||
       normalized.contains("activate usl") ||
       normalized.contains("load usl") ||
-      normalized.contains("update usl")
+      normalized.contains("update usl") ||
+      normalized.contains("register dq")
   }
 
   def parseLightning(sqlText: String): LogicalPlan = {

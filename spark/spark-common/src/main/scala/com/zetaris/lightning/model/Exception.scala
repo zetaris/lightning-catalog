@@ -27,3 +27,4 @@ case class InvalidNamespaceException(message: String) extends RuntimeException(m
 
 case class TableNotFoundException(message: String) extends RuntimeException(message)
 
+case class TableNotActivatedException(message: String) extends RuntimeException(message)

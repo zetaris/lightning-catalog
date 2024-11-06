@@ -25,9 +25,11 @@ import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.execution.command.LeafRunnableCommand
 import org.apache.spark.sql.Row
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
 
 import scala.collection.JavaConverters.mapAsJavaMap
+import scala.util.{Failure, Success, Try}
 
 abstract class LightningCommandBase extends LeafRunnableCommand with LightningSource {
   override def makeCopy(newArgs: Array[AnyRef]): LogicalPlan = this
@@ -57,6 +59,22 @@ abstract class LightningCommandBase extends LeafRunnableCommand with LightningSo
     }
   }
 
+  protected def validateTable(model: LightningModel, table: Array[String]): Unit = {
+    checkTableNamespaceLen(table)
+    val ident = new Identifier {
+      override def namespace(): Array[String] = table.dropRight(1)
+
+      override def name(): String = table.last
+    }
+    val saved = model.loadTable(ident)
+    println(s"last : ${toFqn(table)}, saved : ${saved.name()}")
+
+    assert(saved.name().equalsIgnoreCase(toFqn(table)))
+  }
+
+  protected def makeSureTableActivated(model: LightningModel, table: Array[String]): Unit = {
+    model.loadUnifiedSemanticLayerTableQuery(table.dropRight(1), table.last)
+  }
 
   protected def saveJson(model: LightningModel, namespace: Array[String], fileName: String): Unit = {
     val withoutCatalog = namespace.drop(1)
@@ -67,6 +85,16 @@ abstract class LightningCommandBase extends LeafRunnableCommand with LightningSo
       throw new RuntimeException(s"parent namespace: ${namespace.mkString(".")} is not existing")
     }
   }
+
+  protected def tryParse[T](sqlText: String, f: String => T): T = {
+    Try {
+      f(sqlText)
+    } match {
+      case Success(parsed) => parsed
+      case Failure(exception) => throw exception
+    }
+  }
+
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
     beforeRun(sparkSession)

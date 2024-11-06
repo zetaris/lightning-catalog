@@ -23,6 +23,7 @@ package com.zetaris.lightning.datasources.v2.usl
 
 import com.zetaris.lightning.catalog.LightningSource
 import com.zetaris.lightning.execution.command.CreateTableSpec
+import com.zetaris.lightning.model.TableNotActivatedException
 import com.zetaris.lightning.model.serde.UnifiedSemanticLayer.UnifiedSemanticLayerException
 import org.apache.spark.sql.connector.catalog.{SupportsRead, Table, TableCapability}
 import org.apache.spark.sql.connector.catalog.TableCapability.BATCH_READ
@@ -45,7 +46,7 @@ case class USLTable(createTableSpec: CreateTableSpec, registeredSql: Option[Stri
 
   override def newScanBuilder(options: CaseInsensitiveStringMap): USLTableScanBuilder = {
     if (registeredSql.isEmpty) {
-      throw UnifiedSemanticLayerException("table is not activated", null)
+      throw TableNotActivatedException(s"table(${toFqn(createTableSpec.namespace)}.${createTableSpec.namespace}) is not activated")
     }
     USLTableScanBuilder(createTableSpec, registeredSql.get)
   }

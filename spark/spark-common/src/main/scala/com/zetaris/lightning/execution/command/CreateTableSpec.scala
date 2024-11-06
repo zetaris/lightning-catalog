@@ -95,15 +95,6 @@ case class CreateTableSpec(name: String,
   var dqAnnotationExpression: Seq[Expression] = Seq.empty
   val ctePlan = scala.collection.mutable.Map.empty[String, LogicalPlan]
 
-  private def tryParse[T](sqlText: String, f: String => T): T = {
-    Try {
-      f(sqlText)
-    } match {
-      case Success(parsed) => parsed
-      case Failure(exception) => throw exception
-    }
-  }
-
   def withDQExpression(parser: ParserInterface): CreateTableSpec = {
     dqAnnotationExpression = dqAnnotations.flatMap { dq =>
       val variables = LightningParserUtils.extractVariables(dq.expression)
