@@ -56,14 +56,16 @@ download_spark() {
 load_versions() {
   local versions_file="../versions.txt"
   if [[ -f "$versions_file" ]]; then
-    # echo "Loading versions from $versions_file..."
     source "$versions_file"
-    # echo "SPARK_VERSION: $SPARK_VERSION"
-    # echo "SCALA_VERSION: $SCALA_VERSION"
-    # echo "SPARK_HOME: $SPARK_HOME"
   else
-    echo "Error: $versions_file not found!"
-    exit 1
+    # If versions.txt does not exist, create it with default values
+    echo "versions.txt not found. Creating a new versions.txt file with default values."
+    echo "SPARK_VERSION=3.5.2" > "$versions_file"
+    echo "SCALA_VERSION=2.12" >> "$versions_file"
+    echo "SPARK_HOME=$(pwd)/../spark-3.5.2-bin-hadoop3" >> "$versions_file"
+    
+    # Re-load the created file
+    source "$versions_file"
   fi
 }
 
@@ -209,7 +211,3 @@ exec "${SPARK_HOME}/bin/spark-submit" \
     --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$SPARK_HOME/conf/log4j.properties" \
     $COMMON_HOME/libs/lightning-spark-common_2.12-0.2.jar \
     "$@"
-
-  
-
-
