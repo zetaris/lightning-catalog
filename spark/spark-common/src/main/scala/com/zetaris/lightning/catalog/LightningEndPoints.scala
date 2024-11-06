@@ -5,7 +5,7 @@ import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import org.slf4j.LoggerFactory
 import com.fasterxml.jackson.databind.ObjectMapper
-import java.io.{File, PrintWriter}
+import java.io.{File, PrintWriter, FileNotFoundException}
 import scala.io.Source
 import java.nio.file.Paths
 import java.text.SimpleDateFormat
@@ -43,7 +43,6 @@ class LightningResource {
   val uslFilesDir = Paths.get("./../../env/ligt-model/metastore/usl/").toAbsolutePath.toString + "/"
   val envFilesDir = Paths.get("./../../env/ligt-model/").toAbsolutePath.toString + "/"
   // Ensure the directory exists
-  new File(uslFilesDir).mkdirs()
   new File(envFilesDir).mkdirs()
 
   // SQL query execute endpoint
@@ -85,47 +84,6 @@ class LightningResource {
         }"""
 
         Response.status(Response.Status.OK)
-          .entity(errorResponse)
-          .build()
-    }
-  }
-
-  // API to retrieve saved semantic layer info from the file system
-  @POST
-  @Path("/get-semantic-layer")
-  @Consumes(Array(MediaType.APPLICATION_JSON))
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  def getSemanticLayer(payload: String): Response = {
-    try {
-      // Parse the incoming JSON payload to extract the fileName
-      val jsonNode = mapper.readTree(payload)
-      val fileName = jsonNode.get("fileName").asText()
-
-      // Ensure the file has a .json extension
-      val correctedFileName = if (fileName.endsWith(".json")) fileName else s"$fileName.json"
-
-      LOGGER.info(s"Retrieving semantic layer info from $correctedFileName")
-
-      val filePath = s"$uslFilesDir$correctedFileName"
-      val file = new File(filePath)
-
-      if (!file.exists()) {
-        throw new RuntimeException(s"File not found: $correctedFileName")
-      }
-
-      // Read the file content and return it as a JSON string
-      val fileContent = Source.fromFile(filePath).mkString
-      Response.ok(fileContent).build()
-    } catch {
-      case ex: Exception =>
-        LOGGER.error("Failed to retrieve semantic layer info", ex)
-
-        val errorResponse = s"""{
-          "error": "Failed to retrieve semantic layer",
-          "message": "${ex.getMessage}"
-        }"""
-
-        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
           .entity(errorResponse)
           .build()
     }
@@ -223,46 +181,6 @@ class LightningResource {
   }
 
   @POST
-  @Path("/parse-ddl")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  @Consumes(Array(MediaType.TEXT_PLAIN))
-  def parseDDL(ddlQuery: String): Response = {
-    try {
-      LOGGER.info(s"Parsing DDL query: $ddlQuery")
-
-      // Extending the SQL parser of SparkSession to parse DDL statements
-      val parser = new LightningExtendedParser(spark.sessionState.sqlParser)
-
-      // Parsing the DDL statement with the parser and converting it into a LogicalPlan
-      val logicalPlan = parser.parseLightning(ddlQuery)
-
-      // Extracting table information from the DDL statement and converting it to JSON
-      val createTableSpec = logicalPlan.asInstanceOf[CreateTableSpec]
-
-      // Call the updated `toJson` method with the new signature
-      val jsonResult = UnifiedSemanticLayer.toJson(
-        namespace = Seq("namespace_placeholder"), 
-        name = "ddl_output", 
-        tables = Seq(createTableSpec)
-      )
-
-      // Returning the JSON result to the client
-      Response.ok(jsonResult).build()
-
-    } catch {
-      case ex: Exception =>
-        LOGGER.error("Failed to parse DDL", ex)
-        val errorResponse = s"""{
-          "error": "Failed to parse DDL",
-          "message": "${ex.getMessage}"
-        }"""
-        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-          .entity(errorResponse)
-          .build()
-    }
-  }
-
-  @POST
   @Path("/compile-usl")
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Consumes(Array(MediaType.APPLICATION_JSON))
@@ -317,43 +235,6 @@ class LightningResource {
         LOGGER.error("Failed to compile USL", ex)
         Response.status(Response.Status.INTERNAL_SERVER_ERROR)
           .entity(s"""{"error": "Failed to compile USL", "message": "${ex.getMessage}"}""")
-          .build()
-    }
-  }
-
-  @POST
-  @Path("/load-usl")
-  @Produces(Array(MediaType.APPLICATION_JSON))
-  @Consumes(Array(MediaType.APPLICATION_JSON))
-  def loadUSL(uslData: String): Response = {
-    try {
-      LOGGER.info(s"Received USL load request: $uslData")
-      val mapper = new ObjectMapper()
-      val jsonNode = mapper.readTree(uslData)
-      val namespace = jsonNode.get("namespace").asText().split("\\.").toSeq
-      val name = jsonNode.get("name").asText()
-
-      LOGGER.info(s"Loading USL: $name in namespace: ${namespace.mkString(".")}")
-
-      // Load USL using LoadUSL class
-      val loadUSLSpec = LoadUSL(namespace = namespace, name = name)
-
-      // Execute and return the result
-      val result = loadUSLSpec.runCommand(spark)
-      val jsonResult = result.head.getString(0)
-      Response.ok(jsonResult).build()
-
-    } catch {
-      case ex: IllegalArgumentException =>
-        LOGGER.error("Invalid load request", ex)
-        Response.status(Response.Status.BAD_REQUEST)
-          .entity(s"""{"error": "Invalid load request", "message": "${ex.getMessage}"}""")
-          .build()
-
-      case ex: Exception =>
-        LOGGER.error("Failed to load USL", ex)
-        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-          .entity(s"""{"error": "Failed to load USL", "message": "${ex.getMessage}"}""")
           .build()
     }
   }
@@ -442,6 +323,51 @@ class LightningResource {
     }
   }
 
+  // API to delete a specific USL file by fileName
+  @POST
+  @Path("/delete-usl-table")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def deleteUSLTable(payload: String): Response = {
+    try {
+      // Parse JSON payload to get the file name
+      val jsonNode = mapper.readTree(payload)
+      val fileName = jsonNode.get("fileName").asText()
+
+      // Ensure fileName ends with "_table_query.json"
+      val correctedFileName = if (fileName.endsWith("_table_query.json")) fileName else s"${fileName}_table_query.json"
+      val filePath = s"$uslFilesDir$correctedFileName"
+
+      val file = new File(filePath)
+      if (!file.exists()) {
+        throw new RuntimeException(s"File not found: $correctedFileName")
+      }
+
+      // Attempt to delete the file
+      if (file.delete()) {
+        LOGGER.info(s"Successfully deleted file: $correctedFileName")
+        val successResponse = s"""{
+          "message": "File deleted successfully",
+          "file": "$correctedFileName"
+        }"""
+        Response.ok(successResponse).build()
+      } else {
+        throw new RuntimeException(s"Failed to delete file: $correctedFileName")
+      }
+
+    } catch {
+      case ex: Exception =>
+        LOGGER.error("Failed to delete USL table file", ex)
+        val errorResponse = s"""{
+          "error": "Failed to delete USL table file",
+          "message": "${ex.getMessage}"
+        }"""
+        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(errorResponse)
+          .build()
+    }
+  }
+
   // API to save content to the file system with specified file name and extension
   @POST
   @Path("/save-to-file")
@@ -499,5 +425,54 @@ class LightningResource {
           .build()
     }
   }
-  
+
+  @POST
+  @Path("/read-usl-file")
+  @Consumes(Array(MediaType.APPLICATION_JSON))
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  def readUSLFile(payload: String): Response = {
+    try {
+      // Parse the JSON payload to get the file name
+      val jsonNode = mapper.readTree(payload)
+      val fileName = jsonNode.get("fileName").asText()
+
+      // Ensure fileName is provided
+      if (fileName == null || fileName.trim.isEmpty) {
+        throw new IllegalArgumentException("File name must be provided.")
+      }
+
+      // Construct full path to the file
+      val filePath = s"$uslFilesDir$fileName"
+
+      // Check if the file exists
+      val file = new File(filePath)
+      if (!file.exists() || !file.isFile) {
+        throw new FileNotFoundException(s"File not found: $fileName")
+      }
+
+      // Read the file content
+      val content = scala.io.Source.fromFile(file).getLines.mkString("\n")
+
+      LOGGER.info(s"Read content from file: $fileName")
+
+      // Return the content as a JSON response
+      val responseJson = s"""{
+        "fileName": "$fileName",
+        "content": ${mapper.writeValueAsString(content)}
+      }"""
+
+      Response.ok(responseJson).build()
+    } catch {
+      case ex: FileNotFoundException =>
+        LOGGER.error(s"File not found", ex)  // Removed `fileName` from log to avoid undefined variable error
+        Response.status(Response.Status.NOT_FOUND)
+          .entity(s"""{"error": "File not found", "message": "${ex.getMessage}"}""")
+          .build()
+      case ex: Exception =>
+        LOGGER.error("Failed to read file content", ex)
+        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(s"""{"error": "Failed to read file content", "message": "${ex.getMessage}"}""")
+          .build()
+    }
+  }
 }
