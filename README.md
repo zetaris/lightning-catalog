@@ -47,6 +47,15 @@ Lightning is built using Gradle with Java 1.8 or Java 11.
 * To build with spark version profile: `./gradlew clean build -DdefaultSparkMajorVersion=3.4 -DdefaultSparkVersion=3.4.2`  
 * distribution package is found `lightning-metastore/spark/spark_version(v3.3, v3.4, v3.5)/spark-runtime/build/distributions`
 
+### Execution
+
+* To run and execute : ./doc/spark-shell/start-thriftserver-ligt.sh
+
+The script will automatically search for the Spark installation path. 
+If it cannot locate Spark, it will download the appropriate version into the doc folder.
+
+The GUI will be available soon. Please stay tuned! :)
+
 ### Major Features
 
 * Running catalog in file system( HDFS, Blob, and local file) which allows version control.

@@ -17,21 +17,6 @@
 # limitations under the License.
 #
 
-#
-# Shell script for starting the Spark SQL Thrift server
-
-# Function to check if HiveThriftServer2 is already running by checking the port
-check_existing_thriftserver() {
-  local port=10000  # Adjust the port number to the one used by HiveThriftServer2
-  local thriftserver_pid=$(lsof -i :$port | grep LISTEN | awk '{print $2}')
-
-  if [[ -n "$thriftserver_pid" ]]; then
-    echo "HiveThriftServer2 is already running as process $thriftserver_pid."
-    echo "Please stop the existing process using 'kill $thriftserver_pid' and then restart this script."
-    exit 1  # Exit to prevent starting a new instance
-  fi
-}
-
 # Function to download Spark if Spark-demon doesn't exist
 download_spark() {
   local spark_version=$1
@@ -86,7 +71,7 @@ load_versions() {
 load_versions
 
 # Check if an existing HiveThriftServer2 is running
-check_existing_thriftserver
+# check_existing_thriftserver
 
 # Set Spark and Scala version environment variables
 sparkVersion=${SPARK_VERSION}
@@ -120,7 +105,9 @@ export SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # LIGT_HOME paths based on the versions
 zipFile="../../spark/v${sparkVersion}/spark-runtime/build/distributions/lightning-metastore-${sparkVersion}_${scalaVersion}-0.2.zip"
+# ligt_home="../../spark/v${sparkVersion}/spark-runtime/build/distributions/lightning-metastore-${sparkVersion}_${scalaVersion}-0.2"
 export LIGT_HOME="../../spark/v${sparkVersion}/spark-runtime/build/distributions/lightning-metastore-${sparkVersion}_${scalaVersion}-0.2"
+export COMMON_HOME="../../spark/spark-common/build"
 
 # Unzip the distribution if it's not already unzipped
 if [ ! -d "$LIGT_HOME" ]; then
@@ -160,7 +147,10 @@ set -o posix
 
 # NOTE: This exact class name is matched downstream by SparkSubmit.
 # Any changes need to be reflected there.
-CLASS="org.apache.spark.sql.hive.thriftserver.HiveThriftServer2"
+# CLASS="org.apache.spark.sql.hive.thriftserver.HiveThriftServer2"
+
+# Define the class for the API server
+CLASS="com.zetaris.lightning.catalog.LightningAPIStarter"
 
 function usage {
   echo "Usage: ./sbin/start-thriftserver [options] [thrift server options]"
@@ -201,14 +191,25 @@ else
   echo "Please manually open http://localhost:$PORT in your browser."
 fi
 
+#############################################################
 
-exec "${SPARK_HOME}"/sbin/spark-daemon.sh submit $CLASS 1 --name "Thrift JDBC/ODBC Server" \
+exec "${SPARK_HOME}/bin/spark-submit" \
+    --class com.zetaris.lightning.catalog.LightningAPIStarter \
+    --name "API Server" \
     --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension,com.zetaris.lightning.spark.LightningSparkSessionExtension \
     --conf spark.sql.catalog.lightning=com.zetaris.lightning.catalog.LightningCatalog \
     --conf spark.sql.catalog.lightning.type=hadoop \
     --conf spark.sql.catalog.lightning.warehouse=/tmp/ligt-model \
     --conf spark.sql.catalog.lightning.accessControlProvider=com.zetaris.lightning.analysis.NotAppliedAccessControlProvider \
     --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog \
-    --conf spark.executor.extraClassPath=$LIGT_HOME/lib/* \
-    --conf spark.driver.extraClassPath=$LIGT_HOME/lib/* \
-    --jars $LIGT_HOME/lib/lightning-spark-extensions-${sparkVersion}_${scalaVersion}-0.2.jar,$LIGT_HOME/lib/*,$LIGT_HOME/lib/* "$@"
+    --driver-class-path $LIGT_HOME/lib/*:$COMMON_HOME/libs/lightning-spark-common_2.12-0.2.jar:$SPARK_HOME/jdbc-libs/* \
+    --jars $LIGT_HOME/lib/lightning-spark-extensions-${sparkVersion}_${scalaVersion}-0.2.jar,$COMMON_HOME/libs/lightning-spark-common_2.12-0.2.jar,$LIGT_HOME/lib/* \
+    --num-executors 2 \
+    --conf "spark.executor.extraJavaOptions=-Dlog4j.configuration=file:$SPARK_HOME/conf/log4j.properties" \
+    --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$SPARK_HOME/conf/log4j.properties" \
+    $COMMON_HOME/libs/lightning-spark-common_2.12-0.2.jar \
+    "$@"
+
+  
+
+

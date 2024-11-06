@@ -32,6 +32,11 @@ project(":lightning-spark:lightning-spark-common_${scalaVersion}") {
             resolutionStrategy {
                 force 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
             }
+            exclude group: 'commons-logging', module: 'commons-logging'
+            exclude group: 'javax.jdo', module: 'jdo-api'
+            exclude group: 'org.apache.hive', module: 'hive-storage-api'
+            exclude group: 'org.apache.hive', module: 'hive-common'
+            exclude group: 'jakarta.servlet', module: 'jakarta.servlet-api'
         }
 
         /*
@@ -44,6 +49,11 @@ project(":lightning-spark:lightning-spark-common_${scalaVersion}") {
         implementation {
             extendsFrom = extendsFrom.findAll { it != configurations.antlr }
         }
+
+        repositories {
+                mavenCentral()
+                mavenLocal()
+            }
     }
 
     dependencies {
@@ -75,6 +85,14 @@ project(":lightning-spark:lightning-spark-common_${scalaVersion}") {
         testImplementation "com.amazon.redshift:redshift-jdbc42:2.1.0.25"
         runtimeOnly "org.antlr:antlr4-runtime:4.8"
         antlr "org.antlr:antlr4:4.8"
+
+        // Jersey and Jetty dependencies
+        implementation 'org.glassfish.jersey.core:jersey-server:2.35'
+        implementation 'org.glassfish.jersey.containers:jersey-container-jetty-http:2.35'
+        implementation 'org.glassfish.jersey.inject:jersey-hk2:2.35'
+        implementation 'org.eclipse.jetty:jetty-server:9.4.43.v20210629'
+        implementation 'org.eclipse.jetty:jetty-servlet:9.4.43.v20210629'
+
     }
 
     generateGrammarSource {
