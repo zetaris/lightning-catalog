@@ -1,0 +1,108 @@
+/* Container for the entire button line at the bottom of the semantic layer */
+.btn-line-semantic-layer {
+    z-index: 100; /* Ensure it's above other elements */
+    width: 100%; /* Full width */
+    display: flex; /* Flex to align items horizontally */
+    justify-content: space-between; /* Space out the two main groups of buttons */
+    align-items: center; /* Center align items vertically */
+    overflow-x: hidden; /* Allow scrolling horizontally if necessary */
+    white-space: nowrap; /* Prevent line breaks between buttons */
+    padding: 10px; /* Padding around the container */
+    gap: 10px; /* Gap between items inside the container */
+    box-sizing: border-box;
+    background-color: #fff;
+}
+
+/* Group of primary buttons like Preview, Build, Rules, etc. */
+.button-group {
+    display: flex; /* Flex to align items horizontally */
+    gap: 10px; /* Gap between buttons */
+    flex-grow: 1; /* Allow the button group to take as much space as possible */
+}
+
+.button-group2 {
+    display: flex; /* Flex to align items horizontally */
+    align-items: center; /* Center align items vertically */
+    gap: 5px; /* Gap between zoom buttons and the zoom level display */
+    margin-left: auto; /* Push zoom controls to the right */
+}
+
+/* Container for zoom controls, positioned on the right */
+.zoom-controls {
+    display: flex; /* Flex to align items horizontally */
+    align-items: center; /* Center align items vertically */
+    gap: 10px; /* Gap between zoom buttons and the zoom level display */
+    margin-left: auto; /* Push zoom controls to the right */
+}
+
+/* Styling for the zoom level text */
+.zoom-level {
+    width: 40px; /* Fixed width for the zoom level display */
+    text-align: center; /* Center the text within the container */
+    font-family: 'PlusJakartaSans-Bold', sans-serif;
+}
+
+.popup-overlay {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+}
+
+.popup-message {
+  width: 40%;
+  max-width: 500px;
+  padding: 20px 30px;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  font-size: 16px;
+  font-family: 'PlusJakartaSans-Bold', sans-serif;
+  text-align: center;
+  animation: fadeIn 0.3s ease;
+}
+
+.popup-message > p {
+  margin: 20px 0;
+  color: #333;
+}
+
+.popup-buttons {
+  display: flex;
+  justify-content: center;
+}
+
+/* custom tooltip */
+.tooltip-container {
+    position: relative;
+    display: inline-block;
+  }
+  
+  .tooltip-text {
+    visibility: hidden;
+    background-color: black;
+    color: #fff;
+    text-align: center;
+    border-radius: 4px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 20px;
+  }
+  
+  .tooltip-container:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+  }

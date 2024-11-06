@@ -1,0 +1,102 @@
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: left;
+    z-index: 100;
+}
+
+.popup {
+    background-color: white;
+    padding: 40px 30px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    width: 100%;
+    max-width: 500px;
+    box-sizing: border-box;
+}
+
+.popup-title {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 20px;
+    text-align: center;
+    font-family: 'PlusJakartaSans-Bold', sans-serif;
+}
+
+.popup-content {
+    font-size: 16px;
+    text-align: left;
+    font-family: 'PlusJakartaSans', sans-serif;
+}
+
+.relationship-label {
+    display: flex;
+    align-items: center;
+    margin-right: 15px;
+}
+
+.relationship-label-text {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.relationship-description {
+    padding-top: 5px;
+    font-size: 13px;
+    color: #555;
+    text-align: left;
+    margin-top: 4px;
+}
+
+textarea:focus,
+input:focus {
+    outline: none;
+    border-color: #27A7D2;
+}
+
+.form-group {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: row;
+}
+
+.popup-buttons {
+    display: flex;
+    justify-content: center;
+    margin-top: 30px;
+}
+
+.popup-buttons .btn-close {
+    background-color: #cccccc;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-right: 10px;
+    font-weight: bold;
+    /* font-size: 16px; */
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.popup-buttons .btn-create {
+    background-color: #27A7D2;
+    color: #ffffff;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    /* font-size: 16px; */
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.btn-close:hover,
+.btn-create:hover {
+    background-color: #cccccc;
+}

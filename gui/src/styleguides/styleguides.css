@@ -1,0 +1,304 @@
+/* src/styleguides.css */
+.styleguide-container {
+    padding: 20px;
+  }
+  
+  /* Highland Gothic FLF ../assets/fonts */
+@font-face {
+    font-family: 'HighlandGothicFLF';
+    src: url('../assets/fonts/HighlandGothicFLF-Bold.ttf') format('truetype');
+    font-weight: bold;
+}
+
+@font-face {
+    font-family: 'HighlandGothicFLF';
+    src: url('../assets/fonts/HighlandGothicFLF.ttf') format('truetype');
+    font-weight: normal;
+}
+
+@font-face {
+    font-family: 'HighlandGothicFLF';
+    src: url('../assets/fonts/HighlandGothicLightFLF.ttf') format('truetype');
+    font-weight: 300;
+}
+
+/* Plus Jakarta Sans ../assets/fonts */
+@font-face {
+    font-family: 'PlusJakartaSans';
+    src: url('../assets/fonts/PlusJakartaSans-Bold.ttf') format('truetype');
+    font-weight: bold;
+}
+
+@font-face {
+    font-family: 'PlusJakartaSans';
+    src: url('../assets/fonts/PlusJakartaSans-BoldItalic.ttf') format('truetype');
+    font-weight: bold;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'PlusJakartaSans';
+    src: url('../assets/fonts/PlusJakartaSans-ExtraBold.ttf') format('truetype');
+    font-weight: 800;
+}
+
+@font-face {
+    font-family: 'PlusJakartaSans';
+    src: url('../assets/fonts/PlusJakartaSans-ExtraBoldItalic.ttf') format('truetype');
+    font-weight: 800;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'PlusJakartaSans';
+    src: url('../assets/fonts/PlusJakartaSans-ExtraLight.ttf') format('truetype');
+    font-weight: 200;
+}
+
+@font-face {
+    font-family: 'PlusJakartaSans';
+    src: url('../assets/fonts/PlusJakartaSans-ExtraLightItalic.ttf') format('truetype');
+    font-weight: 200;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'PlusJakartaSans';
+    src: url('../assets/fonts/PlusJakartaSans-Italic.ttf') format('truetype');
+    font-weight: normal;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'PlusJakartaSans';
+    src: url('../assets/fonts/PlusJakartaSans-Light.ttf') format('truetype');
+    font-weight: 300;
+}
+
+@font-face {
+    font-family: 'PlusJakartaSans';
+    src: url('../assets/fonts/PlusJakartaSans-LightItalic.ttf') format('truetype');
+    font-weight: 300;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'PlusJakartaSans';
+    src: url('../assets/fonts/PlusJakartaSans-Medium.ttf') format('truetype');
+    font-weight: 500;
+}
+
+@font-face {
+    font-family: 'PlusJakartaSans';
+    src: url('../assets/fonts/PlusJakartaSans-MediumItalic.ttf') format('truetype');
+    font-weight: 500;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'PlusJakartaSans';
+    src: url('../assets/fonts/PlusJakartaSans-Regular.ttf') format('truetype');
+    font-weight: normal;
+}
+
+@font-face {
+    font-family: 'PlusJakartaSans';
+    src: url('../assets/fonts/PlusJakartaSans-SemiBold.ttf') format('truetype');
+    font-weight: 600;
+}
+
+@font-face {
+    font-family: 'PlusJakartaSans';
+    src: url('../assets/fonts/PlusJakartaSans-SemiBoldItalic.ttf') format('truetype');
+    font-weight: 600;
+    font-style: italic;
+}
+
+/* Font classes */
+.bold-text {
+    font-family: 'PlusJakartaSans', sans-serif;
+    font-weight: bold;
+}
+
+.semibold-text {
+    font-family: 'PlusJakartaSans', sans-serif;
+    font-weight: 600;
+}
+
+.medium-text {
+    font-family: 'PlusJakartaSans', sans-serif;
+    font-weight: 500;
+}
+
+.normal-text {
+    font-family: 'PlusJakartaSans', sans-serif;
+    font-weight: normal;
+}
+
+.highland-light-text {
+    font-family: 'HighlandGothicFLF', sans-serif;
+    font-weight: 300;
+}
+
+.highland-bold-text {
+    font-family: 'HighlandGothicFLF', sans-serif;
+    font-weight: bold;
+}
+
+.highland-normal-text {
+    font-family: 'HighlandGothicFLF', sans-serif;
+    font-weight: normal;
+}
+
+.btn-header {
+    background-color: #ffffff;
+    color: #000000;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-left: 15px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    font-family: 'PlusJakartaSans', sans-serif;
+    font-weight: bold;
+  }
+
+  .btn-header.selected {
+    background-color: #27A7D2;
+    color: #ffffff;
+  }
+  
+  .btn-header:hover {
+    background-color: #cccccc;
+  }
+  
+  .btn-primary {
+    background-color: #27A7D2;
+    color: #ffffff;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    font-family: 'PlusJakartaSans', sans-serif;
+    font-weight: bold;
+    height: 40px;
+  }
+
+  .btn-primary:hover {
+    background-color: #cccccc;
+  }
+  
+  .btn-secondary {
+    background-color: white;
+    color: #27A7D2;
+    border: 2px solid;
+    padding: 10px 20px;
+    border-radius: 4px;
+    border-color: #27A7D2;
+    cursor: pointer;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    font-family: 'PlusJakartaSans', sans-serif;
+    font-weight: bold;
+  }
+
+  .btn-line{
+    display: flex;
+    align-items: center;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 10px;
+    gap: 10px;
+    background-color: #fff;
+  }
+
+  .btn-secondary:hover {
+    background-color: #cccccc;
+  }
+  
+  .popup {
+    position: fixed;
+    top: 10%;
+    left: 50%;
+    transform: translate(-50%, 0);
+    background-color: white;
+    padding: 40px 30px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    width: 50%;
+    box-sizing: border-box;
+    z-index: 100;
+  }
+
+  .popup-title{
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 18px;
+    text-align: left;
+    font-family: 'PlusJakartaSans-Bold', sans-serif;
+  }
+  
+  .popup-content{
+    margin-top: 0;
+    /* margin-bottom: 20px; */
+    font-size: 14px;
+    text-align: left;
+    font-family: 'PlusJakartaSans-Bold', sans-serif;
+  }
+
+  textarea:focus, input:focus{
+    outline: none;
+}
+  
+  .form-group {
+    margin-bottom: 15px;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 5px;
+  }
+  
+  .form-group input,
+  .form-group textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-family: 'PlusJakartaSans', sans-serif;
+    box-sizing: border-box;
+  }
+
+  .description {
+    resize: none;
+    overflow-y: auto;
+    height: 100px;
+    width: 100%;
+    box-sizing: border-box;
+  }  
+  
+  .popup-buttons {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+  
+  .popup-buttons .btn-close,
+  .popup-buttons .btn-create {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: 'PlusJakartaSans', sans-serif;
+  }
+  
+  .popup-buttons .btn-close {
+    background-color: #ccc;
+    color: white;
+    margin-right: 10px;
+  }
+  
+  .popup-buttons .btn-create {
+    background-color: #27A7D2;
+    color: white;
+  }

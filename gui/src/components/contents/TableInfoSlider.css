@@ -1,0 +1,91 @@
+@import url('./../../styleguides/styleguides.css');
+
+.slider-container {
+    width: 450px;
+    padding: 40px;
+    overflow-y: auto;
+    max-height: 100%;
+}
+
+.MuiDrawer-paperAnchorRight {
+    border-top-left-radius: 20px;
+    border-bottom-left-radius: 20px;
+}
+
+.slider-title {
+    font-family: 'PlusJakartaSans', sans-serif;
+    white-space: normal;
+    word-wrap: break-word;
+    font-size: 20px;
+    font-weight: bold;
+    margin: 0 0 10px 0;
+}
+
+.slider-subtitle {
+    font-family: 'PlusJakartaSans', sans-serif;
+    white-space: normal;
+    word-wrap: break-word;
+    padding: 20px 0;
+    font-size: 16px;
+}
+
+.section-title {
+    font-family: 'PlusJakartaSans', sans-serif;
+    white-space: normal;
+    word-wrap: break-word;
+    margin-bottom: 0;
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.list-item {
+    font-family: 'PlusJakartaSans', sans-serif;
+    padding-left: 10px;
+    cursor: pointer;
+}
+
+.MuiTypography-root {
+    font-family: 'PlusJakartaSans', sans-serif;
+    font-weight: bold !important;
+}
+
+.nested-list {
+    padding-left: 20px !important;
+}
+
+.constraint-list{
+    color: #27A7D2 !important;
+}
+
+.column-name {
+    font-size: 16px;
+    padding-left: 10px;
+}
+
+.column-details {
+    padding-left: 20px;
+}
+
+.foreign-key-primary {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+.foreign-key-secondary {
+    white-space: normal;
+    word-wrap: break-word;
+    font-size: 14px;
+    color: gray;
+}
+
+.select-box {
+    padding: 4px !important;
+    font-size: 0.875rem !important;
+    min-width: 120px;
+    height: 45px;
+}
+
+.save-btn-container {
+    margin-top: 20px;
+    text-align: center;
+}

@@ -1,0 +1,28 @@
+.result-box{
+    flex-grow: 1;
+    padding: 10px;
+    background-color: #ffffff;
+    overflow-y: auto;
+    height: calc(100% - var(--position-offset));
+}
+
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.popup-message {
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    max-width: 400px;
+    font-family: 'PlusJakartaSans', sans-serif;
+}
