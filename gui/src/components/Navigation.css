@@ -1,0 +1,39 @@
+.guideline{
+    padding : 0 30px;
+}
+
+.separator{
+    width: 100%;
+    height: 1px;
+    background-color: #ccc;
+    margin: 20px 0; /* Space around the divider */
+}
+
+.nav-tab{
+    margin-bottom: 10px;
+}
+
+.MuiTreeItem-label{
+    font-family: 'PlusJakartaSans', sans-serif !important;
+    font-weight: 500 !important;
+}
+
+.btn-table-add {
+    margin-left: 10px;
+    padding: 5px 10px;
+    font-size: 12px;
+    background-color: #27A7D2;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.btn-table-add:hover {
+    background-color: #1e8fb5; /* Hover effect */
+}
+
+div.navigation::after {
+    content: none;
+}

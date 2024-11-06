@@ -1,0 +1,96 @@
+/* Popup modal background overlay */
+.popup-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 100px; /* Adjusted for higher placement */
+    z-index: 1000;
+}
+
+/* Modal content box */
+.popup-modal {
+    background-color: #fff;
+    padding: 30px 40px;
+    width: 800px; /* Further increased modal width */
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    box-sizing: border-box;
+}
+
+/* Modal title */
+.popup-title {
+    margin-top: 0;
+    font-size: 26px; /* Increased font size */
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 20px;
+    text-align: left;
+    font-family: 'PlusJakartaSans', sans-serif;
+}
+
+/* Input field and Textarea styling */
+.popup-input, .popup-textarea {
+    width: 100%;
+    padding: 14px; /* Increased padding */
+    border: 1px solid #dcdcdc;
+    border-radius: 6px;
+    box-sizing: border-box;
+    font-family: 'PlusJakartaSans', sans-serif;
+    font-size: 16px; /* Increased font size */
+    transition: border-color 0.3s ease;
+}
+
+.popup-input:focus, .popup-textarea:focus {
+    outline: none;
+    border-color: #27A7D2; /* Blue highlight for focused input */
+}
+
+/* Textarea styling */
+.popup-textarea {
+    resize: none !important;
+    height: 400px; /* Increased height */
+}
+
+/* Buttons container */
+.popup-buttons {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+}
+
+/* Drag & Drop */
+.file-drop-area {
+    position: relative;
+    border: 2px dashed #ccc;
+    padding: 20px;
+    border-radius: 6px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+
+  }
+  
+  .file-drop-area.drag-over {
+    border-color: #27A7D2; /* Change color on drag over */
+  }
+  
+  .file-input {
+    display: none; /* Hide the file input */
+  }
+  
+  /* Optional: Add a hover effect for better UX */
+  .file-drop-area:hover {
+    border-color: #27A7D2;
+  }
+  
+  .label-text {
+    font-size: 14px;
+    color: #333;
+    margin-bottom: 10px;
+  }

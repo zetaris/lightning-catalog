@@ -1,0 +1,163 @@
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5); /* Slight transparency for backdrop */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 100;
+}
+
+.popup {
+  background-color: white;
+  padding: 40px; /* Updated for better internal padding */
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3); /* Subtle shadow */
+  border-radius: 8px;
+  width: 100%;
+  max-width: 600px; /* Adjusted to provide more width */
+  box-sizing: border-box;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.popup-title {
+  font-size: 18px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: #333;
+  text-align: center; /* Centered title */
+}
+
+.popup-content {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.rules-table {
+  width: 100%;
+  border-collapse: collapse; /* Remove borders between cells */
+  margin-bottom: 20px;
+}
+
+.rules-table th, .rules-table td {
+  padding: 10px;
+  text-align: left;
+}
+
+.rules-table th {
+  font-weight: bold;
+  color: #333;
+  text-align: left;
+}
+
+.rules-table td {
+  padding: 10px;
+}
+
+.rules-table .action-button {
+  text-align: right;
+  padding-right: 0;
+}
+
+.rules-table tr {
+  border-bottom: 1px solid #ddd; /* Add subtle row divider */
+}
+
+.rules-table .rule-details {
+  background-color: #f9f9f9;
+  padding: 10px;
+  border-radius: 5px;
+  margin-top: 5px;
+}
+
+.rule-details {
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-radius: 5px;
+  margin-top: 5px;
+}
+
+.popup-field {
+  margin-bottom: 20px; /* Space between fields */
+}
+
+.popup-field label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #555;
+}
+
+.popup-field input, .popup-field textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color 0.3s ease;
+}
+
+.popup-field input:focus, .popup-field textarea:focus {
+  outline: none;
+  border-color: #27A7D2; /* Blue highlight for focused input */
+}
+
+.popup-field textarea {
+  resize: vertical; /* Allows vertical resizing only */
+}
+
+.add-new-rule-form {
+  padding-top: 20px;
+  border-top: 1px solid #ddd;
+}
+
+.popup-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.popup-buttons .btn-primary,
+.popup-buttons .btn-secondary {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.popup-buttons .btn-primary {
+  background-color: #27A7D2;
+  color: white;
+}
+
+.popup-buttons .btn-primary:hover {
+  background-color: #1a799f;
+}
+
+.popup-buttons .btn-secondary {
+  background-color: #cccccc;
+  color: white;
+}
+
+.popup-buttons .btn-secondary:hover {
+  background-color: #999999;
+}
+
+.action-button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.action-button:hover {
+  color: #27A7D2;
+}

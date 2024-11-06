@@ -1,0 +1,52 @@
+.header {
+  display: inline-block;
+  width: 100%;
+  height: 10vh;
+}
+
+.navigation {
+  display: inline-block;
+  overflow-y: auto; /* Enable vertical scrolling */
+  width: 15%;
+  height: 90vh;
+  flex-shrink: 0;
+}
+
+/* Adding extra space at the bottom using ::after */
+.navigation::after {
+  content: "";
+  display: block;
+  height: 30%; /* Adds 30% empty space at the bottom */
+}
+
+.content {
+  display: inline-block;
+  width: 85%;
+  height: 90vh;
+  overflow-x: auto;
+}
+
+button {
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.font650 {
+  font-family: "PlusJakartaSans-Regular_SemiBold", "Plus Jakarta Sans SemiBold", "Plus Jakarta Sans", sans-serif;
+  font-weight: 650;
+  color: #676e72;
+}
+
+.ace-autocomplete .ace-keyword {
+  color: #134B70 !important;
+  font-weight: bold;
+}
+.ace-autocomplete .ace-function {
+  color: #FF5733 !important;
+}
+.ace-autocomplete .ace-data-type {
+  color: #2E8B57 !important;
+}
+.ace-autocomplete .ace-suggestion {
+  color: #6A5ACD !important;
+}

@@ -1,0 +1,273 @@
+export const fetchApi = async (query) => {
+  try {
+    const response = await fetch('http://localhost:8080/api/query', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain',
+      },
+      body: query,
+      mode: 'cors',
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+
+      return result;
+    } else {
+      // If response is not OK, try to parse the error as JSON
+      try {
+        const error = await response.json();
+        console.error(`API Error: ${error.message}`);
+        return {
+          error: true,
+          message: error.message || 'An unknown error occurred',
+        };
+      } catch (parsingError) {
+        // If parsing fails, return the raw text response
+        const errorText = await response.text();
+        console.error(`API Error: ${errorText}`);
+        return {
+          error: true,
+          message: errorText || 'An unknown error occurred',
+        };
+      }
+    }
+  } catch (error) {
+    // Handle network or other fetch-related errors
+    console.error(`Request failed: ${error.message}`);
+    return {
+      error: true,
+      message: error.message || 'Request failed',
+    };
+  }
+};
+
+// Modified fetchApi function for saving semantic layer DDL
+export const fetchApiForSave = async (ddlText, fileName = "") => {
+  try {
+    const url = `http://localhost:8080/api/save-semantic-layer?fileName=${encodeURIComponent(fileName)}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(ddlText), // Pass the DDL text as part of JSON
+      mode: 'cors',
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      return result;
+    } else {
+      // If response is not OK, try to parse the error as JSON
+      try {
+        const error = await response.json();
+        console.error(`API Error: ${error.message}`);
+        return {
+          error: true,
+          message: error.message || 'An unknown error occurred',
+        };
+      } catch (parsingError) {
+        // If parsing fails, return the raw text response
+        const errorText = await response.text();
+        console.error(`API Error: ${errorText}`);
+        return {
+          error: true,
+          message: errorText || 'An unknown error occurred',
+        };
+      }
+    }
+  } catch (error) {
+    // Handle network or other fetch-related errors
+    console.error(`Request failed: ${error.message}`);
+    return {
+      error: true,
+      message: error.message || 'Request failed',
+    };
+  }
+};
+
+// JavaScript function to save content to a specified file with extension
+export const fetchApiForSaveFiles = async (content, fileName = "default_file", extension = "json") => {
+  try {
+    const url = `http://localhost:8080/api/save-to-file?fileName=${encodeURIComponent(fileName)}&extension=${encodeURIComponent(extension)}`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(content), // Pass the content as JSON
+      mode: 'cors',
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      return result;
+    } else {
+      // If response is not OK, try to parse the error as JSON
+      try {
+        const error = await response.json();
+        console.error(`API Error: ${error.message}`);
+        return {
+          error: true,
+          message: error.message || 'An unknown error occurred',
+        };
+      } catch (parsingError) {
+        // If parsing fails, return the raw text response
+        const errorText = await response.text();
+        console.error(`API Error: ${errorText}`);
+        return {
+          error: true,
+          message: errorText || 'An unknown error occurred',
+        };
+      }
+    }
+  } catch (error) {
+    // Handle network or other fetch-related errors
+    console.error(`Request failed: ${error.message}`);
+    return {
+      error: true,
+      message: error.message || 'Request failed',
+    };
+  }
+};
+
+
+export const fetchApiForListSemanticLayers = async () => {
+  try {
+    const response = await fetch('http://localhost:8080/api/list-semantic-layers', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      mode: 'cors',
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      return result; // Array of file names
+    } else {
+      // Handle non-OK response, try to parse error as JSON
+      try {
+        const error = await response.json();
+        console.error(`API Error: ${error.message}`);
+        return {
+          error: true,
+          message: error.message || 'An unknown error occurred',
+        };
+      } catch (parsingError) {
+        // If parsing fails, return the raw text response
+        const errorText = await response.text();
+        console.error(`API Error: ${errorText}`);
+        return {
+          error: true,
+          message: errorText || 'An unknown error occurred',
+        };
+      }
+    }
+  } catch (error) {
+    // Handle network or other fetch-related errors
+    console.error(`Request failed: ${error.message}`);
+    return {
+      error: true,
+      message: error.message || 'Request failed',
+    };
+  }
+};
+
+export const fetchCompileUSLApi = async (uslData) => {
+  try {
+    console.log(uslData);
+    const response = await fetch('http://localhost:8080/api/compile-usl', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(uslData),
+      mode: 'cors',
+    });
+
+    if (response.ok) {
+      return await response.json();
+    } else {
+      const error = await response.json();
+      // console.error(`API Error: ${error.message}`);
+      return { error: true, message: error.message };
+    }
+  } catch (error) {
+    // console.error(`Request failed: ${error.message}`);
+    error.message = `Please check your DDL query.`;
+    return { error: true, message: error.message };
+  }
+};
+
+export const fetchActivateTableApi = async (requestData) => {
+  
+  try {
+      const response = await fetch('http://localhost:8080/api/activate-usl-table', {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            table: requestData.table,
+            query: requestData.query
+        })
+      });
+
+      const result = await response.json();
+      return result;
+  } catch (error) {
+      console.error("Error activating USL table:", error);
+  }
+};
+
+export const deleteActivateTableApi = async (fileName) => {
+  try {
+    const response = await fetch('http://localhost:8080/api/delete-usl-table', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ fileName })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      // console.log("File deletion successful:", data.message);
+      return data.message;
+    } else {
+      const errorData = await response.json();
+      // console.error("Error deleting file:", errorData.message);
+    }
+  } catch (error) {
+    // console.error("Request failed:", error);
+  }
+}
+
+export const fetchUSLFileContent = async (fileName) => {
+  try {
+    const response = await fetch('http://localhost:8080/api/read-usl-file', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ fileName })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      // console.log("File content retrieved:", data.content);
+      return data.content;
+    } else {
+      // const errorData = await response.json();
+      // console.error("Error retrieving file content:", errorData.message);
+      return null;
+    }
+  } catch (error) {
+    // console.error("Request failed:", error);
+    return null;
+  }
+}
