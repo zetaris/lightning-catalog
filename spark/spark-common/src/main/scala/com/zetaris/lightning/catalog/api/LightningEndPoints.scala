@@ -1,78 +1,83 @@
-package com.zetaris.lightning.catalog
+/*
+ *
+ *  * Copyright 2023 ZETARIS Pty Ltd
+ *  *
+ *  * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+ *  * associated documentation files (the "Software"), to deal in the Software without restriction,
+ *  * including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ *  * and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so,
+ *  * subject to the following conditions:
+ *  *
+ *  * The above copyright notice and this permission notice shall be included in all copies
+ *  * or substantial portions of the Software.
+ *  *
+ *  * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ *  * INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *  * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+ *  * DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ *  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ *
+ */
 
+package com.zetaris.lightning.catalog.api
+
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.spark.sql.SparkSession
+import org.slf4j.LoggerFactory
+
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
-import org.slf4j.LoggerFactory
-import com.fasterxml.jackson.databind.ObjectMapper
-import java.io.{File, PrintWriter, FileNotFoundException}
-import scala.io.Source
-import java.nio.file.Paths
-import java.text.SimpleDateFormat
-import java.util.Date
-import com.zetaris.lightning.parser.LightningParserExtension
-import com.zetaris.lightning.execution.command.{CompileUSLSpec, CreateTableSpec, ActivateUSLTableSpec, LoadUSL, UpdateUSL}
-import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
-import com.zetaris.lightning.parser.LightningExtendedParser
-import com.zetaris.lightning.model.LightningModelFactory
-import com.zetaris.lightning.execution.command.LightningCommandBase
+import scala.util.{Failure, Success, Try}
 
 // SparkSession Init
 @Path("/api")
 class LightningResource {
   val LOGGER = LoggerFactory.getLogger(getClass)
-
-  // SparkSession Settings
-  val spark: SparkSession = SparkSession.builder()
-    .appName("LightningCatalogApp")
-    .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-    .config("spark.sql.extensions", "com.zetaris.lightning.spark.LightningSparkSessionExtension")
-    .config("spark.sql.catalog.lightning", "com.zetaris.lightning.catalog.LightningCatalog")
-    .config("spark.sql.catalog.lightning.type", "hadoop")
-    // .config("spark.sql.catalog.lightning.warehouse", "/tmp/ligt-model")
-    .config("spark.sql.catalog.lightning.warehouse", "./../../env/ligt-model")
-    .config("spark.sql.catalog.lightning.accessControlProvider", "com.zetaris.lightning.analysis.NotAppliedAccessControlProvider")
-    .config("spark.sql.catalog.spark_catalog", "org.apache.spark.sql.delta.catalog.DeltaCatalog")
-    .enableHiveSupport()
-    .getOrCreate()
-
-  // Jackson ObjectMapper for JSON conversion
   val mapper = new ObjectMapper()
-  // Directory to save the semantic layer info files
-  // val envFilesDir = Paths.get("./../../env/").toAbsolutePath.toString + "/"
-  val uslFilesDir = Paths.get("./../../env/ligt-model/metastore/usl/").toAbsolutePath.toString + "/"
-  val envFilesDir = Paths.get("./../../env/ligt-model/").toAbsolutePath.toString + "/"
-  // Ensure the directory exists
-  new File(envFilesDir).mkdirs()
 
-  // SQL query execute endpoint
+  private def spark(): SparkSession = LightningAPIServer.spark
+
+  @POST
+  @Path("/q")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Consumes(Array(MediaType.TEXT_PLAIN))
+  def query(query: String): Response = {
+    Try {
+      val df = spark().sql(query)
+      val resultJson = df.toJSON.collect()
+      mapper.writeValueAsString(resultJson)
+    } match {
+      case Failure(e) =>
+        LOGGER.error("Spark error occurred", e)
+
+        val errorResponse = s"""{
+          "error": "Spark execution error",
+          "message": "${e.getMessage}"
+        }"""
+
+        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(errorResponse)
+          .build()
+      case Success(json) =>
+        Response.ok(json).build()
+    }
+  }
+
+/**
   @POST
   @Path("/query")
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Consumes(Array(MediaType.TEXT_PLAIN))
   def executeQuery(queryString: String): Response = {
-    try {
-      LOGGER.info(s"Executing query: $queryString")
-      val df = spark.sql(queryString)
-
-      if (df == null) {
-        throw new RuntimeException("Query execution returned null DataFrame.")
-      }
-
-      // Convert DataFrame rows to a JSON array
+    Try {
+      val df = spark().sql(queryString)
       val resultJson = df.toJSON.collect()
+      mapper.writeValueAsString(resultJson)
+    } match {
+      case Failure(e) =>
+        LOGGER.error("Spark error occurred", e)
 
-      // Serialize the array of JSON strings
-      val jsonResponse = mapper.writeValueAsString(resultJson)
-
-      LOGGER.info(s"Query result: $jsonResponse")
-      Response.ok(jsonResponse).build()
-    } catch {
-      case sparkException: Exception =>
-        LOGGER.error("Spark error occurred", sparkException)
-
-        // Escape special characters like newlines and double quotes
-        val errorMessage = Option(sparkException.getMessage).getOrElse("An unknown error occurred.")
+        val errorMessage = Option(e.getMessage).getOrElse("An unknown error occurred.")
         val safeMessage = errorMessage
           .replace("\"", "'")
           .replace("\n", " ")
@@ -86,51 +91,25 @@ class LightningResource {
         Response.status(Response.Status.OK)
           .entity(errorResponse)
           .build()
+      case Success(json) =>
+        Response.ok(json).build()
     }
   }
 
-  // API to save semantic layer info to the file system
   @POST
   @Path("/save-semantic-layer")
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def saveSemanticLayer(jsonString: String, @QueryParam("fileName") fileNameParam: String): Response = {
-    try {
-      LOGGER.info(s"Saving semantic layer info")
-
-      // Parse the JSON string to check validity
-      val jsonData = mapper.readTree(jsonString)
-
-      // Check if fileName is provided, if not, generate it
-      val fileName = if (Option(fileNameParam).exists(_.trim.nonEmpty)) {
-        val trimmedFileName = fileNameParam.trim
-        // Check if the fileName already ends with .json, if not, append .json
-        if (trimmedFileName.endsWith(".json")) trimmedFileName else s"$trimmedFileName.json"
-      } else {
-        val dateFormat = new SimpleDateFormat("ddMMyyyyHHmmss")
-        val timestamp = dateFormat.format(new Date())
-        s"semantic_layer_$timestamp.json"
-      }
-
-      val filePath = s"$uslFilesDir/$fileName"
-
-      // Write the JSON content to a file
-      val writer = new PrintWriter(new File(filePath))
-      writer.write(mapper.writerWithDefaultPrettyPrinter().writeValueAsString(jsonData))
-      writer.close()
-
-      LOGGER.info(s"Semantic layer info saved to $filePath")
-
-      val responseJson = s"""{
-        "message": "Semantic layer saved successfully",
-        "file": "$filePath"
-      }"""
-
-      Response.ok(responseJson).build()
-    } catch {
-      case ex: Exception =>
-        LOGGER.error("Failed to save semantic layer info", ex)
-
+  def saveSemanticLayer(@QueryParam("namespace") namespace: String,
+                        @QueryParam("namespace") name: String,
+                        ddl: String): Response = {
+    Try {
+      spark().sql(s"""COMPILE USL IF NOT EXISTS $name DEPLOY NAMESPACE $namespace DDL
+          |$ddl
+          |""".stripMargin)
+        .collect()(0).getString(0)
+    } match {
+      case Failure(ex) =>
         val errorResponse = s"""{
           "error": "Failed to save semantic layer",
           "message": "${ex.getMessage}"
@@ -139,6 +118,8 @@ class LightningResource {
         Response.status(Response.Status.INTERNAL_SERVER_ERROR)
           .entity(errorResponse)
           .build()
+      case Success(json) =>
+        Response.ok(json).build()
     }
   }
 
@@ -475,4 +456,5 @@ class LightningResource {
           .build()
     }
   }
-}
+*/
+  }

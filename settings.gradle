@@ -42,53 +42,6 @@ if (!knownScalaVersions.contains(scalaVersion)) {
   throw new GradleException("Found unsupported Scala version: " + scalaVersion)
 }
 
-def findSparkSubmitPath = {
-    // First, check if the SPARK_HOME environment variable is set
-    def sparkHome = System.getenv("SPARK_HOME")
-    if (sparkHome) {
-        return "$sparkHome/bin/spark-submit"
-    }
-
-    // Check if it's installed via Homebrew
-    def homebrewPath = "/opt/homebrew/bin/spark-submit"
-    if (new File(homebrewPath).exists()) {
-        return homebrewPath
-    }
-
-    // Check the default path (for manually downloaded Spark)
-    def defaultPath = "/usr/local/spark/bin/spark-submit"
-    if (new File(defaultPath).exists()) {
-        return defaultPath
-    }
-
-    // If not found, return null
-    return null
-}
-
-def sparkSubmitPath = findSparkSubmitPath()
-
-if (sparkSubmitPath == null) {
-    throw new GradleException("Spark submit binary could not be found. Please set SPARK_HOME or ensure Spark is installed.")
-}
-
-// Now you can use sparkHome and sparkVersion dynamically
-ext {
-    sparkVersion = 3.5
-    if(sparkVersions.contains("3.3")) sparkVersion = 3.3
-    if(sparkVersions.contains("3.4")) sparkVersion = 3.4
-    scalaVersion = scalaVersion
-    sparkHome = sparkSubmitPath
-}
-
-// Create versions.txt
-def versionFile = new File("${rootDir}/doc/versions.txt")
-versionFile.text = "SPARK_VERSION=${sparkVersion}\nSCALA_VERSION=${scalaVersion}\nSPARK_HOME=${sparkHome}"
-println "Versions written to ${versionFile.path}"
-
-println "Spark Version is set to: ${sparkVersion}"
-println "Scala Version is set to: ${scalaVersion}"
-println "Spark Home: ${sparkHome}"
-
 include ":lightning-spark:spark-common_${scalaVersion}"
 project(":lightning-spark:spark-common_${scalaVersion}").projectDir = file("spark/spark-common")
 project(":lightning-spark:spark-common_${scalaVersion}").name = "lightning-spark-common_${scalaVersion}"

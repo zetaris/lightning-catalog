@@ -36,7 +36,7 @@ Lightning catalog is an open source data catalog for the preparing data at any s
 Lightning tracks issues in GitHub and prefers to receive contributions as pull requests.
 
 
-### Building
+### Building - backend
 
 Lightning is built using Gradle with Java 1.8 or Java 11.
 
@@ -45,7 +45,7 @@ Lightning is built using Gradle with Java 1.8 or Java 11.
 * To fix code style for default versions: `./gradlew spotlessApply`
 * To fix code style for all versions of Spark/Hive/Flink:`./gradlew spotlessApply -DallVersions`
 * To build with spark version profile: `./gradlew clean build -DdefaultSparkMajorVersion=3.4 -DdefaultSparkVersion=3.4.2`  
-* distribution package is found `lightning-metastore/spark/spark_version(v3.3, v3.4, v3.5)/spark-runtime/build/distributions`
+* distribution package is found `lightning-metastore/spark/spark_version(v3.3, v3.4, v3.5)/spark-runtime/build/distributions`=
 
 ### Execution
 

@@ -1,0 +1,3 @@
+SPARK_VERSION=3.5
+SCALA_VERSION=2.12
+SPARK_HOME=/Users/jaesungjun/Application/spark-3.5.1-bin-hadoop3/bin/spark-submit
