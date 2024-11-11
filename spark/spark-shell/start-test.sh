@@ -17,15 +17,8 @@ fi
 MAIN_CLASS="com.zetaris.lightning.catalog.api.LightningAPIServer"
 APP_NAME="LightningAPI Server"
 
-# Determine mode (CLI or GUI) based on input argument
-MODE="cli"  # default mode is CLI
-if [[ "$1" == "--mode=gui" ]]; then
-  MODE="gui"
-  shift  # Remove the argument from the list
-fi
-
 # Start Spark with necessary JARs and configuration
-echo "Starting Spark in $MODE mode with necessary JAR files..."
+echo "Starting Spark with necessary JAR files..."
 exec "${SPARK_HOME}/bin/spark-submit" \
     --class $MAIN_CLASS \
     --name "$APP_NAME" \
@@ -41,4 +34,4 @@ exec "${SPARK_HOME}/bin/spark-submit" \
     --conf "spark.executor.extraJavaOptions=-Dlog4j.configuration=file:$SPARK_HOME/conf/log4j.properties" \
     --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$SPARK_HOME/conf/log4j.properties" \
     "$LIB_DIR/lightning-spark-common_2.12-0.2.jar" \
-    "$@" "$MODE"
+    "$@"
