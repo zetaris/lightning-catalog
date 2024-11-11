@@ -19,14 +19,63 @@
  *
  */
 
+// package com.zetaris.lightning.catalog.api
+
+// import org.apache.spark.sql.SparkSession
+// import org.glassfish.jersey.jetty.JettyHttpContainerFactory
+// import org.glassfish.jersey.server.ResourceConfig
+// import org.slf4j.LoggerFactory
+
+// import javax.ws.rs.core.UriBuilder
+
+// object LightningAPIServer {
+//   val API_PORT_KEY = "lightning.server.port"
+//   val defaultPort = 8080
+//   val LOGGER = LoggerFactory.getLogger(getClass)
+
+//   val spark: SparkSession = SparkSession.builder()
+//     .getOrCreate()
+
+
+//   def main(args: Array[String]): Unit = {
+//     LOGGER.info("Starting Lightning API server...")
+
+//     val config = new ResourceConfig(
+//       classOf[CORSFilter],
+//       classOf[LightningResource]
+//     )
+
+//     val serverPort = spark.sparkContext.getConf.getInt(API_PORT_KEY, defaultPort)
+
+//     val baseUri = UriBuilder.fromUri("http://localhost/").port(serverPort).build()
+//     val server = JettyHttpContainerFactory.createServer(baseUri, config)
+
+//     server.start()
+
+//     Runtime.getRuntime().addShutdownHook( new Thread() {
+//       override def run(): Unit = {
+//         println("Shuttding down API server")
+//         server.stop()
+//       }
+//     })
+
+//     Thread.currentThread().join()
+
+//   }
+// }
+
 package com.zetaris.lightning.catalog.api
 
 import org.apache.spark.sql.SparkSession
+import org.eclipse.jetty.server.Server
+import org.eclipse.jetty.server.handler.{ContextHandler, ResourceHandler, HandlerList}
 import org.glassfish.jersey.jetty.JettyHttpContainerFactory
 import org.glassfish.jersey.server.ResourceConfig
 import org.slf4j.LoggerFactory
+import java.nio.file.Paths
 
 import javax.ws.rs.core.UriBuilder
+import org.apache.spark.sql.SparkSession
 
 object LightningAPIServer {
   val API_PORT_KEY = "lightning.server.port"
@@ -36,30 +85,49 @@ object LightningAPIServer {
   val spark: SparkSession = SparkSession.builder()
     .getOrCreate()
 
-
   def main(args: Array[String]): Unit = {
     LOGGER.info("Starting Lightning API server...")
 
+    // Jersey configuration for API
     val config = new ResourceConfig(
       classOf[CORSFilter],
       classOf[LightningResource]
     )
 
+    // API Server (port 8080)
     val serverPort = spark.sparkContext.getConf.getInt(API_PORT_KEY, defaultPort)
+    val apiBaseUri = UriBuilder.fromUri("http://localhost/").port(serverPort).build()
+    val apiServer = JettyHttpContainerFactory.createServer(apiBaseUri, config)
+    apiServer.start()
 
-    val baseUri = UriBuilder.fromUri("http://localhost/").port(serverPort).build()
-    val server = JettyHttpContainerFactory.createServer(baseUri, config)
+    // GUI Server (port 3000)
+    val guiPort = 3000
+    val guiServer = new Server(guiPort)
+    val staticHandler = new ResourceHandler()
+    staticHandler.setDirectoriesListed(true)
+    val jarLocation = Paths.get(getClass.getProtectionDomain.getCodeSource.getLocation.toURI).getParent.toString
+    val webDir = Paths.get(jarLocation, "../web").toString
 
-    server.start()
+    staticHandler.setResourceBase(webDir)
 
-    Runtime.getRuntime().addShutdownHook( new Thread() {
+    val guiContext = new ContextHandler()
+    guiContext.setContextPath("/")
+    guiContext.setHandler(staticHandler)
+
+    guiServer.setHandler(guiContext)
+    guiServer.start()
+
+    LOGGER.info(s"GUI Server started. Access the GUI at http://localhost:$guiPort")
+
+    Runtime.getRuntime.addShutdownHook(new Thread {
       override def run(): Unit = {
-        println("Shuttding down API server")
-        server.stop()
+        LOGGER.info("Shutting down API and GUI servers")
+        apiServer.stop()
+        guiServer.stop()
       }
     })
 
-    Thread.currentThread().join()
-
+    apiServer.join()
+    guiServer.join()
   }
 }

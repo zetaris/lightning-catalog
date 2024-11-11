@@ -3,11 +3,10 @@ import Editor from './Editor'; // Assuming this is the path for your custom edit
 import './Popup.css';
 
 const ActivatePopup = ({ onClose, onSubmit, table }) => {
-    const defaultExpression = `ACTIVATE USL TABLE ${table.name} QUERY SELECT * FROM ;`;
-    const [expression, setExpression] = useState('');
+    const [expression, setExpression] = useState(`ACTIVATE USL TABLE ${table.name} AS SELECT * FROM [Data Source Table];`);
 
     const handleSubmit = () => {
-        onSubmit({ expression: expression || defaultExpression });
+        onSubmit({ expression: expression });
         onClose();
     };
 
@@ -21,8 +20,8 @@ const ActivatePopup = ({ onClose, onSubmit, table }) => {
                         <div style={{ height: '200px', width: '100%' }}>
                             <Editor
                                 id="expressionEditor"
-                                content={expression || defaultExpression}
-                                onChange={setExpression} // Updating the expression when the editor changes
+                                content={expression}
+                                onChange={setExpression}
                             />
                         </div>
                     </div>

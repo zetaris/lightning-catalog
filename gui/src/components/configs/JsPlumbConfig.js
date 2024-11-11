@@ -64,12 +64,11 @@ export const initializeJsPlumb = (container, tables = [], openModal, handleRowCl
 
     jsPlumbInstance.bind('connectionDetached', (info) => {
       const { sourceId, targetId } = info.connection;
-      console.log(sourceId, targetId)
       const targetColumnParent = document.getElementById(targetId).parentElement;
       removeForeignKeyIconFromColumn(targetColumnParent);
       removeConnectionFromLocalStorage(sourceId, targetId);
 
-      console.log('Connection detached:', info);
+      // console.log('Connection detached:', info);
     });
 
   });
@@ -166,7 +165,6 @@ export function getColumnConstraint(fullPath) {
 };
 
 const removeForeignKeyIconFromColumn = (columnElement) => {
-  console.log(columnElement);
   if (columnElement) {
     const fkIconContainer = columnElement.querySelector('.icon-container');
     const fkOnly = columnElement.querySelector('.fk-only');
@@ -234,7 +232,7 @@ const addForeignKeyToConnection = (jsPlumbInstance, sourceId, targetId, relation
   }
 
   // Add source column info to the tooltip
-  const combinedTooltipData = !tooltipData ? `foreign key: (${sourceColumnName})` : `${tooltipData}, foreign key: (${sourceColumnName})`;
+  const combinedTooltipData = !tooltipData ? `foreignKey: (${sourceColumnName})` : `${tooltipData}, foreignKey: (${sourceColumnName})`;
 
   // Add the foreign key icon to the target column if the relationship is 'fk'
   if (relationship === 'fk') {
@@ -519,7 +517,7 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
   }
 
   const tableContainer = document.createElement('div');
-  tableContainer.className = 'table-container';
+  tableContainer.className = 'table-container '+tableName;
   tableContainer.style.position = 'absolute';
   tableContainer.id = uniqueTableId;
 
@@ -963,7 +961,7 @@ export const handleOptimizeView = (container, zoomLevel, setZoomLevel, setOffset
       const optimalZoomLevel = Math.min(widthRatio, heightRatio);
 
       // Apply the calculated zoom level
-      const finalZoomLevel = Math.max(0.5, Math.min(optimalZoomLevel, 2)); // Limit zoom between 0.5 and 2
+      const finalZoomLevel = Math.max(0.8, Math.min(optimalZoomLevel, 2)); // Limit zoom between 0.8 and 2
       setZoomLevel(finalZoomLevel);
       localStorage.setItem('zoomLevel', finalZoomLevel);
 
@@ -1003,7 +1001,7 @@ const adjustOffsetForZoom = (container, scaleFactor, setOffset) => {
       const containerRect = container.getBoundingClientRect();
 
       // Calculate center of screen
-      const centerX = (containerRect.left + containerRect.right) / 2;
+      const centerX = (containerRect.left + containerRect.right) / 2 - 500;
       const centerY = (containerRect.top + containerRect.bottom) / 2;
 
       // Calculate offset
