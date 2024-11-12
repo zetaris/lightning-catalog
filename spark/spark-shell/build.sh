@@ -2,7 +2,7 @@
 
 # Set Spark version information
 SPARK_VERSION="3.5" # Replace with actual SPARK_VERSION
-OUTPUT_ZIP="lightning-metastore-$SPARK_VERSION-Ver.zip"
+OUTPUT_ZIP="lightning-metastore-$SPARK_VERSION-0.2-Ver.zip"
 
 # Step 1: Build front-end (React)
 echo "Building front-end..."
