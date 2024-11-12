@@ -341,10 +341,10 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
    */
   override def loadUnifiedSemanticLayerTableQuery(namespace: Seq[String],
                                                   name: String): UnifiedSemanticLayerTable.UnifiedSemanticLayerTable = {
-    val subDir = nameSpaceToDir(namespace)
+    val subDir = nameSpaceToDir(namespace.dropRight(1))
     val fullPath = s"$modelDir/$subDir/${name}_table_query.json"
 
-    if (FileSystemUtils.fileExists(fullPath)) {
+    if (!FileSystemUtils.fileExists(fullPath)) {
       throw TableNotActivatedException(s"${namespace.mkString(".")}.${name}")
     }
 

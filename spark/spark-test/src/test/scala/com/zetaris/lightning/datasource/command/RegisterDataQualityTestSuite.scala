@@ -21,8 +21,10 @@
 
 package com.zetaris.lightning.datasource.command
 
-import com.zetaris.lightning.model.TableNotActivatedException
+import com.zetaris.lightning.model.{DataQualityDuplicatedException, TableNotActivatedException}
 import com.zetaris.lightning.spark.{H2TestBase, SparkExtensionsTestBase}
+import org.apache.spark.sql.Row
+import org.apache.spark.sql.catalyst.analysis.UnresolvedException
 import org.junit.runner.RunWith
 import org.scalatestplus.junit.JUnitRunner
 
@@ -39,7 +41,8 @@ class RegisterDataQualityTestSuite extends SparkExtensionsTestBase with H2TestBa
     registerH2DataSource(dbName)
   }
 
-  test("should register dq express on single column") {
+  def prepareUSL(): Unit = {
+    sparkSession.sql(s"DROP NAMESPACE if exists lightning.metastore.crm")
     sparkSession.sql(s"CREATE NAMESPACE lightning.metastore.crm")
 
     sparkSession.sql(
@@ -61,9 +64,152 @@ class RegisterDataQualityTestSuite extends SparkExtensionsTestBase with H2TestBa
         |)
         |""".stripMargin)
 
+  }
+
+  override def beforeEach(): Unit = {
+    super.beforeEach()
+    prepareUSL()
+  }
+
+  test("should register single dq expression") {
+
     intercept[TableNotActivatedException] {
-      sparkSession.sql("REGISTER DQ dq_item_count TABLE lightning.metastore.crm.ordermart.order AS item_count > 0").show()
+      sparkSession.sql("REGISTER DQ dq_item_count TABLE lightning.metastore.crm.ordermart.customer AS id > 0").show()
+    }
+
+    sparkSession.sql(
+      s"""
+         |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.customer AS
+         |select * from lightning.datasource.h2.$dbName.$schema.customer
+         |""".stripMargin
+    )
+
+    intercept[UnresolvedException] {
+      sparkSession.sql("REGISTER DQ dq_item_count TABLE lightning.metastore.crm.ordermart.customer AS non_existing_id > 0")
+    }
+
+    sparkSession.sql("REGISTER DQ dq_item_count TABLE lightning.metastore.crm.ordermart.customer AS id > 0")
+
+    intercept[DataQualityDuplicatedException] {
+      sparkSession.sql("REGISTER DQ dq_item_count TABLE lightning.metastore.crm.ordermart.customer AS id > 0")
     }
 
   }
+
+  test("should register composite dq expression") {
+    sparkSession.sql(
+      s"""
+         |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.customer AS
+         |select * from lightning.datasource.h2.$dbName.$schema.customer
+         |""".stripMargin
+    )
+
+    intercept[UnresolvedException] {
+      sparkSession.sql("REGISTER DQ dq_item_count TABLE lightning.metastore.crm.ordermart.customer AS non_existing_id > 0 AND id > 0")
+    }
+
+    sparkSession.sql("REGISTER DQ dq_item_count TABLE lightning.metastore.crm.ordermart.customer AS id > 0 and length(address) > 0")
+  }
+
+  test("should list dq expressions") {
+    sparkSession.sql(
+      s"""
+         |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.customer AS
+         |select * from lightning.datasource.h2.$dbName.$schema.customer
+         |""".stripMargin
+    )
+
+    sparkSession.sql(
+      s"""
+         |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.lineitem AS
+         |select * from lightning.datasource.h2.$dbName.$schema.lineitem
+         |""".stripMargin
+    )
+
+    sparkSession.sql(
+      s"""
+         |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.order AS
+         |select * from lightning.datasource.h2.$dbName.$schema.order
+         |""".stripMargin
+    )
+
+    sparkSession.sql("REGISTER DQ customer_id TABLE lightning.metastore.crm.ordermart.customer AS id > 0 and length(address) > 0")
+    sparkSession.sql("REGISTER DQ order_id TABLE lightning.metastore.crm.ordermart.order AS id > 0")
+
+    val df = sparkSession.sql(s"LIST DQ USL lightning.metastore.crm.ordermart")
+    checkAnswer(df,
+      Seq(
+        Row("id", "customer", "Primary key constraints", ""),
+        Row("id", "lineitem", "Primary key constraints", ""),
+        Row("id", "order", "Primary key constraints", ""),
+        Row("cid", "order", "Foreign key constraints", ""),
+        Row("iid", "order", "Foreign key constraints", ""),
+
+        Row("customer_id", "customer", "Custom DQ", "id > 0 and length(address) > 0"),
+        Row("order_id", "order", "Custom DQ", "id > 0")))
+  }
+
+
+  test("should register dq express referencing other table") {
+    sparkSession.sql(
+      s"""
+         |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.customer AS
+         |select * from lightning.datasource.h2.$dbName.$schema.customer
+         |""".stripMargin
+    )
+
+    sparkSession.sql(
+      s"""
+         |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.lineitem AS
+         |select * from lightning.datasource.h2.$dbName.$schema.lineitem
+         |""".stripMargin
+    )
+
+    sparkSession.sql(
+      s"""
+         |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.order AS
+         |select * from lightning.datasource.h2.$dbName.$schema.order
+         |""".stripMargin
+    )
+
+    sparkSession.sql(
+      s"""
+         |REGISTER DQ dq_item_count TABLE lightning.metastore.crm.ordermart.order AS
+         |id > 0 and item_count > 0 and cid IN (select id from lightning.metastore.crm.ordermart.customer)
+         |""".stripMargin)
+
+  }
+
+  test("should run dq") {
+    sparkSession.sql(
+      s"""
+         |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.customer AS
+         |select * from lightning.datasource.h2.$dbName.$schema.customer
+         |""".stripMargin
+    )
+
+    sparkSession.sql(
+      s"""
+         |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.lineitem AS
+         |select * from lightning.datasource.h2.$dbName.$schema.lineitem
+         |""".stripMargin
+    )
+
+    sparkSession.sql(
+      s"""
+         |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.order AS
+         |select * from lightning.datasource.h2.$dbName.$schema.order
+         |""".stripMargin
+    )
+
+    sparkSession.sql("REGISTER DQ customer_rule TABLE lightning.metastore.crm.ordermart.customer AS id > 0 and length(address) > 0")
+
+    sparkSession.sql(
+      s"""
+         |REGISTER DQ order_customer_fk TABLE lightning.metastore.crm.ordermart.order AS
+         |id > 0 and item_count > 0 and cid IN (select id from lightning.metastore.crm.ordermart.customer)
+         |""".stripMargin)
+
+  }
+
 }

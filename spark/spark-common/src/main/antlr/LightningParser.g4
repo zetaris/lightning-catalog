@@ -13,7 +13,15 @@ statement
 
 ddlStatement
     : registerDataSource | registerCatalog | createTable | compileUSL | activateUSLTable | loadUSL | updateUSL |
-      registerDQ
+      registerDQ | listDQ | runDQ
+    ;
+
+runDQ
+    : RUN DQ name = identifier USL usl=multipartIdentifier
+    ;
+
+listDQ
+    : LIST DQ USL usl=multipartIdentifier
     ;
 
 registerDQ
