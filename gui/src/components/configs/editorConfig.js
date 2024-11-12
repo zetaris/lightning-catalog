@@ -90,15 +90,15 @@ ace.define("ace/mode/custom_sql_highlight_rules", ["require", "exports", "ace/mo
       "start": [
         {
           token: "keyword",
-          regex: "\\b(?:SELECT|FROM|WHERE|JOIN|CREATE|TABLE|SHOW|INSERT|DROP|IF|EXISTS|REPLACE|QUERY|REGISTER|DESCRIBE|describe|TABLES|tables)\\b",
+          regex: "\\b(?:SELECT|FROM|WHERE|JOIN|CREATE|TABLE|SHOW|INSERT|DROP|IF|EXISTS|REPLACE|QUERY|REGISTER|DESCRIBE|describe|TABLES|tables|IN|VALUES|INTO|PARTITIONED|BY|WITH|NAMESPACE)\\b",
         },
         {
           token: "lightning",
-          regex: "\\b(?:lightning|datasource|metastore|NAMESPACES|OPTIONS|USL|usl|ACTIVATE)\\b"
+          regex: "\\b(?:lightning|datasource|metastore|NAMESPACES|OPTIONS|USL|usl|ACTIVATE|DEACTIVATE|CATALOG)\\b"
         },
         {
           token: "data-type",
-          regex: "\\b(?:H2|AVRO|CSV|ORC|PARQUET|JSON|JDBC|int|char|varchar|real)\\b"
+          regex: "\\b(?:H2|AVRO|CSV|ORC|PARQUET|JSON|JDBC|int|char|varchar|real|foreign key|primary key|FOREIGN KEY|PRIMARY KEY|not null|NOT NULL|null|NULL|unique|UNIQUE|index|INDEX)\\b"
         },
         {
           token: "constraints",
@@ -106,6 +106,10 @@ ace.define("ace/mode/custom_sql_highlight_rules", ["require", "exports", "ace/mo
         },
         {
           token: "identifier",
+          regex: "\\w+"
+        },
+        {
+          token: "suggestion",
           regex: "\\w+"
         },
         {
