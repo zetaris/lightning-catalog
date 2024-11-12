@@ -59,6 +59,11 @@ abstract class LightningCommandBase extends LeafRunnableCommand with LightningSo
     }
   }
 
+  /**
+   * validate table
+   * @param model
+   * @param table should start without "lightning" prefix
+   */
   protected def validateTable(model: LightningModel, table: Array[String]): Unit = {
     checkTableNamespaceLen(table)
     val ident = new Identifier {
@@ -67,11 +72,15 @@ abstract class LightningCommandBase extends LeafRunnableCommand with LightningSo
       override def name(): String = table.last
     }
     val saved = model.loadTable(ident)
-    println(s"last : ${toFqn(table)}, saved : ${saved.name()}")
 
-    assert(saved.name().equalsIgnoreCase(toFqn(table)))
+    assert(saved.name().equalsIgnoreCase(toFqn("lightning" +: table)))
   }
 
+  /**
+   * Check table is activated
+   * @param model
+   * @param table should start without "lightning" prefix
+   */
   protected def makeSureTableActivated(model: LightningModel, table: Array[String]): Unit = {
     model.loadUnifiedSemanticLayerTableQuery(table.dropRight(1), table.last)
   }
@@ -85,16 +94,6 @@ abstract class LightningCommandBase extends LeafRunnableCommand with LightningSo
       throw new RuntimeException(s"parent namespace: ${namespace.mkString(".")} is not existing")
     }
   }
-
-  protected def tryParse[T](sqlText: String, f: String => T): T = {
-    Try {
-      f(sqlText)
-    } match {
-      case Success(parsed) => parsed
-      case Failure(exception) => throw exception
-    }
-  }
-
 
   override def run(sparkSession: SparkSession): Seq[Row] = {
     beforeRun(sparkSession)

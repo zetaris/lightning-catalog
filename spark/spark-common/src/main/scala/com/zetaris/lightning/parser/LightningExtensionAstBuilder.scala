@@ -20,7 +20,7 @@
 package com.zetaris.lightning.parser
 
 import com.zetaris.lightning.execution.command.ReferenceControl.{Cascade, NoAction, ReferenceControl, Restrict, SetDefault, SetNull}
-import com.zetaris.lightning.execution.command.{AccessControl, ActivateUSLTableSpec, Annotation, AnnotationStatement, Assignment, ColumnSpec, CompileUSLSpec, CreateTableSpec, DataQuality, DataSourceType, ForeignKey, LoadUSL, NotNullColumn, PrimaryKeyColumn, RegisterCatalogSpec, RegisterDataQualitySpec, RegisterDataSourceSpec, UniqueKeyColumn, UpdateUSL}
+import com.zetaris.lightning.execution.command.{AccessControl, ActivateUSLTableSpec, Annotation, AnnotationStatement, Assignment, ColumnSpec, CompileUSLSpec, CreateTableSpec, DataQuality, DataSourceType, ForeignKey, ListDataQualitySpec, LoadUSL, NotNullColumn, PrimaryKeyColumn, RegisterCatalogSpec, RegisterDataQualitySpec, RegisterDataSourceSpec, RunDataQualitySpec, UniqueKeyColumn, UpdateUSL}
 import com.zetaris.lightning.model.{InvalidNamespaceException, LightningModelFactory}
 import com.zetaris.lightning.parser.LightningParserUtils.validateTableConstraints
 import org.antlr.v4.runtime.ParserRuleContext
@@ -468,14 +468,35 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
     UpdateUSL(namespace, tableName, json)
   }
 
-    override def visitRegisterDQ(ctx: RegisterDQContext): RegisterDataQualitySpec = withOrigin(ctx) {
-      val name = ctx.name.getText
-      val table = visitMultipartIdentifier(ctx.table)
-      val expression = getFullText(ctx.expression)
+  override def visitRegisterDQ(ctx: RegisterDQContext): RegisterDataQualitySpec = withOrigin(ctx) {
+    val name = ctx.name.getText
+    val table = visitMultipartIdentifier(ctx.table)
+    val expression = getFullText(ctx.expression)
 
-      validateNamespace(table)
-      RegisterDataQualitySpec(name, table, expression)
+    validateNamespace(table)
+    RegisterDataQualitySpec(name, table, expression)
+  }
+
+  override def visitListDQ(ctx: ListDQContext): ListDataQualitySpec = withOrigin(ctx) {
+    val uslNamespace = visitMultipartIdentifier(ctx.usl)
+
+    validateNamespace(uslNamespace)
+    ListDataQualitySpec(uslNamespace)
+  }
+
+  override def visitRunDQ(ctx: RunDQContext): RunDataQualitySpec = withOrigin(ctx) {
+    val name = if (ctx.name == null || ctx.name.getText.isEmpty) {
+      None
+    } else {
+      Some(ctx.name.getText)
     }
+
+
+    val table = visitMultipartIdentifier(ctx.table)
+
+    validateNamespace(table)
+    RunDataQualitySpec(name, table)
+  }
 
 }
 

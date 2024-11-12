@@ -97,7 +97,8 @@ class ActivateUCLTableTestSuite extends SparkExtensionsTestBase with H2TestBase 
          |""".stripMargin
     )
 
-    checkAnswer(sparkSession.sql(s"select * from lightning.metastore.crm.ordermart.customer"),
+    val df = sparkSession.sql(s"select * from lightning.metastore.crm.ordermart.customer where id > 0")
+    checkAnswer(df,
       Seq(Row(1, "chris lynch", "100 VIC"),
         Row(2, "wayne bourne", "200 NSW"),
         Row(3, "scott mayson", "300 TAS")))

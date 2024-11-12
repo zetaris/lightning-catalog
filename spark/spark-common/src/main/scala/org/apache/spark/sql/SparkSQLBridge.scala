@@ -24,6 +24,8 @@ package org.apache.spark.sql
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.avro.AvroFileFormat
+import org.apache.spark.sql.catalyst.QueryPlanningTracker
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.errors.QueryCompilationErrors
 import org.apache.spark.sql.execution.datasources.DataSource
 import org.apache.spark.sql.execution.datasources.FileFormat
@@ -65,5 +67,9 @@ object SparkSQLBridge {
 
   def equalsIgnoreNameAndCompatibleNullability(from: DataType, to: DataType): Boolean =
     DataType.equalsIgnoreNameAndCompatibleNullability(from, to)
+
+  def ofRows(sparkSession: SparkSession, plan: LogicalPlan, tracker: QueryPlanningTracker): DataFrame = {
+    Dataset.ofRows(sparkSession, plan, tracker)
+  }
 
 }

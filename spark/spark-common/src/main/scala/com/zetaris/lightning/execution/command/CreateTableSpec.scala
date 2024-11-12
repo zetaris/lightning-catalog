@@ -27,10 +27,8 @@ import com.zetaris.lightning.parser.LightningParserUtils
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Expression}
 import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.types.{DataType, StringType}
-
-import scala.util.{Failure, Success, Try}
+import org.apache.spark.sql.{Row, SparkSession}
 
 case class NullableColumn(columns: Seq[String] = Seq.empty, name: Option[String] = None)
 
@@ -99,10 +97,10 @@ case class CreateTableSpec(name: String,
     dqAnnotationExpression = dqAnnotations.flatMap { dq =>
       val variables = LightningParserUtils.extractVariables(dq.expression)
       if (variables.isEmpty) {
-        Some(tryParse(dq.expression, parser.parseExpression))
+        Some(DataQualitySpec.tryParse(dq.expression, parser.parseExpression))
       } else {
         variables.foreach { variable =>
-          ctePlan += variable -> tryParse(dq.cte(variable), parser.parsePlan)
+          ctePlan += variable -> DataQualitySpec.tryParse(dq.cte(variable), parser.parsePlan)
         }
         None
       }

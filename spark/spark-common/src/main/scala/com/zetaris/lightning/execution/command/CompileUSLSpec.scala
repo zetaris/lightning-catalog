@@ -59,7 +59,7 @@ case class CompileUSLSpec(name: String,
     val parser = new LightningExtendedParser(sparkSession.sessionState.sqlParser)
     val createTableSpecs = inputDDLs.split(";.*?\\n").map { ddl =>
       val createTableSpec = parser.parseLightning(ddl).asInstanceOf[CreateTableSpec]
-      createTableSpec.copy(namespace = namespace)
+      createTableSpec.copy(namespace = namespace :+ name)
     }
 
     checkTableDuplication(createTableSpecs)
