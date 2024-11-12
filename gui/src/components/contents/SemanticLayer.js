@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import Resizable from 'react-resizable-layout';
 import { initializeJsPlumb, setupTableForSelectedTable, connectEndpoints, handleOptimizeView, handleZoomIn, handleZoomOut, getColumnConstraint, getRowInfo, addForeignKeyIconToColumn } from '../configs/JsPlumbConfig';
 import { v4 as uuidv4 } from 'uuid';
-import { fetchApi, fetchApiForSave, fetchCompileUSLApi, fetchActivateTableApi, fetchApiForListSemanticLayers, deleteActivateTableApi, fetchUSLFileContent } from '../../utils/common';
+import { fetchApi, fetchApiForSave, fetchCompileUSLApi, fetchActivateTableApi} from '../../utils/common';
 import './Contents.css';
 import './SemanticLayer.css'
 import RelationshipModal from './RelationshipModal';
@@ -79,11 +79,12 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
     }
 
     const handleTableDoubleClick = () => {
-        console.log("handleTableDoubleClick");
+        // console.log("handleTableDoubleClick");
     }
 
     const handleDataQualityButtonClick = () => {
-        setShowDQPopup(true);
+        setPopupMessage("Feature under development.");
+        // setShowDQPopup(true);
     };
 
     const handleEditorChange = (newContent) => {
@@ -91,12 +92,14 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
     };
 
     const handleDeActivateTableClick = async (table) => {
-        const fileName = table.name.split('.').pop();
-        const result = await deleteActivateTableApi(fileName);
-        if (result) {
-            setPopupMessage(result);
-            updateActivatedTables(false)
-        }
+        // const fileName = table.name.split('.').pop();
+        // const result = await deleteActivateTableApi(fileName);
+        // if (result) {
+        //     setPopupMessage(result);
+        //     updateActivatedTables(false)
+        // }
+
+        setPopupMessage("Feature under development.");
     }
 
     const handleActivateTableClick = (table) => {
@@ -108,42 +111,52 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
         }
     };
 
-    const handleSubmitActivateQuery = async (table, query) => {
-        if (!table) {
-            console.error("No table selected");
+    const handleSubmitActivateQuery = async (query) => {
+        const activateKeyword = 'ACTIVATE USL TABLE ';
+        const asKeyword = ' AS ';
+    
+        // Find the indexes of 'ACTIVATE USL TABLE' and 'AS' in the query
+        const startIndex = query.expression.indexOf(activateKeyword) + activateKeyword.length;
+        const endIndex = query.expression.indexOf(asKeyword);
+    
+        // Extract the table name between 'ACTIVATE USL TABLE' and 'AS'
+        if (startIndex === -1 || endIndex === -1) {
+            console.error("Invalid query expression: Required keywords not found.");
             return;
         }
-
+    
+        const table = query.expression.substring(startIndex, endIndex).trim();
         const queryIndex = query.expression.indexOf('SELECT');
         if (queryIndex === -1) {
             console.error("Invalid query expression: SELECT statement not found.");
             return;
         }
-
+    
         const selectQuery = query.expression.substring(queryIndex);
         const requestData = {
-            table: table.name,
+            table: table,
             query: selectQuery
         };
-
+    
         let result = await fetchActivateTableApi(requestData);
         if (!result.error) {
             setPopupMessage(`The ${result.name} table has been activated.`);
             setActivateTables((prevTables) => {
-                const updatedTables = [...prevTables, table.name];
+                const updatedTables = [...prevTables, table];
                 updateActivatedTables(true, updatedTables);
                 return updatedTables;
             });
         } else {
-            setPopupMessage(result.error);
+            setPopupMessage(result.message);
             updateActivatedTables(false);
         }
         fetchActivateTableData();
         setShowActivePopup(false);
-    };
+    };    
 
     const handleTableInfoClick = (table) => {
-        showTableInfo(table);
+        setPopupMessage("Feature under development.");
+        // showTableInfo(table);
     };
 
     const showTableInfo = (tableInfo) => {
@@ -213,8 +226,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                     const ddl = semanticLayerInfo[0].ddl;
                     const parsedDDLResult = await compileUSL(name, ddl, true);
                     if (parsedDDLResult) {
-                        const { savedTables, savedConnections, rulesData } = getSettingDataFromJson(JSON.stringify(parsedDDLResult));
-                        // parseJSONAndRestore(parsedDDLResult);
+                        const { savedTables, savedConnections, rulesData } = getSettingDataFromJson(parsedDDLResult);
                         restoreFromTablesAndConnections(savedTables, savedConnections);
                         window.location.reload();
                     }
@@ -229,12 +241,16 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
 
     useEffect(() => {
         const fetchUSLContent = async () => {
-            const fileName = uslNamebyClick ? `${uslNamebyClick}_usl.json` : null;
 
-            if (!fileName) return;
+            const dbname = uslNamebyClick.split('.').pop();
+            const path = uslNamebyClick.split('.').slice(0, -1).join('.');
+
+            if (!uslNamebyClick) return;
+
+            let query = `LOAD USL ${dbname} NAMESPACE ${path}`
 
             try {
-                const result = await fetchUSLFileContent(fileName);
+                const result = await fetchApi(query);
                 if (result) {
                     const { savedTables, savedConnections, rulesData } = getSettingDataFromJson(result);
                     restoreFromTablesAndConnections(savedTables, savedConnections);
@@ -331,16 +347,30 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
     }, [selectedTable]);
 
     const fetchActivateTableData = async () => {
-        const result = await fetchApiForListSemanticLayers();
-        if (!result.error) {
-            const filteredTableNames = result
-                .filter(fileName => fileName.endsWith('_table_query.json'))
-                .map(fileName => fileName.replace('_table_query.json', ''));
-            setActivateTables(filteredTableNames);
-        } else {
-            console.error("Failed to fetch semantic layers: ", result.message);
+        // Step 1: Get savedTables from localStorage
+        const savedTables = JSON.parse(localStorage.getItem("savedTables")) || [];
+    
+        const activatedTables = [];
+    
+        // Step 2: For each table, execute a query to check if the table is active
+        for (const table of savedTables) {
+            const tableName = table.name;
+            try {
+                const query = `SELECT 1 FROM ${tableName}`;
+                const result = await fetchApi(query); // Assume fetchApi is a function that executes SQL queries
+    
+                // Step 3: If query is successful, add table name to activatedTables array
+                if (!result.error) {
+                    activatedTables.push(tableName);
+                }
+            } catch (error) {
+                // console.error(`Failed to activate table ${tableName}:`, error.message);
+            }
         }
-    };
+    
+        // Step 4: Update state with the list of activated tables
+        setActivateTables(activatedTables);
+    };    
 
     function updateActivatedTables(isActivate, activeTables = []) {
         const captions = document.querySelectorAll('.caption-text');
@@ -349,7 +379,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
         captions.forEach((caption) => {
             const tableElement = caption.closest('.table-container');
             if (tableElement) {
-                if (isActivate && validActiveTables.includes(caption.innerText)) {
+                if (isActivate && validActiveTables.includes(tableElement.classList[1])) {
                     tableElement.classList.add('activated-table');
                     const header = tableElement.querySelector('.table-header');
                     const titles = tableElement.querySelectorAll('.table-title');
@@ -414,7 +444,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                             }).join(', ');
                         }
                         // Add source column info to the tooltip
-                        const combinedTooltipData = !tooltipData ? `foreign key: (${sourceColumnName})` : `${tooltipData}, foreign key: (${sourceColumnName})`;
+                        const combinedTooltipData = !tooltipData ? `foreignKey: (${sourceColumnName})` : `${tooltipData}, foreignKey: (${sourceColumnName})`;
 
                         if (relationship === 'fk') {
                             addForeignKeyIconToColumn(targetColumn, combinedTooltipData, tooltipData);
@@ -483,7 +513,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                     }
 
                     // Add source column info to the tooltip
-                    const combinedTooltipData = `${tooltipData}, foreign key: (${sourceColumnName})`;
+                    const combinedTooltipData = `${tooltipData}, foreignKey: (${sourceColumnName})`;
 
                     if (relationship === 'fk') {
                         addForeignKeyIconToColumn(targetColumn, combinedTooltipData, tooltipData);
@@ -591,27 +621,24 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
     const getSettingDataFromJson = (ddlText) => {
         let ddlJson;
         try {
-            ddlJson = JSON.parse(ddlText); // parsing ddlText to JSON
-            console.log(ddlJson)
+            ddlJson = JSON.parse(ddlText);
+            ddlJson = JSON.parse(ddlJson.json);
+            console.log(ddlJson);
         } catch (e) {
-            // console.error("Invalid DDL JSON format: ", e);
-            setPopupMessage(`Invalid DDL JSON format: , ${e}`);
+            setPopupMessage(`Invalid DDL JSON format: ${e}`);
             return null;
         }
-
-        // Table Information Export from DDL Json
+    
         const savedTables = ddlJson.tables.map((table) => {
             const foreignKeyConstraints = [];
-
-            // Map each column to extract column details (including foreignKey, notNull, primaryKey, unique)
+            
             const columns = table.columnSpecs.map((col) => {
                 const colObj = {
                     col_name: col.name,
                     data_type: col.dataType,
-                    // Add the constraint if it exists, otherwise exclude it
-                    ...(col.primaryKey ? { primaryKey: { columns: [] } } : {}), // Handle PK
-                    ...(col.notNull ? { notNull: { columns: [] } } : {}), // Handle NotNull
-                    ...(col.unique ? { unique: { columns: [] } } : {}), // Handle Unique
+                    ...(col.primaryKey ? { primaryKey: { columns: [] } } : {}),
+                    ...(col.notNull ? { notNull: { columns: [] } } : {}),
+                    ...(col.unique ? { unique: { columns: [] } } : {}),
                     ...(col.foreignKey ? {
                         foreignKey: {
                             columns: col.foreignKey.columns || [],
@@ -620,67 +647,59 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                         }
                     } : {})
                 };
-
-                // If the column has a foreignKey, store the foreign key relation
+    
                 if (col.foreignKey) {
                     foreignKeyConstraints.push({
                         column: col.name,
                         references: `${col.foreignKey.refTable.join('.')}.${col.foreignKey.refColumns.join(',')}`
                     });
                 }
-
                 return colObj;
             });
-
-            // Set default position if not available
-            const defaultPosition = { left: 100 + Math.random() * 100, top: 100 + Math.random() * 100 };
-            const position = table.position || defaultPosition;
-
+    
+            const position = table.position || { left: 100 + Math.random() * 100, top: 100 + Math.random() * 100 };
             return {
-                // Prepend 'lightning' and append USL name (ddlJson.name) to the table name
                 name: `lightning.${ddlJson.namespace.join('.')}.${ddlJson.name}.${table.name}`,
                 desc: columns,
-                foreignKeyConstraints: foreignKeyConstraints.length > 0 ? foreignKeyConstraints : [],
-                uuid: `${uuidv4()}`,  // Generate unique ID for each table
+                foreignKeyConstraints: foreignKeyConstraints.length ? foreignKeyConstraints : [],
+                uuid: `${uuidv4()}`,
                 position: position
             };
         });
-
-        // Connections Information Export from DDL Json
+    
         const savedConnections = [];
         ddlJson.tables.forEach((table) => {
-            // Process each column for foreignKey relationships
             table.columnSpecs.forEach((col) => {
                 if (col.foreignKey) {
-                    const sourceColumn = col.name;
-                    // Include USL name (ddlJson.name) in the table names
-                    const sourceTableUuid = savedTables.find(t => t.name === `lightning.${ddlJson.namespace.join('.')}.${ddlJson.name}.${table.name}`).uuid;
-                    const targetTable = col.foreignKey.refTable.join('.');
-                    const targetTableObj = savedTables.find(t => t.name === `lightning.${ddlJson.namespace.join('.')}.${ddlJson.name}.${targetTable}`);
-
-                    if (targetTableObj) {
-                        const targetColumn = col.foreignKey.refColumns[0];  // Assume only one target column for simplicity
-                        const sourceId = `table-${sourceTableUuid}-col-${table.columnSpecs.findIndex(c => c.name === sourceColumn) + 1}-left`;
+                    const sourceTable = `lightning.${ddlJson.namespace.join('.')}.${ddlJson.name}.${table.name}`;
+                    const sourceTableUuid = savedTables.find(t => t.name === sourceTable)?.uuid;
+    
+                    const targetTableName = col.foreignKey.refTable.join('.');
+                    const targetTable = `lightning.${ddlJson.namespace.join('.')}.${ddlJson.name}.${targetTableName}`;
+                    const targetTableObj = savedTables.find(t => t.name === targetTable);
+    
+                    if (sourceTableUuid && targetTableObj) {
+                        const sourceId = `table-${sourceTableUuid}-col-${table.columnSpecs.findIndex(c => c.name === col.name) + 1}-left`;
+                        const targetColumn = col.foreignKey.refColumns[0];
                         const targetId = `table-${targetTableObj.uuid}-col-${targetTableObj.desc.findIndex(c => c.col_name === targetColumn) + 1}-right`;
-
+    
                         savedConnections.push({
                             sourceId,
                             targetId,
                             relationship: 'fk',
                         });
                     } else {
-                        console.warn(`Target table ${targetTable} not found for foreign key.`);
+                        console.warn(`Target table ${targetTableName} not found for foreign key.`);
                     }
                 }
             });
         });
-
-        // Store the tables and connections in localStorage
+    
         localStorage.setItem('connections', JSON.stringify(savedConnections));
         localStorage.setItem('savedTables', JSON.stringify(savedTables));
-
+    
         return { savedTables, savedConnections, rulesData: {} };
-    };
+    };    
 
     const handlePreViewButtonClick = (tableName) => {
         // console.log(`Preview button clicked for table Name: ${tableName}`);
@@ -719,7 +738,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
             }
 
             // Add source column info to the tooltip
-            const combinedTooltipData = `${tooltipData}, foreign key: (${sourceColumnName})`;
+            const combinedTooltipData = `${tooltipData}, foreignKey: (${sourceColumnName})`;
 
             if (relationship === 'fk') {
                 addForeignKeyIconToColumn(targetColumn, combinedTooltipData, tooltipData);
@@ -1170,7 +1189,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
     const compileUSL = async (name = "noname", ddlQuery, isDeploy = true) => {
         try {
             // First, run the query to create the namespace if it doesn't exist
-            const createNamespaceQuery = "CREATE NAMESPACE IF NOT EXISTS lightning.metastore.usl;";
+            const createNamespaceQuery = "CREATE NAMESPACE IF NOT EXISTS lightning.metastore.usldb;";
             const namespaceResponse = await fetchApi(createNamespaceQuery);
 
             if (namespaceResponse.error) {
@@ -1179,26 +1198,17 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
             }
 
             // Create the USL query
-            let uslQuery = `COMPILE USL IF NOT EXISTS crmdb NAMESPACE lightning.metastore.usl DDL ${ddlQuery}`;
-
-            // Prepare USL data
-            const uslData = {
-                name: name,
-                ddl: uslQuery,
-                deploy: isDeploy,
-                ifNotExists: true,
-                namespace: 'lightning.metastore.usl'
-            };
+            let uslQuery = `COMPILE USL IF NOT EXISTS ${name} DEPLOY NAMESPACE lightning.metastore.usldb DDL ${ddlQuery}`;
 
             // Call the API to compile the USL
-            const compileResponse = await fetchCompileUSLApi(uslData);
+            const response = await fetchApi(uslQuery);
 
-            if (compileResponse.error) {
-                console.log(compileResponse.message)
-                setPopupMessage(`Failed to compile USL: ${compileResponse.message}`);
+            if (response.error) {
+                console.log(response.message)
+                setPopupMessage(`Failed to compile USL: ${response.message}`);
             } else {
                 setPopupMessage('USL compiled successfully');
-                return compileResponse;
+                return response;
             }
         } catch (error) {
             setPopupMessage(`Error in compileUSL:, ${error}`);
@@ -1220,7 +1230,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
 
         localStorage.setItem('savedTables', JSON.stringify(updatedTable));
 
-        window.location.reload();
+        // window.location.reload();
 
     };
 
@@ -1363,7 +1373,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                     {activateTable && showActivePopup && (
                         <ActivePopup
                             onClose={handleCloseActivePopup}
-                            onSubmit={(query) => handleSubmitActivateQuery(activateTargetTable, query)}
+                            onSubmit={(query) => handleSubmitActivateQuery(query)}
                             table={activateTargetTable}
                         />
                     )}

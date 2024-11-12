@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
-import AceEditor from "react-ace";
+import Editor from './contents/components/Editor';
 import './SetSemanticLayerModal.css';
-
-// Import AceEditor mode and theme
-import "ace-builds/src-noconflict/mode-sql";
-import "ace-builds/src-noconflict/theme-github";
 
 const SetSemanticLayerModal = ({ showPopup, setShowPopup, ddlName, setDdlName, ddlCode, setDdlCode, handleGenerateClick }) => {
   const [dragOver, setDragOver] = useState(false);
@@ -55,53 +51,53 @@ const SetSemanticLayerModal = ({ showPopup, setShowPopup, ddlName, setDdlName, d
     <div className="popup-overlay">
       <div className="popup-modal">
         <h3 className="popup-title">Create Semantic Layer</h3>
-        
+
         {/* Form Group 1 */}
         <div className="popup-field">
           <label>Name</label>
-          <input 
-            type="text" 
+          <input
+            type="text"
             value={ddlName}
-            onChange={(e) => setDdlName(e.target.value)} 
-            placeholder="Enter Layer name" 
+            onChange={(e) => setDdlName(e.target.value)}
+            placeholder="Enter Layer name"
             className="popup-input"
           />
         </div>
 
         {/* Form Group 2 with File Upload and Drag & Drop */}
-        <div 
-          className={`popup-field file-drop-area ${dragOver ? 'drag-over' : ''}`} 
-          onDrop={handleDrop} 
-          onDragOver={handleDragOver} 
+        <div
+          className={`popup-field file-drop-area ${dragOver ? 'drag-over' : ''}`}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onClick={handleDropAreaClick}
         >
           <label>DDL Code</label>
           <div className='label-text'>Enter DDL code, drag & drop or click to select file (.sql/.txt).</div>
-          <AceEditor
-            mode="sql"
-            theme="github"
-            name="ddl-editor"
-            fontSize={14}
-            value={ddlCode}
-            onChange={(newCode) => setDdlCode(newCode)}
-            editorProps={{ $blockScrolling: true }}
-            setOptions={{
-              showLineNumbers: true,
-              tabSize: 2,
-              wrap: true,
-            }}
-            style={{ width: "100%", height: "300px" }}
-          />
-          <input 
-            type="file" 
+          <div style={{ height: '300px', width: '100%' }}>
+            <Editor
+              id="ddl-editor"
+              content={ddlCode}
+              fontSize={14}
+              value={ddlCode}
+              onChange={(newCode) => setDdlCode(newCode)}
+              editorProps={{ $blockScrolling: true }}
+              setOptions={{
+                showLineNumbers: true,
+                tabSize: 2,
+                wrap: true,
+              }}
+            />
+          </div>
+          <input
+            type="file"
             id="fileInput"
             accept=".sql, .txt"
-            onChange={handleFileUpload} 
+            onChange={handleFileUpload}
             className="file-input"
           />
         </div>
-        
+
         {/* Buttons */}
         <div className="popup-buttons">
           <button className="btn-secondary" onClick={() => setShowPopup(false)}>Cancel</button>

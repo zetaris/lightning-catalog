@@ -6,34 +6,150 @@ export const defineCustomTheme = () => {
     exports.isDark = false;
     exports.cssClass = 'ace-myCustomTheme';
     exports.cssText = `
+      /* Background and Gutter */
       .ace-myCustomTheme .ace_gutter {
-        background: #FFFFFF;
-        color: #27A7D2;
-      }
-      .ace-myCustomTheme .ace_print-margin {
-        // display: none;
+        color: #A3C0CE;
       }
       .ace-myCustomTheme {
         background-color: #FFFFFF;
-        color: #27A7D2;
+        color: #134B70;
       }
       .ace-myCustomTheme .ace_cursor {
         color: #134B70;
       }
       .ace-myCustomTheme .ace_marker-layer .ace_selection {
-        background: #CECECE;
+        background: rgba(39, 167, 210, 0.2);
       }
 
-      /* Colors based on Ace's built-in classes */
+      /* Highlighted Text */
+      .ace-myCustomTheme .ace_marker-layer .ace_active-line {
+        background: #EAF5FB;
+      }
+
+      /* Custom Colors for Syntax */
       .ace-myCustomTheme .ace_keyword {
-        color: #134B70;
+        color: #C96868; /* Keywords in dark blue */
         font-weight: bold;
+      }
+      .ace-myCustomTheme .ace_reserved-word {
+        color: #1C7794; /* Reserved words in a medium blue */
+        font-weight: bold;
+      }
+      .ace-myCustomTheme .ace_lightning {
+        color: #27A7D2; /* Project main color for functions */
+        font-weight: bold;
+      }
+      .ace-myCustomTheme .ace_suggestion {
+        color: #27A7D2; /* Project main color for functions */
+        font-weight: bold;
+      }
+      .ace-myCustomTheme .ace_function {
+        color: #27A7D2; /* Project main color for functions */
+        font-weight: bold;
+      }
+      .ace-myCustomTheme .ace_data-type {
+        color: #15B392; /* Data types in project color, italicized */
+        font-style: italic;
+        font-weight: bold;
+      }
+      .ace-myCustomTheme .ace_constraints {
+        color: #D28445; /* Data types in project color, italicized */
+        font-style: italic;
+        font-weight: bold;
+      }
+      .ace-myCustomTheme .ace_identifier {
+        color: #134B70;
+      }
+
+      /* Comments */
+      .ace-myCustomTheme .ace_comment {
+        color: #606676;
+        font-style: italic;
+      }
+
+      /* String literals */
+      .ace-myCustomTheme .ace_string {
+        color: #D28445;
+      }
+
+      /* Constants like numbers */
+      .ace-myCustomTheme .ace_constant.ace_numeric {
+        color: #C47F26;
       }
     `;
     var dom = require('ace/lib/dom');
     dom.importCssString(exports.cssText, exports.cssClass);
   });
 };
+
+ace.define("ace/mode/custom_sql_highlight_rules", ["require", "exports", "ace/mode/text_highlight_rules"], function (require, exports) {
+  const TextHighlightRules = require("ace/mode/text_highlight_rules").TextHighlightRules;
+
+  const CustomSqlHighlightRules = function () {
+    this.$rules = {
+      "start": [
+        {
+          token: "keyword",
+          regex: "\\b(?:SELECT|FROM|WHERE|JOIN|CREATE|TABLE|SHOW|INSERT|DROP|IF|EXISTS|REPLACE|QUERY|REGISTER|DESCRIBE|describe|TABLES|tables|IN|VALUES|INTO|PARTITIONED|BY|WITH|NAMESPACE)\\b",
+        },
+        {
+          token: "lightning",
+          regex: "\\b(?:lightning|datasource|metastore|NAMESPACES|OPTIONS|USL|usl|ACTIVATE|DEACTIVATE|CATALOG)\\b"
+        },
+        {
+          token: "data-type",
+          regex: "\\b(?:H2|AVRO|CSV|ORC|PARQUET|JSON|JDBC|int|char|varchar|real|foreign key|primary key|FOREIGN KEY|PRIMARY KEY|not null|NOT NULL|null|NULL|unique|UNIQUE|index|INDEX)\\b"
+        },
+        {
+          token: "constraints",
+          regex: "\\b(?:foreign key|primary key|FOREIGN KEY|PRIMARY KEY|not null|NOT NULL|null|NULL|unique|UNIQUE|index|INDEX)\\b"
+        },
+        {
+          token: "identifier",
+          regex: "\\w+"
+        },
+        {
+          token: "suggestion",
+          regex: "\\w+"
+        },
+        {
+          token: "comment",
+          regex: "--.*$"
+        },
+        {
+          token: "comment",
+          start: "/\\*",
+          end: "\\*/"
+        }
+      ]
+    };
+
+    this.normalizeRules();
+  };
+
+  CustomSqlHighlightRules.metaData = {
+    fileTypes: ["sql"],
+    name: "CustomSqlHighlightRules"
+  };
+
+  ace.require("ace/lib/oop").inherits(CustomSqlHighlightRules, TextHighlightRules);
+  exports.CustomSqlHighlightRules = CustomSqlHighlightRules;
+});
+
+ace.define("ace/mode/custom_sql", ["require", "exports", "ace/mode/sql", "ace/mode/custom_sql_highlight_rules"], function (require, exports) {
+  const oop = require("ace/lib/oop");
+  const SqlMode = require("ace/mode/sql").Mode;
+  const CustomSqlHighlightRules = require("ace/mode/custom_sql_highlight_rules").CustomSqlHighlightRules;
+
+  const CustomSqlMode = function () {
+    SqlMode.call(this);
+    this.HighlightRules = CustomSqlHighlightRules;
+  };
+
+  oop.inherits(CustomSqlMode, SqlMode);
+
+  exports.Mode = CustomSqlMode;
+});
 
 let pathKeywords = {};
 let currentSuggestions = [];
@@ -46,10 +162,11 @@ export const setPathKeywords = (paths) => {
 
 const onDotTyped = (editorInstance) => {
   let currentLine = editorInstance.getSession().getLine(editorInstance.getCursorPosition().row);
+  currentSuggestions = [];
 
-  const lightningIndex = currentLine.indexOf("lightning");
-  if (lightningIndex !== -1) {
-    currentLine = currentLine.slice(lightningIndex);
+  const lastLightningIndex = currentLine.lastIndexOf("lightning");
+  if (lastLightningIndex !== -1) {
+    currentLine = currentLine.slice(lastLightningIndex);
   }
 
   const pathSegments = currentLine.split('.');
@@ -61,23 +178,23 @@ const onDotTyped = (editorInstance) => {
     return segments[pathSegments.length - 1];
   }).filter((suggestion, index, self) => suggestion && self.indexOf(suggestion) === index);
 
-  // console.log("Suggestions for", currentPath, ":", currentSuggestions);
-
-  setTimeout(() => {
-    editorInstance.execCommand('startAutocomplete');
-  }, 0);
+  if (currentSuggestions.length > 0) {
+    setTimeout(() => {
+      editorInstance.execCommand('startAutocomplete');
+    }, 0);
+  }
 };
 
 export const customSQLCompleter = {
   getCompletions: (editor, session, pos, prefix, callback) => {
     const suggestions = currentSuggestions.length > 0
       ? currentSuggestions.map((suggestion) => ({
-          caption: suggestion,
-          value: suggestion,
-          meta: 'suggestion',
-          score: 1000
-        }))
-      : 
+        caption: suggestion,
+        value: suggestion,
+        meta: 'suggestion',
+        score: 1000
+      }))
+      :
       [
         { name: 'SELECT', value: 'SELECT', score: 1000, meta: 'keyword' },
         { name: 'FROM', value: 'FROM', score: 1000, meta: 'keyword' },
@@ -99,18 +216,22 @@ export const customSQLCompleter = {
         { name: 'PARTITIONED', value: 'PARTITIONED', score: 1000, meta: 'keyword' },
         { name: 'BY', value: 'BY', score: 1000, meta: 'keyword' },
         { name: 'WITH', value: 'WITH', score: 1000, meta: 'keyword' },
-        { name: 'ACTIVATE', value: 'ACTIVATE', score: 1000, meta: 'keyword' },
-        
+        { name: 'QUERY', value: 'QUERY', score: 1000, meta: 'keyword' },
+        { name: 'REGISTER', value: 'REGISTER', score: 1000, meta: 'keyword' },
+        { name: 'TABLES', value: 'TABLES', score: 1000, meta: 'keyword' },
+
         // Functions
-        { name: 'lightning', value: 'lightning', score: 1001, meta: 'function' },
-        { name: 'datasource', value: 'datasource', score: 1001, meta: 'function' },
-        { name: 'metastore', value: 'metastore', score: 1000, meta: 'function' },
-        { name: 'NAMESPACES', value: 'NAMESPACES', score: 1000, meta: 'function' },
-        { name: 'NAMESPACE', value: 'NAMESPACE', score: 1000, meta: 'function' },
-        { name: 'OPTIONS', value: 'OPTIONS', score: 1000, meta: 'function' },
-        { name: 'CATALOG', value: 'CATALOG', score: 1000, meta: 'function' },
-        { name: 'USL', value: 'USL', score: 1000, meta: 'function' },
-      
+        { name: 'lightning', value: 'lightning', score: 1000, meta: 'lightning' },
+        { name: 'datasource', value: 'datasource', score: 1000, meta: 'lightning' },
+        { name: 'metastore', value: 'metastore', score: 1000, meta: 'lightning' },
+        { name: 'NAMESPACES', value: 'NAMESPACES', score: 1000, meta: 'lightning' },
+        { name: 'NAMESPACE', value: 'NAMESPACE', score: 1000, meta: 'lightning' },
+        { name: 'OPTIONS', value: 'OPTIONS', score: 1000, meta: 'lightning' },
+        { name: 'CATALOG', value: 'CATALOG', score: 1000, meta: 'lightning' },
+        { name: 'USL', value: 'USL', score: 1000, meta: 'lightning' },
+        { name: 'ACTIVATE', value: 'ACTIVATE', score: 1000, meta: 'lightning' },
+        { name: 'DEACTIVATE', value: 'DEACTIVATE', score: 1000, meta: 'lightning' },
+
         // Data types
         { name: 'H2', value: 'H2', score: 1000, meta: 'data-type' },
         { name: 'AVRO', value: 'AVRO', score: 1000, meta: 'data-type' },
@@ -118,15 +239,14 @@ export const customSQLCompleter = {
         { name: 'ORC', value: 'ORC', score: 1000, meta: 'data-type' },
         { name: 'PARQUET', value: 'PARQUET', score: 1000, meta: 'data-type' },
         { name: 'JSON', value: 'JSON', score: 1000, meta: 'data-type' },
-        { name: 'JDBC', value: 'JDBC', score: 1000, meta: 'data-type' }
-      ];      
-
-    // const dynamicSuggestions = currentSuggestions.map((suggestion) => ({
-    //   caption: suggestion,
-    //   value: suggestion,
-    //   meta: 'dynamic',
-    //   score: 1000
-    // }));
+        { name: 'JDBC', value: 'JDBC', score: 1000, meta: 'data-type' },
+        { name: 'int', value: 'int', score: 1000, meta: 'data-type' },
+        { name: 'char', value: 'char', score: 1000, meta: 'data-type' },
+        { name: 'varchar', value: 'varchar', score: 1000, meta: 'data-type' },
+        { name: 'real', value: 'real', score: 1000, meta: 'data-type' },
+        { name: 'foreign key', value: 'foreign key', score: 1000, meta: 'data-type' },
+        { name: 'primary key', value: 'primary key', score: 1000, meta: 'data-type' },
+      ];
 
     callback(null, suggestions);
   }
@@ -135,6 +255,8 @@ export const customSQLCompleter = {
 // Add completer to Ace editor
 export const setupAceEditor = (editor) => {
   if (!editor) return;
+
+  editor.session.setMode("ace/mode/custom_sql");
 
   const languageTools = ace.require('ace/ext/language_tools');
   languageTools.setCompleters([customSQLCompleter]);
@@ -145,11 +267,20 @@ export const setupAceEditor = (editor) => {
   });
 
   editor.getSession().on('change', (delta) => {
-    if (delta.action === 'insert' && delta.lines.join('').includes('.')) {
+    const { action, lines } = delta;
+
+    if (action === 'insert' && lines.join('').includes('.')) {
       onDotTyped(editor);
+    } else if (action === 'remove' && lines.join('').includes('.')) {
+      resetSuggestions();
     }
   });
 };
+
+const resetSuggestions = () => {
+  currentSuggestions = [];
+};
+
 
 // Editor default options
 export const editorOptions = {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
 import { TreeItem } from '@mui/x-tree-view/TreeItem';
-import { fetchApi, fetchApiForListSemanticLayers } from '../utils/common';
+import { fetchApi } from '../utils/common';
 import { setPathKeywords } from '../components/configs/editorConfig';
 import './Navigation.css';
 import '../styleguides/styleguides.css';
@@ -37,22 +37,6 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
   const [tableNames, setTableNames] = useState([]);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const result = await fetchApiForListSemanticLayers();
-      if (!result.error) {
-        const filteredTableNames = result
-          .filter(fileName => fileName.endsWith('_table_query.json'))
-          .map(fileName => fileName.replace('_table_query.json', ''));
-        setTableNames(filteredTableNames);
-      } else {
-        console.error("Failed to fetch semantic layers: ", result.message);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  useEffect(() => {
     if (currentFullPaths.length > 0) {
       setPathKeywords(currentFullPaths);
     }
@@ -85,77 +69,48 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
     };
   }, []);
 
-  const loadSemanticLayerFiles = async () => {
-    const files = await fetchApiForListSemanticLayers();
-    if (files.error) {
-      console.error("Error loading files: ", files.message);
-    } else {
-      console.log("Available semantic layer files: ", files);
-      setSemanticLayerFiles(files.map(file => ({
-        name: file,
-        isFile: true,
-        children: null
-      })));
-    }
-  };
-
   // Function to get the depth (level) of the current path
   const getCurrentLevel = (fullPath) => {
     const parts = fullPath.split('.');
     return parts.length;
   };
 
-  // Function to fetch child nodes from the API, keeping track of the full namespace path
   const fetchDatasources = async (fullPath, isMetastore = false) => {
     let query;
     const currentLevel = getCurrentLevel(fullPath);
 
-    if (isMetastore) {
-      if (currentLevel === 5) {
+    // Determine query logic based on namespace prefix and current level
+    if (fullPath.startsWith("lightning.datasource")) {
+      if (currentLevel === 2 || currentLevel === 3 || currentLevel === 4) {
+        query = `SHOW NAMESPACES IN ${fullPath};`;
+      } else if (currentLevel === 5) {
         query = `SHOW TABLES IN ${fullPath};`;
       } else if (currentLevel === 6) {
         query = `DESC ${fullPath};`;
-      } else {
-        query = `SHOW NAMESPACES IN ${fullPath};`;
       }
-    } else {
-      if (currentLevel === 5) {
-        query = `SHOW TABLES IN ${fullPath};`;
-      } else if (currentLevel === 6) {
-        query = `DESC ${fullPath};`;
-      } else {
+    } else if (fullPath.startsWith("lightning.metastore")) {
+      if (currentLevel === 2 || currentLevel === 3) {
         query = `SHOW NAMESPACES IN ${fullPath};`;
+      } else if (currentLevel === 4) {
+        query = `SHOW TABLES IN ${fullPath};`;
+      } else if (currentLevel === 5) {
+        query = `DESC ${fullPath};`;
       }
     }
 
-    let result = await fetchApi(query);
-    let queryCheck = !Array.isArray(result) || result.length === 0;
-
-    while (queryCheck) {
-      if (query.startsWith('SHOW NAMESPACES')) {
-        query = `SHOW TABLES IN ${fullPath};`;
-      } else if (query.startsWith('SHOW TABLES')) {
-        query = `DESC ${fullPath};`;
-        queryCheck = false;
-      }
-
+    let result;
+    if(currentLevel > 1){
       result = await fetchApi(query);
-
-      if (Array.isArray(result) && result.length > 0) {
-        queryCheck = false;
-      }
     }
+    if (!Array.isArray(result) || result.length === 0) return [];
 
-    if (!Array.isArray(result)) return [];
-
+    // Process result based on the query type
     if (query.startsWith('SHOW TABLES')) {
       const parsedResult = result.map((item) => JSON.parse(item).tableName);
       const excludedNamespaces = ["information_schema", "pg_catalog", "public"];
-      // return parsedResult.filter(table => !excludedNamespaces.includes(table))
-      //   .map(table => ({ name: table, fullPath: `${fullPath}.${table}`, isTable: true, children: null }));
       const filteredResult = parsedResult.filter(table => !excludedNamespaces.includes(table))
         .map(table => ({ name: table, fullPath: `${fullPath}.${table}`, isTable: true, children: null }));
-      
+
       setCurrentFullPaths((prevPaths) => [...prevPaths, ...filteredResult.map((item) => item.fullPath)]);
       return filteredResult;
     } else if (query.startsWith('DESC')) {
@@ -202,7 +157,7 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
   // Fetch initial data for lightning.metastore
   const fetchInitialDataForMetastore = async (parentNode, depth) => {
     if (depth === 0 || parentNode.children) return;
-    const childNodes = await fetchDatasources(parentNode.fullPath || parentNode.name, true); // isMetastore = true
+    const childNodes = await fetchDatasources(parentNode.fullPath || parentNode.name, true);
     setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, parentNode.name, childNodes));
     for (let child of childNodes) {
       await fetchInitialDataForMetastore(child, depth - 1);
@@ -248,7 +203,7 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
 
   const drawUSL = async (node) => {
     // console.log(node.name)
-    setUslNamebyClick(node.name);
+    setUslNamebyClick(node.fullPath);
   }
 
   const renderTree = (nodes, parentPath = '', isSemanticLayer = false) => {

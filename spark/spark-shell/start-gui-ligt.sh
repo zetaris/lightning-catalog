@@ -19,22 +19,10 @@
 #  */
 #
 
-#############################################################
-# LIGT_HOME var need to be set for the installed directory
-# Assuming all 3rd party libraries, for example vendor JDBC jar file, are kept in $LIGT_HOME/jdbc-lib
-
-# $SPARK_HOME/bin/spark-sql --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension,com.zetaris.lightning.spark.LightningSparkSessionExtension \
-#     --conf spark.sql.catalog.lightning=com.zetaris.lightning.catalog.LightningCatalog \
-#     --conf spark.sql.catalog.lightning.type=hadoop \
-#     --conf spark.sql.catalog.lightning.warehouse=/tmp/ligt-model \
-#     --conf spark.sql.catalog.lightning.accessControlProvider=com.zetaris.lightning.analysis.NotAppliedAccessControlProvider \
-#     --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog \
-#     --conf spark.executor.extraClassPath=$LIGT_HOME/lib/* \
-#     --conf spark.driver.extraClassPath=$LIGT_HOME/lib/* \
-#     --jars $LIGT_HOME/lib/lightning-spark-extensions-3.5_2.12-0.1.jar,$LIGT_HOME/jdbc-lib/*
+#!/bin/bash
 
 # Set Spark version information if necessary (optional)
-SPARK_VERSION="3.5"
+SPARK_VERSION="3.5" # Spark version if needed to set any paths or environment variables
 
 # Set paths
 BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -46,15 +34,25 @@ if [ ! -d "$LIB_DIR" ]; then
     exit 1
 fi
 
-# Execute Spark SQL in CLI mode
-echo "Starting Spark SQL in CLI mode with necessary JAR files..."
-"${SPARK_HOME}/bin/spark-sql" \
+# Set the main class and application parameters
+MAIN_CLASS="com.zetaris.lightning.catalog.api.LightningAPIServer"
+APP_NAME="LightningAPI Server"
+
+# Start Spark with necessary JARs and configuration
+echo "Starting Spark with necessary JAR files..."
+exec "${SPARK_HOME}/bin/spark-submit" \
+    --class $MAIN_CLASS \
+    --name "$APP_NAME" \
     --conf spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension,com.zetaris.lightning.spark.LightningSparkSessionExtension \
     --conf spark.sql.catalog.lightning=com.zetaris.lightning.catalog.LightningCatalog \
     --conf spark.sql.catalog.lightning.type=hadoop \
     --conf spark.sql.catalog.lightning.warehouse=/tmp/ligt-model \
     --conf spark.sql.catalog.lightning.accessControlProvider=com.zetaris.lightning.analysis.NotAppliedAccessControlProvider \
     --conf spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog \
-    --conf spark.executor.extraClassPath="$LIB_DIR/*" \
-    --conf spark.driver.extraClassPath="$LIB_DIR/*" \
-    --jars "$LIB_DIR/lightning-spark-extensions-${SPARK_VERSION}_2.12-0.2.jar,$LIB_DIR/*"
+    --driver-class-path "$LIB_DIR/*:$SPARK_HOME/jdbc-libs/*" \
+    --jars "$LIB_DIR/lightning-spark-extensions-${SPARK_VERSION}_2.12-0.2.jar,$LIB_DIR/*" \
+    --num-executors 2 \
+    --conf "spark.executor.extraJavaOptions=-Dlog4j.configuration=file:$SPARK_HOME/conf/log4j.properties" \
+    --conf "spark.driver.extraJavaOptions=-Dlog4j.configuration=file:$SPARK_HOME/conf/log4j.properties" \
+    "$LIB_DIR/lightning-spark-common_2.12-0.2.jar" \
+    "$@"
