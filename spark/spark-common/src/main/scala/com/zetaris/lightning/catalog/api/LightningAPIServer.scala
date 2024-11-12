@@ -78,45 +78,41 @@ import javax.ws.rs.core.UriBuilder
 import org.apache.spark.sql.SparkSession
 
 object LightningAPIServer {
-  val API_PORT_KEY = "lightning.server.port"
-  val defaultPort = 8080
   val LOGGER = LoggerFactory.getLogger(getClass)
-
-  val spark: SparkSession = SparkSession.builder()
-    .getOrCreate()
+  lazy val spark: SparkSession = SparkSession.builder().getOrCreate()
 
   def main(args: Array[String]): Unit = {
-    LOGGER.info("Starting Lightning API server...")
+    LOGGER.info("Starting Lightning API and GUI servers...")
 
+    // API Server Configuration
+    val serverPort = sys.env.getOrElse("LIGHTNING_SERVER_PORT", "8080").toInt
+    val apiBaseUri = UriBuilder.fromUri("http://localhost/").port(serverPort).build()
+    
     // Jersey configuration for API
     val config = new ResourceConfig(
       classOf[CORSFilter],
       classOf[LightningResource]
     )
-
-    // API Server (port 8080)
-    val serverPort = spark.sparkContext.getConf.getInt(API_PORT_KEY, defaultPort)
-    val apiBaseUri = UriBuilder.fromUri("http://localhost/").port(serverPort).build()
     val apiServer = JettyHttpContainerFactory.createServer(apiBaseUri, config)
     apiServer.start()
+    LOGGER.info(s"API Server started on port $serverPort")
 
-    // GUI Server (port 3000)
-    val guiPort = 3000
+    // GUI Server Configuration
+    val guiPort = sys.env.getOrElse("LIGHTNING_GUI_PORT", "3000").toInt
     val guiServer = new Server(guiPort)
     val staticHandler = new ResourceHandler()
     staticHandler.setDirectoriesListed(true)
+    
     val jarLocation = Paths.get(getClass.getProtectionDomain.getCodeSource.getLocation.toURI).getParent.toString
     val webDir = Paths.get(jarLocation, "../web").toString
-
     staticHandler.setResourceBase(webDir)
 
     val guiContext = new ContextHandler()
     guiContext.setContextPath("/")
     guiContext.setHandler(staticHandler)
-
+    
     guiServer.setHandler(guiContext)
     guiServer.start()
-
     LOGGER.info(s"GUI Server started. Access the GUI at http://localhost:$guiPort")
 
     Runtime.getRuntime.addShutdownHook(new Thread {
