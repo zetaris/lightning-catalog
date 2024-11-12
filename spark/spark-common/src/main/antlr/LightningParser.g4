@@ -17,7 +17,7 @@ ddlStatement
     ;
 
 runDQ
-    : RUN DQ name = identifier USL usl=multipartIdentifier
+    : RUN DQ (name = identifier)? TABLE table=multipartIdentifier
     ;
 
 listDQ

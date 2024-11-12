@@ -23,7 +23,7 @@ package com.zetaris.lightning.execution.command
 
 import com.zetaris.lightning.catalog.LightningSource
 import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
-import com.zetaris.lightning.model.{DataQualityDuplicatedException, LightningModelFactory}
+import com.zetaris.lightning.model.{DataQualityDuplicatedException, DataQualityNotFoundException, LightningModelFactory, TableNotFoundException}
 import org.apache.spark.sql.catalyst.QueryPlanningTracker
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Not}
@@ -33,7 +33,7 @@ import org.apache.spark.sql.{DataFrame, Row, SparkSQLBridge, SparkSession}
 
 import scala.util.{Failure, Success, Try}
 
-object DataQualitySpec extends LightningSource{
+object DataQualitySpec extends LightningSource {
   def validateExpressions(sparkSession: SparkSession, table: Seq[String], expression: String): Unit = {
     val unresolved = UnresolvedRelation(table)
 
@@ -51,12 +51,12 @@ object DataQualitySpec extends LightningSource{
    * @param sparkSession
    * @param table
    * @param expression
-   * @return data frame for total record, good record, bad record
+   * @return total record, data frame for good record, bad record
    */
-  def runDQ(sparkSession: SparkSession, table: Seq[String], expression: String): (DataFrame, DataFrame, DataFrame) = {
+  def runDQ(sparkSession: SparkSession, table: Seq[String], expression: String): (Long, DataFrame, DataFrame) = {
     val tracker = new QueryPlanningTracker
 
-    val totRecord = sparkSession.sql(s"select count(*) from ${toFqn(table)}")
+    val totRecord = sparkSession.sql(s"select count(*) from ${toFqn(table)}").collect()(0).getLong(0)
 
     val unresolved = UnresolvedRelation(table)
     val exp = tryParse(expression, sparkSession.sessionState.sqlParser.parseExpression)
@@ -152,7 +152,7 @@ case class ListDataQualitySpec(uslNamespace: Seq[String]) extends LightningComma
   }
 }
 
-case class RunDataQualitySpec(name: String, uslNamespace: Seq[String]) extends LightningCommandBase {
+case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends LightningCommandBase {
   override val output: Seq[AttributeReference] = Seq(
     AttributeReference("name", StringType, false)(),
     AttributeReference("table", StringType, false)(),
@@ -163,13 +163,27 @@ case class RunDataQualitySpec(name: String, uslNamespace: Seq[String]) extends L
 
   override def runCommand(sparkSession: SparkSession): Seq[Row] = {
     val model = LightningModelFactory(dataSourceConfigMap(sparkSession))
-    val uslName = uslNamespace.last
-    val uslNameSpace = uslNamespace.dropRight(1).drop(1)
-    model.loadUnifiedSemanticLayer(uslNameSpace, uslName).tables.flatMap { createTableSpec =>
+    val tableName = table.last
+    val uslName = table.dropRight(1).last
+    val uslNameSpace = table.dropRight(2).drop(1)
+    val usl = model.loadUnifiedSemanticLayer(uslNameSpace, uslName)
+
+    val createTableSpec = usl.tables.find(_.name.equalsIgnoreCase(tableName)).getOrElse(
+      throw TableNotFoundException(s"${toFqn(table)} is not defined")
+    )
+
+    if (name.isDefined) {
+      val dq = createTableSpec.dqAnnotations.find(_.name.equalsIgnoreCase(name.get)).getOrElse(
+        throw DataQualityNotFoundException(s"${name.get} is not found in table ${toFqn(table)}")
+      )
+      val dqStat = DataQualitySpec.runDQ(sparkSession,
+          createTableSpec.namespace :+ createTableSpec.name, dq.expression)
+      Row(dq.name, createTableSpec.name, dqStat._1, dqStat._2.count(), dqStat._3.count()) :: Nil
+    } else {
       createTableSpec.dqAnnotations.map { dq =>
         val dqStat = DataQualitySpec.runDQ(sparkSession,
           createTableSpec.namespace :+ createTableSpec.name, dq.expression)
-        Row(dq.name, createTableSpec.name, dqStat._1.count(), dqStat._2.count(), dqStat._3.count())
+        Row(dq.name, createTableSpec.name, dqStat._1, dqStat._2.count(), dqStat._3.count())
       }
     }
   }

@@ -485,11 +485,17 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
   }
 
   override def visitRunDQ(ctx: RunDQContext): RunDataQualitySpec = withOrigin(ctx) {
-    val name = ctx.name.getText
-    val uslNamespace = visitMultipartIdentifier(ctx.usl)
+    val name = if (ctx.name == null || ctx.name.getText.isEmpty) {
+      None
+    } else {
+      Some(ctx.name.getText)
+    }
 
-    validateNamespace(uslNamespace)
-    RunDataQualitySpec(name, uslNamespace)
+
+    val table = visitMultipartIdentifier(ctx.table)
+
+    validateNamespace(table)
+    RunDataQualitySpec(name, table)
   }
 
 }

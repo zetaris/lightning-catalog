@@ -30,3 +30,5 @@ case class TableNotFoundException(message: String) extends RuntimeException(mess
 case class TableNotActivatedException(message: String) extends RuntimeException(message)
 
 case class DataQualityDuplicatedException(message: String) extends RuntimeException(message)
+
+case class DataQualityNotFoundException(message: String) extends RuntimeException(message)
