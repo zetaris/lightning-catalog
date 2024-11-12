@@ -3,10 +3,11 @@
 # Set Spark version information
 SPARK_VERSION="3.5" # Replace with actual SPARK_VERSION
 OUTPUT_ZIP="lightning-metastore-$SPARK_VERSION-0.2-Ver.zip"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Step 1: Build front-end (React)
 echo "Building front-end..."
-cd ../../gui
+cd "$SCRIPT_DIR/../../gui"
 npm install || { echo "Dependency installation failed"; exit 1; }
 npm run build || { echo "React build failed"; exit 1; }
 
@@ -16,12 +17,11 @@ cp -r build/* /tmp/tar_build/web
 
 # Step 2: Build back-end (Gradle, Scala, Spark)
 echo "Building back-end..."
-cd ../
+cd "$SCRIPT_DIR/../"
 ./gradlew clean build -DdefaultSparkMajorVersion=$SPARK_VERSION -x test || { echo "Gradle build failed"; exit 1; }
 
 # Step 3: Extract JAR files from distribution package
 echo "Extracting JAR files from distribution..."
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DIST_DIR="$SCRIPT_DIR/spark/v${SPARK_VERSION}/spark-runtime/build/distributions"
 mkdir -p /tmp/tar_build/lib
 
