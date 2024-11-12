@@ -37,7 +37,7 @@
 SPARK_VERSION="3.5"
 
 # Set paths
-BIN_DIR=$(pwd)  # Assume this script is in the `bin` directory
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$BIN_DIR/../lib"
 
 # Check if necessary directories and files exist

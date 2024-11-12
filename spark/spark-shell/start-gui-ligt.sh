@@ -25,7 +25,7 @@
 SPARK_VERSION="3.5" # Spark version if needed to set any paths or environment variables
 
 # Set paths
-BIN_DIR=$(pwd)  # Extracted project root directory
+BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LIB_DIR="$BIN_DIR/../lib"
 
 # Check if necessary directories and files exist
