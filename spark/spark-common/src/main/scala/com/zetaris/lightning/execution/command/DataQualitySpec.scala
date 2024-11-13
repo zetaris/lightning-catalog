@@ -45,6 +45,10 @@ object DataQualitySpec extends LightningSource {
     sparkSession.sessionState.planner.plan(optimised)
   }
 
+  private def getTotalRecordCount(sparkSession: SparkSession, table: Seq[String]): Long = {
+    sparkSession.sql(s"select count(*) from ${toFqn(table)}").collect()(0).getLong(0)
+  }
+
   /**
    * run dq
    *
@@ -56,7 +60,7 @@ object DataQualitySpec extends LightningSource {
   def runDQ(sparkSession: SparkSession, table: Seq[String], expression: String): (Long, DataFrame, DataFrame) = {
     val tracker = new QueryPlanningTracker
 
-    val totRecord = sparkSession.sql(s"select count(*) from ${toFqn(table)}").collect()(0).getLong(0)
+    val totRecord = getTotalRecordCount(sparkSession, table)
 
     val unresolved = UnresolvedRelation(table)
     val exp = tryParse(expression, sparkSession.sessionState.sqlParser.parseExpression)
@@ -70,6 +74,63 @@ object DataQualitySpec extends LightningSource {
       sparkSession.sessionState.analyzer.execute(badFilter), tracker)
 
     (totRecord, goodRecord, badRecord)
+  }
+
+  def runPrimaryKeyConstraints(sparkSession: SparkSession,
+                               table: Seq[String],
+                               columnSpec: Seq[ColumnSpec]): (Long, Long, Long) = {
+    val totRecord = getTotalRecordCount(sparkSession, table)
+
+    val dfGoodRecord = sparkSession.sql(
+      s"""
+         |SELECT COUNT(*) FROM
+         |  SELECT ${columnSpec.map(_.name).mkString(",")} FROM ${toFqn(table)}
+         |  GROUP BY ${columnSpec.map(_.name).mkString(",")} HAVING COUNT(${columnSpec.map(_.name).mkString(",")}) == 1
+         |)
+         |""".stripMargin).collect()(0).getLong(0)
+
+    val dfBadRecord = sparkSession.sql(
+      s"""
+         |SELECT COUNT(*) FROM
+         |  SELECT ${columnSpec.map(_.name).mkString(",")} FROM ${toFqn(table)}
+         |  GROUP BY ${columnSpec.map(_.name).mkString(",")} HAVING COUNT(${columnSpec.map(_.name).mkString(",")}) > 1
+         |)
+         |""".stripMargin).collect()(0).getLong(0)
+
+    (totRecord, dfGoodRecord, dfBadRecord)
+  }
+
+  def runForeignKeyConstraints(sparkSession: SparkSession,
+                               table: Seq[String],
+                               columnSpec: ColumnSpec,
+                               refTable: Seq[String],
+                               refColumn: String): (Long, Long, Long) = {
+    val totRecord = getTotalRecordCount(sparkSession, table)
+
+    val dfGoodRecord = sparkSession.sql(
+      s"""
+         |SELECT COUNT(*) FROM
+         |  WHERE ${columnSpec.name} IN (
+         |    SELECT ${refColumn} FROM ${toFqn(refTable)}
+         |  )
+         |""".stripMargin).collect()(0).getLong(0)
+
+    val dfBadRecord = sparkSession.sql(
+      s"""
+         |SELECT COUNT(*) FROM
+         |  WHERE ${columnSpec.name} NOT IN (
+         |    SELECT ${refColumn} FROM ${toFqn(refTable)}
+         |  )
+         |""".stripMargin).collect()(0).getLong(0)
+
+    (totRecord, dfGoodRecord, dfBadRecord)
+  }
+
+  def runDatabaseConstraints(sparkSession: SparkSession, table: Seq[String], columnSpec: ColumnSpec): (Long, DataFrame, DataFrame) = {
+    if (columnSpec.primaryKey.isDefined) {
+
+    }
+    ???
   }
 
   def tryParse[T](sqlText: String, f: String => T): T = {
@@ -175,9 +236,12 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
     if (name.isDefined) {
       val dq = createTableSpec.dqAnnotations.find(_.name.equalsIgnoreCase(name.get)).getOrElse(
         throw DataQualityNotFoundException(s"${name.get} is not found in table ${toFqn(table)}")
+//      val columnSpec = createTableSpec.columnSpecs.find(_.name.equalsIgnoreCase(name.get)).getOrElse(
+//        throw DataQualityNotFoundException(s"${name.get} is not found in table ${toFqn(table)}")
+//      )
       )
       val dqStat = DataQualitySpec.runDQ(sparkSession,
-          createTableSpec.namespace :+ createTableSpec.name, dq.expression)
+        createTableSpec.namespace :+ createTableSpec.name, dq.expression)
       Row(dq.name, createTableSpec.name, dqStat._1, dqStat._2.count(), dqStat._3.count()) :: Nil
     } else {
       createTableSpec.dqAnnotations.map { dq =>

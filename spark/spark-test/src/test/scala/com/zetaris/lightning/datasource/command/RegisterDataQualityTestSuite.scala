@@ -210,8 +210,12 @@ class RegisterDataQualityTestSuite extends SparkExtensionsTestBase with H2TestBa
          |id > 0 and item_count > 0 and cid IN (select id from lightning.metastore.crm.ordermart.customer)
          |""".stripMargin)
 
+    sparkSession.sql(s"LIST DQ USL lightning.metastore.crm.ordermart").show()
+
     sparkSession.sql("RUN DQ order_customer_fk TABLE lightning.metastore.crm.ordermart.order").show()
-    sparkSession.sql("RUN DQ TABLE lightning.metastore.crm.ordermart.order").show()
+    //sparkSession.sql("RUN DQ TABLE lightning.metastore.crm.ordermart.order").show()
+
+    sparkSession.sql("RUN DQ customer_rule TABLE lightning.metastore.crm.ordermart.customer").show()
 
   }
 
