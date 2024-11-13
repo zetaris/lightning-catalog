@@ -64,6 +64,62 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
     }
   }
 
+  test("should deploy under root namespace") {
+    //sparkSession.sql(s"CREATE NAMESPACE lightning.metastore")
+
+    val df = sparkSession.sql(
+      s"""
+         |COMPILE USL IF NOT EXISTS crmdb DEPLOY NAMESPACE lightning.metastore DDL
+         |-- create table customer
+         |CREATE TABLE IF NOT EXISTS customer (
+         | id int NOT NULL PRIMARY KEY,
+         | name varchar(200),
+         | /*+@AccessControl(accessType="REGEX", regex="ss", users = "*", groups = "*")*/
+         | uid int UNIQUE,
+         | address varchar(200),
+         | part_id int FOREIGN KEY REFERENCES department(id) ON DELETE RESTRICT ON UPDATE CASCADE
+         |);
+         |
+         |CREATE TABLE IF NOT EXISTS department (
+         | id int NOT NULL,
+         | name varchar(200),
+         | CONSTRAINT pk_id PRIMARY KEY(id)
+         |)
+         |""".stripMargin)
+    val srcJson = df.collect()(0).getString(0)
+    val srcUSL = UnifiedSemanticLayer(srcJson)
+
+    val loadJson = sparkSession.sql("LOAD USL crmdb NAMESPACE lightning.metastore.crm").collect()(0).getString(0)
+    val loadUSL = UnifiedSemanticLayer(loadJson)
+
+    assert(srcUSL.namespace.mkString(".") == loadUSL.namespace.mkString("."))
+    assert(srcUSL.name == loadUSL.name)
+
+    assert(srcUSL.tables(0).name == loadUSL.tables(0).name)
+    assert(srcUSL.tables(0).columnSpecs(0).name == loadUSL.tables(0).columnSpecs(0).name)
+    assert(srcUSL.tables(0).columnSpecs(0).dataType == loadUSL.tables(0).columnSpecs(0).dataType)
+
+    assert(srcUSL.tables(0).columnSpecs(1).name == loadUSL.tables(0).columnSpecs(1).name)
+    assert(srcUSL.tables(0).columnSpecs(1).dataType == loadUSL.tables(0).columnSpecs(1).dataType)
+
+    assert(srcUSL.tables(0).columnSpecs(2).name == loadUSL.tables(0).columnSpecs(2).name)
+    assert(srcUSL.tables(0).columnSpecs(2).dataType == loadUSL.tables(0).columnSpecs(2).dataType)
+
+    assert(srcUSL.tables(0).columnSpecs(3).name == loadUSL.tables(0).columnSpecs(3).name)
+    assert(srcUSL.tables(0).columnSpecs(3).dataType == loadUSL.tables(0).columnSpecs(3).dataType)
+
+    assert(srcUSL.tables(0).columnSpecs(4).name == loadUSL.tables(0).columnSpecs(4).name)
+    assert(srcUSL.tables(0).columnSpecs(4).dataType == loadUSL.tables(0).columnSpecs(4).dataType)
+
+    assert(srcUSL.tables(1).name == loadUSL.tables(1).name)
+    assert(srcUSL.tables(1).columnSpecs(0).name == loadUSL.tables(1).columnSpecs(0).name)
+    assert(srcUSL.tables(1).columnSpecs(0).dataType == loadUSL.tables(1).columnSpecs(0).dataType)
+
+    assert(srcUSL.tables(1).columnSpecs(1).name == loadUSL.tables(1).columnSpecs(1).name)
+    assert(srcUSL.tables(1).columnSpecs(1).dataType == loadUSL.tables(1).columnSpecs(1).dataType)
+  }
+
+
   test("deploy DDLs & load, update USL") {
     sparkSession.sql(s"CREATE NAMESPACE lightning.metastore.crm")
 
