@@ -1,22 +1,21 @@
 import React, { useState } from 'react';
 import Editor from './Editor'; // Assuming this is the path for your custom editor component
 import './Popup.css';
+import { fetchApi } from '../../../utils/common';
 
-const DataQualityPopup = ({ onClose, onSubmit }) => {
-    const [name, setName] = useState('');
-    const [expression, setExpression] = useState('');
-    const [rules, setRules] = useState([
-        { name: 'Rule 1', expression: 'SELECT * FROM table1', isOpen: false },
-        { name: 'Rule 2', expression: 'SELECT COUNT(*) FROM table2', isOpen: false },
-    ]);
+const DataQualityPopup = ({ onClose, onSubmit, table, setPopupMessage }) => {
+    const [ruleName, setRuleName] = useState('');  // State for rule name
+    const [ruleExpression, setRuleExpression] = useState('');  // State for rule expression
+    const [rules, setRules] = useState([]);
     const [isAddingNewRule, setIsAddingNewRule] = useState(false);
 
     const handleSubmit = () => {
-        // Add new rule to the list
-        setRules([...rules, { name, expression, isOpen: false }]);
-        setName('');
-        setExpression('');
-        setIsAddingNewRule(false); // Close the rule addition form
+        // Create full query with rule name and expression
+        const fullExpression = `REGISTER DQ ${ruleName} TABLE ${table.name} AS ${ruleExpression};`;
+        setRules([...rules, { name: ruleName, expression: fullExpression, isOpen: false }]);
+        setRuleName('');  // Clear inputs after submission
+        setRuleExpression('');
+        setIsAddingNewRule(false);  // Close the rule addition form
     };
 
     const toggleRuleDetail = (index) => {
@@ -26,11 +25,41 @@ const DataQualityPopup = ({ onClose, onSubmit }) => {
     };
 
     const handleAddNewRule = () => {
-        setIsAddingNewRule(!isAddingNewRule); // Toggle add new rule form
+        setIsAddingNewRule(!isAddingNewRule);
     };
 
     const handleCancelAddNew = () => {
-        setIsAddingNewRule(false); // Close the add new rule form
+        setIsAddingNewRule(false);
+        setRuleName('');  // Reset rule name and expression if addition is canceled
+        setRuleExpression('');
+    };
+
+    const handleDeleteRule = (index) => {
+        const updatedRules = [...rules];
+        updatedRules.splice(index, 1);
+        setRules(updatedRules);
+    };
+
+    // Handle register DQ request to the server
+    const handleRegisterDQ = async () => {
+        try {
+            // Loop through the rules and send each one to the server using fetchApi
+            for (const rule of rules) {
+                const query = `${rule.expression}`;
+                const response = await fetchApi(query);
+
+                console.log(response)
+
+                if (response.error) {
+                    // Handle success response if needed
+                    setPopupMessage(response.message);
+                } else {
+                    setPopupMessage('Data Quality rule registered successfully');
+                }
+            }
+        } catch (error) {
+            setPopupMessage(error);
+        }
     };
 
     return (
@@ -59,7 +88,12 @@ const DataQualityPopup = ({ onClose, onSubmit }) => {
                                         <tr>
                                             <td colSpan="2">
                                                 <div className="rule-details">
-                                                    <strong>Expression:</strong> {rule.expression}
+                                                    {rule.expression}
+                                                </div>
+                                                <div className="popup-buttons">
+                                                    <button className="btn-primary" onClick={() => handleDeleteRule(index)}>
+                                                        Delete
+                                                    </button>
                                                 </div>
                                             </td>
                                         </tr>
@@ -82,28 +116,31 @@ const DataQualityPopup = ({ onClose, onSubmit }) => {
                                     <td colSpan="2">
                                         <div>
                                             <div className="popup-field">
-                                                <label htmlFor="name">Name:</label>
+                                                <label htmlFor="ruleName">Rule Name:</label>
                                                 <input
-                                                    id="name"
+                                                    id="ruleName"
                                                     type="text"
-                                                    value={name}
-                                                    onChange={(e) => setName(e.target.value)}
+                                                    value={ruleName}
+                                                    onChange={(e) => setRuleName(e.target.value)}
                                                     placeholder="Enter rule name"
                                                 />
                                             </div>
                                             <div className="popup-field">
-                                                <label htmlFor="expressionEditor">Expression:</label>
+                                                <label htmlFor="ruleExpression">Rule Expression:</label>
                                                 <div style={{ height: '100px', width: '100%' }}>
                                                     <Editor
-                                                        id="expressionEditor"
-                                                        content={expression}
-                                                        onChange={setExpression}
+                                                        id="ruleExpressionEditor"
+                                                        content={ruleExpression}
+                                                        onChange={setRuleExpression}
                                                     />
                                                 </div>
                                             </div>
                                             <div className="popup-buttons">
                                                 <button className="btn-primary" onClick={handleSubmit}>
                                                     Add
+                                                </button>
+                                                <button className="btn-secondary" onClick={handleCancelAddNew}>
+                                                    Cancel
                                                 </button>
                                             </div>
                                         </div>
@@ -115,7 +152,10 @@ const DataQualityPopup = ({ onClose, onSubmit }) => {
 
                     <div className="popup-buttons">
                         <button className="btn-secondary" onClick={onClose}>
-                            Cancel
+                            Close
+                        </button>
+                        <button className="btn-primary" onClick={handleRegisterDQ}>
+                            Register DQ
                         </button>
                     </div>
                 </div>

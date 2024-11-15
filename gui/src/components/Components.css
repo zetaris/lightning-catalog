@@ -8,16 +8,22 @@
 }
 
 .header-container {
-  height: 100%; 
-  padding: 0 10px; 
-  line-height: 95px; 
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 10px;
+}
+
+
+.header-divider {
+  width: 100%;
+  height: 1px;
+  background-color: #ccc;
 }
 
 .logo {
   display: inline-block;
   vertical-align: middle;
-  margin-right: 20px;
   padding: 0 20px;
 }
 
@@ -36,14 +42,14 @@
 }
 
 .menu-tabs {
-  display: inline-block;
-  vertical-align: middle;
-  margin-left: auto;
+  display: flex;
+  gap: 10px;
+  margin-right: auto;
 }
 
 .seperator-content{
   width: 100%;
-  height: 2px;
+  height: 1px;
   background-color: #ccc;
 }
 

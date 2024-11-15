@@ -18,6 +18,7 @@ function SqlEditor({ toggleRefreshNav }) {
     const [popupMessage, setPopupMessage] = useState(null);
     const offset = 115;
     const resizingRef = useRef(false);
+    const [editorInstances, setEditorInstances] = useState({});
 
     useEffect(() => {
         const storedEditors = localStorage.getItem('editors');
@@ -32,6 +33,22 @@ function SqlEditor({ toggleRefreshNav }) {
             setActiveEditor(1);
         }
     }, []);
+
+    useEffect(() => {
+        const storedHistory = localStorage.getItem('queryHistory');
+        if (storedHistory) {
+            setQueryHistory(JSON.parse(storedHistory));
+        }
+
+        const storedQueryResult = localStorage.getItem('queryResult');
+        if (storedQueryResult) {
+            setQueryResult(JSON.parse(storedQueryResult));
+        }
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('queryResult', JSON.stringify(queryResult));
+    }, [queryResult]);
 
     useEffect(() => {
         if (editors.length > 0) {
@@ -101,27 +118,40 @@ function SqlEditor({ toggleRefreshNav }) {
     };
 
     const runQuery = async () => {
+        const activeEditorInstance = editorInstances[activeEditor];
+        const selectedText = activeEditorInstance?.getSelectedText();
+        
         const activeEditorContent = editors.find((editor) => editor.id === activeEditor)?.content;
-        if (!activeEditorContent) {
-            setQueryResult({ error: 'No SQL query to run.' });
-            return;
-        }
-        const cleanQuery = removeComments(activeEditorContent);
+        const cleanQuery = selectedText && selectedText.trim() !== ""
+            ? selectedText
+            : removeComments(activeEditorContent);
+        
         if (!cleanQuery || cleanQuery.trim() === "") {
             setQueryResult({ error: "Query is empty. Please provide a valid SQL query." });
             return;
         }
+    
         setLoading(true);
-        setQueryHistory([...queryHistory, { query: cleanQuery, timestamp: new Date().toLocaleString() }]);
+    
+        // Update query history state and localStorage
+        const newQueryHistory = [...queryHistory, { query: cleanQuery, timestamp: new Date().toLocaleString() }];
+        setQueryHistory(newQueryHistory);
+        localStorage.setItem('queryHistory', JSON.stringify(newQueryHistory));
+    
         const result = await fetchApi(cleanQuery);
         setLoading(false);
+        
         if (result?.error) {
             setQueryResult({ error: result.message });
         } else {
             const parsedResult = result.map((item) => JSON.parse(item));
-            setQueryResult(parsedResult.length ? <RenderTableForApi data={parsedResult} /> : "No data");
+            const finalResult = parsedResult.length ? <RenderTableForApi data={parsedResult} /> : "No data";
+
+            setQueryResult(finalResult);
+            localStorage.setItem('queryResult', JSON.stringify(finalResult));
         }
     };
+    
 
     const RenderTableForApi = ({ data }) => {
         const normalizedData = data.map((row) => ({
@@ -249,7 +279,7 @@ function SqlEditor({ toggleRefreshNav }) {
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Resizable
                 axis="y"
-                initial={700}
+                initial={715}
                 min={400}
                 max={900}
                 onResizeStart={() => {
@@ -302,25 +332,27 @@ function SqlEditor({ toggleRefreshNav }) {
                                             id={editor.id}
                                             content={editor.content}
                                             onChange={(newValue) => handleEditorChange(newValue, editor.id)}
+                                            setEditorInstances={setEditorInstances}
                                         />
                                     )
                             )}
                         </div>
-                        <div className="btn-line">
+                        {/* <div className="btn-line">
                             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <button className="btn-primary" onClick={saveSQL}>Save SQL</button>
                             </div>
-                        </div>
+                        </div> */}
                         <div
                             {...separatorProps}
                             style={{
-                                height: '3px',
+                                height: '1px',
                                 backgroundColor: '#ccc',
                                 cursor: 'row-resize',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 position: 'relative',
+                                zIndex: '10'
                             }}
                         >
                             <div

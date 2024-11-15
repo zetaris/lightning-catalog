@@ -69,6 +69,45 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
     };
   }, []);
 
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      const dataSourceChildren = await fetchDatasources('lightning.datasource');
+      const semanticLayerChildren = await fetchDatasources('lightning.metastore', true);
+  
+      if (dataSourceChildren) {
+        const updatedDataSources = dataSources.map((node) => ({
+          ...node,
+          children: dataSourceChildren,
+        }));
+        setDataSources(updatedDataSources);
+  
+        // Fetch second level for each child node
+        for (const childNode of dataSourceChildren) {
+          const secondLevelChildren = await fetchDatasources(childNode.fullPath);
+          childNode.children = secondLevelChildren || [];
+        }
+        setDataSources(updatedDataSources);
+      }
+  
+      if (semanticLayerChildren) {
+        const updatedSemanticLayers = semanticLayerFiles.map((node) => ({
+          ...node,
+          children: semanticLayerChildren,
+        }));
+        setSemanticLayerFiles(updatedSemanticLayers);
+  
+        // Fetch second level for each child node
+        for (const childNode of semanticLayerChildren) {
+          const secondLevelChildren = await fetchDatasources(childNode.fullPath, true);
+          childNode.children = secondLevelChildren || [];
+        }
+        setSemanticLayerFiles(updatedSemanticLayers);
+      }
+    };
+  
+    fetchInitialData();
+  }, []);  
+
   // Function to get the depth (level) of the current path
   const getCurrentLevel = (fullPath) => {
     const parts = fullPath.split('.');
@@ -144,24 +183,9 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
     }
   };
 
-  // Fetch initial data for lightning.datasource
-  const fetchInitialDataForDatasource = async (parentNode, depth) => {
-    if (depth === 0 || parentNode.children) return;
-    const childNodes = await fetchDatasources(parentNode.fullPath || parentNode.name);
-    setDataSources((prevData) => updateNodeChildren(prevData, parentNode.name, childNodes));
-    for (let child of childNodes) {
-      await fetchInitialDataForDatasource(child, depth - 1);
-    }
-  };
-
-  // Fetch initial data for lightning.metastore
-  const fetchInitialDataForMetastore = async (parentNode, depth) => {
-    if (depth === 0 || parentNode.children) return;
-    const childNodes = await fetchDatasources(parentNode.fullPath || parentNode.name, true);
-    setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, parentNode.name, childNodes));
-    for (let child of childNodes) {
-      await fetchInitialDataForMetastore(child, depth - 1);
-    }
+  const handleTreeItemClick = async (node) => {
+    const isMetastore = (node.name && node.name.includes('metastore')) || (node.fullPath && node.fullPath.includes('metastore'));
+    await fetchChildNodes(node, isMetastore);
   };
 
   const fetchChildNodes = async (node, isMetastore = false) => {
@@ -186,11 +210,7 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
     });
   };
 
-  // Example usage of the fetchInitialData to load the initial tree
   useEffect(() => {
-    fetchInitialDataForDatasource({ name: 'lightning.datasource', fullPath: 'lightning.datasource' }, 5);
-    fetchInitialDataForMetastore({ name: 'lightning.metastore', fullPath: 'lightning.metastore' }, 5);
-    // loadSemanticLayerFiles();
   }, [refreshNav]);
 
   const handleTableClick = async (node) => {
@@ -204,6 +224,8 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
   const drawUSL = async (node) => {
     // console.log(node.name)
     setUslNamebyClick(node.fullPath);
+    setView('semanticLayer');
+    sessionStorage.setItem('selectedTab', 'semanticLayer');
   }
 
   const renderTree = (nodes, parentPath = '', isSemanticLayer = false) => {
@@ -241,7 +263,7 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
               )} */}
 
               {/* Draw button for isMetastore nodes in semanticLayer view */}
-              {node.isMetastoreLevel === true && isSemanticLayer && view === 'semanticLayer' && (
+              {node.isMetastoreLevel === true && isSemanticLayer && (
                 <button
                   className='btn-table-add'
                   onClick={(event) => {
@@ -268,8 +290,9 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
             </span>
           }
           onClick={() => {
-            const isMetastore = node.fullPath ? node.fullPath.includes('metastore') : false;
-            fetchChildNodes(node, isMetastore);
+            // const isMetastore = node.fullPath ? node.fullPath.includes('metastore') : false;
+            // fetchChildNodes(node, isMetastore);
+            handleTreeItemClick(node);
           }}
         >
           {Array.isArray(node.children) ? renderTree(node.children, currentPath, isSemanticLayer) : null}
@@ -293,7 +316,7 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
     >
       {({ position, separatorProps }) => (
         <div className="guideline" style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-          <div style={{ height: `${position - reSizingOffset}px`, overflowY: 'auto' }}>
+          <div style={{ height: `${position - reSizingOffset}px`, overflowY: 'auto', padding: '0 30px', paddingTop: '20px' }}>
             {/* Data Sources Tree */}
             <div className="nav-tab bold-text">Data Sources</div>
             <SimpleTreeView className="tree-view">
@@ -311,7 +334,7 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
             {...separatorProps}
             className="separator"
             style={{
-              height: '3px',
+              height: '1px',
               backgroundColor: '#ccc',
               cursor: 'row-resize',
               display: 'flex',
@@ -331,7 +354,7 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
             />
           </div>
 
-          <div style={{ flexGrow: 1, overflowY: 'auto', paddingBottom: '100px' }}>
+          <div style={{ flexGrow: 1, overflowY: 'auto', paddingBottom: '100px', paddingRight: '30px', paddingLeft: '30px', paddingBottom: '50px' }}>
             {/* Semantic Layer Tree */}
             <div className="nav-tab bold-text" style={{ display: 'flex', alignItems: 'center' }}>
               Semantic Layer

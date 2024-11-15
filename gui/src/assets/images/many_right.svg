@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="54.264" height="54.216" viewBox="0 0 54.264 54.216">
   <g id="Group_1" data-name="Group 1" transform="translate(-102.712 -91.392)">
-    <path id="Path_2" data-name="Path 2" d="M.973.048S9.546,0,21.76,0H50.743" transform="translate(104.232 118.5)" fill="none" stroke="#5c96bc" stroke-linecap="round" stroke-width="4"/>
-    <path id="Path_3" data-name="Path 3" d="M156.5,118.5c4.749-26.791,49.525-25.052,49.525-25.052" transform="translate(-51.469)" fill="none" stroke="#5c96bc" stroke-linecap="round" stroke-width="4"/>
-    <path id="Path_4" data-name="Path 4" d="M156.5,93.425c4.749,26.791,49.525,25.052,49.525,25.052" transform="translate(-51.469 25.075)" fill="none" stroke="#5c96bc" stroke-linecap="round" stroke-width="4"/>
+    <path id="Path_2" data-name="Path 2" d="M.973.048S9.546,0,21.76,0H50.743" transform="translate(104.232 118.5)" fill="none" stroke="#ccc" stroke-linecap="round" stroke-width="2"/>
+    <path id="Path_3" data-name="Path 3" d="M156.5,118.5c4.749-26.791,49.525-25.052,49.525-25.052" transform="translate(-51.469)" fill="none" stroke="#ccc" stroke-linecap="round" stroke-width="2"/>
+    <path id="Path_4" data-name="Path 4" d="M156.5,93.425c4.749,26.791,49.525,25.052,49.525,25.052" transform="translate(-51.469 25.075)" fill="none" stroke="#ccc" stroke-linecap="round" stroke-width="2"/>
   </g>
 </svg>
