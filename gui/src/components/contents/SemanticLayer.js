@@ -191,9 +191,13 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
         }
 
         setDQResults(dqResults);
+        setCondition('dqResult')
     };
 
     const runDQ = async () => {
+        if(condition !== 'dqResult'){
+            setPopupMessage('Please proceed with the load first.')
+        }
         const updatedDQResults = [...dqResults];
 
         for (const dqEntry of selectedRowData) {
@@ -230,6 +234,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
             }
 
             setDQResults([...updatedDQResults]);
+            setCondition('dqResult');
         }
     };
 
@@ -623,7 +628,6 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
     }
 
     const restoreFromTablesAndConnections = (savedTables, savedConnections) => {
-        console.log(savedTables)
         if (!savedTables || !savedConnections || !Array.isArray(savedTables) || !Array.isArray(savedConnections)) {
             console.error("Invalid saved tables or connections input");
             return;
@@ -779,60 +783,68 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
         try {
             ddlJson = JSON.parse(ddlText);
             ddlJson = JSON.parse(ddlJson.json);
-            console.log(ddlJson);
         } catch (e) {
             setPopupMessage(`Invalid DDL JSON format: ${e}`);
             return null;
         }
     
-        const savedTables = ddlJson.tables.map((table) => {
-            const foreignKeyConstraints = [];
+        const existingTables = JSON.parse(localStorage.getItem('savedTables')) || [];
     
-            const columns = table.columnSpecs.map((col) => {
-                const colObj = {
-                    col_name: col.name,
-                    data_type: col.dataType,
-                    ...(col.primaryKey ? { primaryKey: { columns: [] } } : {}),
-                    ...(col.notNull ? { notNull: { columns: [] } } : {}),
-                    ...(col.unique ? { unique: { columns: [] } } : {}),
-                    ...(col.foreignKey ? {
-                        foreignKey: {
-                            columns: col.foreignKey.columns || [],
-                            refTable: col.foreignKey.refTable || [],
-                            refColumns: col.foreignKey.refColumns || []
-                        }
-                    } : {})
+        const newTables = ddlJson.tables
+            .filter((table) => {
+                const tableName = `lightning.${ddlJson.namespace.join('.')}.${ddlJson.name}.${table.name}`;
+                return !existingTables.some(existingTable => existingTable.name === tableName);
+            })
+            .map((table) => {
+                const foreignKeyConstraints = [];
+    
+                const columns = table.columnSpecs.map((col) => {
+                    const colObj = {
+                        col_name: col.name,
+                        data_type: col.dataType,
+                        ...(col.primaryKey ? { primaryKey: { columns: [] } } : {}),
+                        ...(col.notNull ? { notNull: { columns: [] } } : {}),
+                        ...(col.unique ? { unique: { columns: [] } } : {}),
+                        ...(col.foreignKey ? {
+                            foreignKey: {
+                                columns: col.foreignKey.columns || [],
+                                refTable: col.foreignKey.refTable || [],
+                                refColumns: col.foreignKey.refColumns || []
+                            }
+                        } : {})
+                    };
+    
+                    if (col.foreignKey) {
+                        foreignKeyConstraints.push({
+                            column: col.name,
+                            references: `${col.foreignKey.refTable.join('.')}.${col.foreignKey.refColumns.join(',')}`
+                        });
+                    }
+                    return colObj;
+                });
+    
+                const position = table.position || { left: 100 + Math.random() * 100, top: 100 + Math.random() * 100 };
+                return {
+                    name: `lightning.${ddlJson.namespace.join('.')}.${ddlJson.name}.${table.name}`,
+                    desc: columns,
+                    foreignKeyConstraints: foreignKeyConstraints.length ? foreignKeyConstraints : [],
+                    uuid: `${uuidv4()}`,
+                    position: position
                 };
-    
-                if (col.foreignKey) {
-                    foreignKeyConstraints.push({
-                        column: col.name,
-                        references: `${col.foreignKey.refTable.join('.')}.${col.foreignKey.refColumns.join(',')}`
-                    });
-                }
-                return colObj;
             });
     
-            const position = table.position || { left: 100 + Math.random() * 100, top: 100 + Math.random() * 100 };
-            return {
-                name: `lightning.${ddlJson.namespace.join('.')}.${ddlJson.name}.${table.name}`,
-                desc: columns,
-                foreignKeyConstraints: foreignKeyConstraints.length ? foreignKeyConstraints : [],
-                uuid: `${uuidv4()}`,
-                position: position
-            };
-        });
+        const allTables = [...existingTables, ...newTables];
     
         const savedConnections = [];
         ddlJson.tables.forEach((table) => {
             table.columnSpecs.forEach((col) => {
                 if (col.foreignKey) {
                     const sourceTable = `lightning.${ddlJson.namespace.join('.')}.${ddlJson.name}.${table.name}`;
-                    const sourceTableUuid = savedTables.find(t => t.name === sourceTable)?.uuid;
+                    const sourceTableUuid = allTables.find(t => t.name === sourceTable)?.uuid;
     
                     // Corrected targetTableName formation
                     const targetTableName = col.foreignKey.refTable.join('.');
-                    const targetTableObj = savedTables.find(t => t.name === targetTableName);
+                    const targetTableObj = allTables.find(t => t.name === targetTableName);
     
                     if (sourceTableUuid && targetTableObj) {
                         const sourceId = `table-${sourceTableUuid}-col-${table.columnSpecs.findIndex(c => c.name === col.name) + 1}-left`;
@@ -851,10 +863,10 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
             });
         });
     
+        localStorage.setItem('savedTables', JSON.stringify(allTables));
         localStorage.setItem('connections', JSON.stringify(savedConnections));
-        localStorage.setItem('savedTables', JSON.stringify(savedTables));
     
-        return { savedTables, savedConnections, rulesData: {} };
+        return { savedTables: allTables, savedConnections, rulesData: {} };
     };    
 
     const handlePreViewButtonClick = (tableName) => {
@@ -1273,7 +1285,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
             return <div>{queryResult ? queryResult : "Generating SQL..."}</div>;
         } else if (condition === 'rules') {
             return renderRulesTable();
-        } else {
+        } else if(condition === 'dqResult'){
             return dqResults.length > 0 ? <RenderDQTable data={dqResults} /> : null;
         }
     };
