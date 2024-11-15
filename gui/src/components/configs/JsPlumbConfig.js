@@ -504,14 +504,14 @@ function calculateTablePositions(container) {
     let x = 1500;
     let y = currentY;
 
-    // If there are previous tables in the row, calculate `x` based on the previous table's right position
-    if (col > 0) {
+    // Calculate x position based on the previous table in the row, if available
+    if (col > 0 && positions[i - 1]) {
       const previousTablePosition = positions[i - 1];
       x = previousTablePosition.x + 500; // Fixed horizontal offset for spacing
     }
 
-    // If there are previous rows, calculate `y` based on the table directly above
-    if (row > 0) {
+    // Calculate y position based on the table directly above, if available
+    if (row > 0 && positions[i - gridSize]) {
       const aboveTablePosition = positions[i - gridSize];
       y = aboveTablePosition.y + 600; // Fixed vertical offset for spacing
     }
