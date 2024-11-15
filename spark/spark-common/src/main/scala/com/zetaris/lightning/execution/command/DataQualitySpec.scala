@@ -26,8 +26,9 @@ import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
 import com.zetaris.lightning.model.{DataQualityDuplicatedException, DataQualityNotFoundException, LightningModelFactory, TableNotFoundException}
 import org.apache.spark.sql.catalyst.QueryPlanningTracker
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Not}
-import org.apache.spark.sql.catalyst.plans.logical.{Filter, LogicalPlan}
+import org.apache.spark.sql.catalyst.expressions.aggregate.Count
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Literal, Not}
+import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter}
 import org.apache.spark.sql.types.{LongType, StringType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSQLBridge, SparkSession}
 
@@ -55,7 +56,7 @@ object DataQualitySpec extends LightningSource {
    * @param sparkSession
    * @param table
    * @param expression
-   * @return total record, data frame for good record, bad record
+   * @return count of total record, data frame of good record, bad record
    */
   def runDQ(sparkSession: SparkSession, table: Seq[String], expression: String): (Long, DataFrame, DataFrame) = {
     val tracker = new QueryPlanningTracker
@@ -78,59 +79,154 @@ object DataQualitySpec extends LightningSource {
 
   def runPrimaryKeyConstraints(sparkSession: SparkSession,
                                table: Seq[String],
-                               columnSpec: Seq[ColumnSpec]): (Long, Long, Long) = {
+                               column: Seq[String]): (Long, Long, Long) = {
     val totRecord = getTotalRecordCount(sparkSession, table)
 
-    val dfGoodRecord = sparkSession.sql(
+    val goodRecord = sparkSession.sql(
       s"""
-         |SELECT COUNT(*) FROM
-         |  SELECT ${columnSpec.map(_.name).mkString(",")} FROM ${toFqn(table)}
-         |  GROUP BY ${columnSpec.map(_.name).mkString(",")} HAVING COUNT(${columnSpec.map(_.name).mkString(",")}) == 1
+         |SELECT COUNT(*) FROM (
+         |  SELECT ${column.mkString(",")} FROM ${toFqn(table)}
+         |  GROUP BY ${column.mkString(",")} HAVING COUNT(${column.mkString(",")}) == 1
          |)
          |""".stripMargin).collect()(0).getLong(0)
 
-    val dfBadRecord = sparkSession.sql(
+    val badRecord = sparkSession.sql(
       s"""
-         |SELECT COUNT(*) FROM
-         |  SELECT ${columnSpec.map(_.name).mkString(",")} FROM ${toFqn(table)}
-         |  GROUP BY ${columnSpec.map(_.name).mkString(",")} HAVING COUNT(${columnSpec.map(_.name).mkString(",")}) > 1
+         |SELECT COUNT(*) FROM (
+         |  SELECT ${column.mkString(",")} FROM ${toFqn(table)}
+         |  GROUP BY ${column.mkString(",")} HAVING COUNT(${column.mkString(",")}) > 1
          |)
          |""".stripMargin).collect()(0).getLong(0)
 
-    (totRecord, dfGoodRecord, dfBadRecord)
+    (totRecord, goodRecord, badRecord)
+  }
+
+  def getPrimaryKeyConstraintsRecords(sparkSession: SparkSession,
+                                      table: Seq[String],
+                                      column: Seq[String]): (DataFrame, DataFrame) = {
+    val sqlGoodRecord = if (column.size == 1) {
+      s"""
+         |SELECT * FROM ${toFqn(table)}
+         |WHERE ${column(0)} IN (
+         |  SELECT ${column(0)} FROM ${toFqn(table)}
+         |  GROUP BY ${column(0)} HAVING COUNT(${column(0)}) == 1
+         |)
+         |"""
+    } else {
+      s"""
+         |SELECT * FROM ${toFqn(table)}
+         |WHERE ARRAY(${column.mkString(",")}) IN (
+         |  SELECT ARRAY(${column.mkString(",")}) FROM ${toFqn(table)}
+         |  GROUP BY ${column.mkString(",")} HAVING COUNT(${column.mkString(",")}) == 1
+         |)
+         |"""
+    }
+
+    val sqlBadRecord = if (column.size == 1) {
+      s"""
+         |SELECT * FROM ${toFqn(table)}
+         |WHERE ${column(0)} NOT IN (
+         |  SELECT ${column(0)} FROM ${toFqn(table)}
+         |  GROUP BY ${column(0)} HAVING COUNT(${column(0)}) == 1
+         |)
+         |"""
+    } else {
+      s"""
+         |SELECT * FROM ${toFqn(table)}
+         |WHERE ARRAY(${column.mkString(",")}) NOT IN (
+         |  SELECT ARRAY(${column.mkString(",")}) FROM ${toFqn(table)}
+         |  GROUP BY ${column.mkString(",")} HAVING COUNT(${column.mkString(",")}) == 1
+         |)
+         |"""
+    }
+
+    (sparkSession.sql(sqlGoodRecord), sparkSession.sql(sqlBadRecord))
   }
 
   def runForeignKeyConstraints(sparkSession: SparkSession,
                                table: Seq[String],
-                               columnSpec: ColumnSpec,
+                               column: Seq[String],
                                refTable: Seq[String],
-                               refColumn: String): (Long, Long, Long) = {
+                               refColumn: Seq[String]): (Long, Long, Long) = {
     val totRecord = getTotalRecordCount(sparkSession, table)
 
-    val dfGoodRecord = sparkSession.sql(
-      s"""
-         |SELECT COUNT(*) FROM
-         |  WHERE ${columnSpec.name} IN (
-         |    SELECT ${refColumn} FROM ${toFqn(refTable)}
-         |  )
-         |""".stripMargin).collect()(0).getLong(0)
+    val goodRecord = if (column.size == 1) {
+      sparkSession.sql(
+        s"""
+           |SELECT COUNT(*) FROM ${toFqn(table)}
+           |  WHERE ${column(0)} IN (
+           |    SELECT ${refColumn(0)} FROM ${toFqn(refTable)}
+           |  )
+           |""".stripMargin).collect()(0).getLong(0)
+    } else {
+      sparkSession.sql(
+        s"""
+           |SELECT COUNT(*) FROM ${toFqn(table)}
+           |  WHERE ARRAY(${column.mkString(",")}) IN (
+           |    SELECT ARRAY${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
+           |  )
+           |""".stripMargin).collect()(0).getLong(0)
+    }
 
-    val dfBadRecord = sparkSession.sql(
-      s"""
-         |SELECT COUNT(*) FROM
-         |  WHERE ${columnSpec.name} NOT IN (
-         |    SELECT ${refColumn} FROM ${toFqn(refTable)}
-         |  )
-         |""".stripMargin).collect()(0).getLong(0)
+    val badRecord = if (column.size == 1) {
+      sparkSession.sql(
+        s"""
+           |SELECT COUNT(*) FROM ${toFqn(table)}
+           |  WHERE ${column(0)} NOT IN (
+           |    SELECT ${refColumn(0)} FROM ${toFqn(refTable)}
+           |  )
+           |""".stripMargin).collect()(0).getLong(0)
+    } else {
+      sparkSession.sql(
+        s"""
+           |SELECT COUNT(*) FROM ${toFqn(table)}
+           |  WHERE ARRAY(${column.mkString(",")}) NOT IN (
+           |    SELECT ARRAY${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
+           |  )
+           |""".stripMargin).collect()(0).getLong(0)
+    }
 
-    (totRecord, dfGoodRecord, dfBadRecord)
+    (totRecord, goodRecord, badRecord)
   }
 
-  def runDatabaseConstraints(sparkSession: SparkSession, table: Seq[String], columnSpec: ColumnSpec): (Long, DataFrame, DataFrame) = {
-    if (columnSpec.primaryKey.isDefined) {
-
+  def getForeignKeyConstraintsRecords(sparkSession: SparkSession,
+                                      table: Seq[String],
+                                      column: Seq[String],
+                                      refTable: Seq[String],
+                                      refColumn: String): (DataFrame, DataFrame) = {
+    val sqlGoodRecord = if (column.size == 1) {
+      s"""
+         |SELECT * FROM ${toFqn(table)}
+         |  WHERE ${column(0)} IN (
+         |    SELECT ${refColumn(0)} FROM ${toFqn(refTable)}
+         |  )
+         |""".stripMargin
+    } else {
+      s"""
+         |SELECT * FROM ${toFqn(table)}
+         |  WHERE ARRAY(${column.mkString(",")}) IN (
+         |    SELECT ARRAY${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
+         |  )
+         |""".stripMargin
     }
-    ???
+
+    val sqlBadRecord = if (column.size == 1) {
+      s"""
+         |SELECT * FROM ${toFqn(table)}
+         |  WHERE ARRAY(${column.mkString(",")}) NOT IN (
+         |    SELECT ARRAY(${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
+         |  )
+         |""".stripMargin
+    } else {
+      s"""
+         |SELECT * FROM ${toFqn(table)}
+         |  WHERE ARRAY(${column.mkString(",")}) NOT IN (
+         |    SELECT ARRAY${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
+         |  )
+         |""".stripMargin
+    }
+
+    (sparkSession.sql(sqlGoodRecord), sparkSession.sql(sqlBadRecord))
   }
 
   def tryParse[T](sqlText: String, f: String => T): T = {
@@ -207,7 +303,7 @@ case class ListDataQualitySpec(uslNamespace: Seq[String]) extends LightningComma
       } ++ createTableSpec.columnSpecs.find(_.unique.isDefined).map { uk =>
         Row(uk.name, createTableSpec.name, "Unique key constraints", "")
       } ++ createTableSpec.dqAnnotations.map { dq =>
-        Row(dq.name, createTableSpec.name, "Custom DQ", dq.expression)
+        Row(dq.name, createTableSpec.name, "Custom Data Quality", dq.expression)
       }
     }
   }
@@ -217,10 +313,159 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
   override val output: Seq[AttributeReference] = Seq(
     AttributeReference("name", StringType, false)(),
     AttributeReference("table", StringType, false)(),
+    AttributeReference("type", StringType, false)(),
     AttributeReference("total_record", LongType, false)(),
     AttributeReference("good_record", LongType, false)(),
     AttributeReference("bad_record", LongType, false)()
   )
+
+  private def runDQ(sparkSession: SparkSession, createTableSpec: CreateTableSpec, dq: DataQuality): Row = {
+    val dqStat = DataQualitySpec.runDQ(sparkSession, createTableSpec.namespace :+ createTableSpec.name, dq.expression)
+    Row(dq.name, createTableSpec.name, "Custom Data Quality", dqStat._1, dqStat._2.count(), dqStat._3.count())
+  }
+
+  private def runPkConstraints(sparkSession: SparkSession,
+                               createTableSpec: CreateTableSpec,
+                               constraintOrColumnName: String): Option[Row] = {
+    if (createTableSpec.primaryKey.isDefined) {
+      val pkConstraints = createTableSpec.primaryKey.get
+      val constraintName = pkConstraints.name.get
+      if (constraintName.equalsIgnoreCase(constraintOrColumnName) ||
+        equalToMultiPartIdentifier(constraintOrColumnName, pkConstraints.columns)) {
+        val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, pkConstraints.columns)
+        Some(Row(constraintOrColumnName, createTableSpec.name, "Primary Key constraint",
+          pkCheck._1, pkCheck._2, pkCheck._3))
+      } else {
+        None
+      }
+    } else {
+      createTableSpec.columnSpecs.find(cs => cs.primaryKey.isDefined &&
+        cs.name.equalsIgnoreCase(constraintOrColumnName)).map { pk =>
+        val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, Seq(pk.name))
+        Row(pk.name, createTableSpec.name, "Primary Key constraint",
+          pkCheck._1, pkCheck._2, pkCheck._3)
+      }
+    }
+  }
+
+  private def runPkConstraints(sparkSession: SparkSession, createTableSpec: CreateTableSpec): Seq[Row] = {
+    if (createTableSpec.primaryKey.isDefined) {
+      val pkConstraints = createTableSpec.primaryKey.get
+      val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, pkConstraints.columns)
+      Row(createTableSpec.primaryKey.get.name.getOrElse(toFqn(createTableSpec.primaryKey.get.columns, "_")),
+        createTableSpec.name, "Primary Key constraint", pkCheck._1, pkCheck._2, pkCheck._3) :: Nil
+    } else {
+      createTableSpec.columnSpecs.flatMap { pk =>
+        if (pk.primaryKey.isDefined) {
+          val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, Seq(pk.name))
+          Some(Row(pk.primaryKey.get.name.getOrElse(pk.name), createTableSpec.name, "Primary Key constraint",
+            pkCheck._1, pkCheck._2, pkCheck._3))
+        } else {
+          None
+        }
+      }
+    }
+  }
+
+  private def runUniqueConstraints(sparkSession: SparkSession,
+                                   createTableSpec: CreateTableSpec,
+                                   constraintOrColumnName: String): Seq[Row] = {
+    createTableSpec.unique.flatMap { uc =>
+      if ((uc.name.isDefined && uc.name.get.equalsIgnoreCase(constraintOrColumnName)) ||
+        equalToMultiPartIdentifier(constraintOrColumnName, uc.columns)) {
+        val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, uc.columns)
+        Some(Row(createTableSpec.primaryKey.get.name.get, createTableSpec.name, "Unique Constraint",
+          pkCheck._1, pkCheck._2, pkCheck._3))
+      } else {
+        None
+      }
+    } ++ createTableSpec.columnSpecs.flatMap { uc =>
+      if (uc.unique.isDefined && uc.name.equalsIgnoreCase(constraintOrColumnName)) {
+        val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, Seq(uc.name))
+        Some(Row(createTableSpec.primaryKey.get.name.get, createTableSpec.name, "Unique Constraint",
+          pkCheck._1, pkCheck._2, pkCheck._3))
+      } else {
+        None
+      }
+    }
+  }
+
+  private def runUniqueConstraints(sparkSession: SparkSession, createTableSpec: CreateTableSpec): Seq[Row] = {
+    createTableSpec.unique.flatMap { uc =>
+      if (uc.name.isDefined) {
+        val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, uc.columns)
+        Some(Row(createTableSpec.primaryKey.get.name.get, createTableSpec.name, "Unique Constraint",
+          pkCheck._1, pkCheck._2, pkCheck._3))
+      } else {
+        None
+      }
+    } ++ createTableSpec.columnSpecs.flatMap { uc =>
+      if (uc.unique.isDefined) {
+        val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, Seq(uc.name))
+        Some(Row(createTableSpec.primaryKey.get.name.get, createTableSpec.name, "Unique Constraint",
+          pkCheck._1, pkCheck._2, pkCheck._3))
+      } else {
+        None
+      }
+    }
+  }
+
+  private def runFkConstraints(sparkSession: SparkSession,
+                               createTableSpec: CreateTableSpec,
+                               constraintOrColumnName: String): Seq[Row] = {
+    createTableSpec.foreignKeys.flatMap { fk =>
+      if ((fk.name.isDefined && fk.name.get.equalsIgnoreCase(constraintOrColumnName)) ||
+        equalToMultiPartIdentifier(constraintOrColumnName, fk.columns)) {
+        val fkCheck = DataQualitySpec.runForeignKeyConstraints(sparkSession, table,
+          fk.columns, fk.refTable, fk.refColumns)
+        Some(Row(constraintOrColumnName, createTableSpec.name, "Foreign Key Constraint",
+          fkCheck._1, fkCheck._2, fkCheck._3))
+      } else {
+        None
+      }
+    } ++ createTableSpec.columnSpecs.flatMap { cs =>
+      if (cs.foreignKey.isDefined && cs.name.equalsIgnoreCase(constraintOrColumnName)) {
+        val fkCheck = DataQualitySpec.runForeignKeyConstraints(sparkSession, table,
+          Seq(cs.name), cs.foreignKey.get.refTable, cs.foreignKey.get.refColumns)
+        Some(Row(constraintOrColumnName, createTableSpec.name, "Foreign Key Constraint",
+          fkCheck._1, fkCheck._2, fkCheck._3))
+      } else {
+        None
+      }
+    }
+  }
+
+  private def runFkConstraints(sparkSession: SparkSession, createTableSpec: CreateTableSpec): Seq[Row] = {
+    createTableSpec.foreignKeys.map { fk =>
+      val fkCheck = DataQualitySpec.runForeignKeyConstraints(sparkSession, table,
+        fk.columns, fk.refTable, fk.refColumns)
+      Row(fk.name.getOrElse(toFqn(fk.columns, "_")), createTableSpec.name, "Foreign Key Constraint",
+        fkCheck._1, fkCheck._2, fkCheck._3)
+    } ++ createTableSpec.columnSpecs.flatMap { cs =>
+      if (cs.foreignKey.isDefined) {
+        val fkCheck = DataQualitySpec.runForeignKeyConstraints(sparkSession, table,
+          Seq(cs.name), cs.foreignKey.get.refTable, cs.foreignKey.get.refColumns)
+        Some(Row(cs.foreignKey.get.name.getOrElse(cs.name), createTableSpec.name, "Foreign Key Constraint",
+          fkCheck._1, fkCheck._2, fkCheck._3))
+      } else {
+        None
+      }
+    }
+  }
+
+  private def runDatabaseConstraints(sparkSession: SparkSession,
+                                     createTableSpec: CreateTableSpec,
+                                     constraintOrColumnName: String): Seq[Row] = {
+    val rows = runPkConstraints(sparkSession, createTableSpec, constraintOrColumnName) ++
+      runUniqueConstraints(sparkSession, createTableSpec, constraintOrColumnName) ++
+      runFkConstraints(sparkSession, createTableSpec, constraintOrColumnName)
+
+    if (rows.isEmpty) {
+      throw DataQualityNotFoundException(s"${name} is not found in ${toFqn(table)}")
+    }
+
+    rows.toSeq
+  }
 
   override def runCommand(sparkSession: SparkSession): Seq[Row] = {
     val model = LightningModelFactory(dataSourceConfigMap(sparkSession))
@@ -234,21 +479,22 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
     )
 
     if (name.isDefined) {
-      val dq = createTableSpec.dqAnnotations.find(_.name.equalsIgnoreCase(name.get)).getOrElse(
-        throw DataQualityNotFoundException(s"${name.get} is not found in table ${toFqn(table)}")
-//      val columnSpec = createTableSpec.columnSpecs.find(_.name.equalsIgnoreCase(name.get)).getOrElse(
-//        throw DataQualityNotFoundException(s"${name.get} is not found in table ${toFqn(table)}")
-//      )
-      )
-      val dqStat = DataQualitySpec.runDQ(sparkSession,
-        createTableSpec.namespace :+ createTableSpec.name, dq.expression)
-      Row(dq.name, createTableSpec.name, dqStat._1, dqStat._2.count(), dqStat._3.count()) :: Nil
+      val dq = createTableSpec.dqAnnotations.find(_.name.equalsIgnoreCase(name.get))
+      if (dq.isDefined) {
+        runDQ(sparkSession, createTableSpec, dq.get) :: Nil
+      } else {
+        runDatabaseConstraints(sparkSession, createTableSpec, name.get)
+      }
     } else {
       createTableSpec.dqAnnotations.map { dq =>
         val dqStat = DataQualitySpec.runDQ(sparkSession,
           createTableSpec.namespace :+ createTableSpec.name, dq.expression)
-        Row(dq.name, createTableSpec.name, dqStat._1, dqStat._2.count(), dqStat._3.count())
-      }
+        Row(dq.name, createTableSpec.name, "Custom Data Quality",
+          dqStat._1, dqStat._2.count(), dqStat._3.count())
+      } ++
+        runPkConstraints(sparkSession, createTableSpec) ++
+        runUniqueConstraints(sparkSession, createTableSpec) ++
+        runFkConstraints(sparkSession, createTableSpec)
     }
   }
 }

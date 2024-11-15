@@ -145,8 +145,8 @@ class RegisterDataQualityTestSuite extends SparkExtensionsTestBase with H2TestBa
         Row("cid", "order", "Foreign key constraints", ""),
         Row("iid", "order", "Foreign key constraints", ""),
 
-        Row("customer_id", "customer", "Custom DQ", "id > 0 and length(address) > 0"),
-        Row("order_id", "order", "Custom DQ", "id > 0")))
+        Row("customer_id", "customer", "Custom Data Quality", "id > 0 and length(address) > 0"),
+        Row("order_id", "order", "Custom Data Quality", "id > 0")))
   }
 
 
@@ -213,9 +213,12 @@ class RegisterDataQualityTestSuite extends SparkExtensionsTestBase with H2TestBa
     sparkSession.sql(s"LIST DQ USL lightning.metastore.crm.ordermart").show()
 
     sparkSession.sql("RUN DQ order_customer_fk TABLE lightning.metastore.crm.ordermart.order").show()
-    //sparkSession.sql("RUN DQ TABLE lightning.metastore.crm.ordermart.order").show()
+    sparkSession.sql("RUN DQ TABLE lightning.metastore.crm.ordermart.order").show()
 
     sparkSession.sql("RUN DQ customer_rule TABLE lightning.metastore.crm.ordermart.customer").show()
+    sparkSession.sql("RUN DQ id TABLE lightning.metastore.crm.ordermart.order").show()
+    sparkSession.sql("RUN DQ cid TABLE lightning.metastore.crm.ordermart.order").show()
+    sparkSession.sql("RUN DQ iid TABLE lightning.metastore.crm.ordermart.order").show()
 
   }
 

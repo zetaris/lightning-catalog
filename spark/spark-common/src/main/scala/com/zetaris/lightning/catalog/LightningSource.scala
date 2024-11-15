@@ -40,6 +40,14 @@ trait LightningSource {
   def toFqn(namespace: Seq[String]): String = namespace.mkString(".")
 
   /**
+   * convert namespace to fully qualified name connected by dot
+   * @param namespace
+   * @param connector
+   * @return
+   */
+  def toFqn(namespace: Seq[String], connector: String): String = namespace.mkString(connector)
+
+  /**
    * convert fully qualified name into multi part identifer, array of string
    * @param fqn
    * @return
@@ -71,5 +79,9 @@ trait LightningSource {
         queried.isInstanceOf[StringType] || queried.isInstanceOf[CharType]
       case _ => DataType.equalsStructurally(defined, queried, true)
     }
+  }
+
+  def equalToMultiPartIdentifier(name: String, names: Seq[String], connector: String = "_"): Boolean = {
+    name.equalsIgnoreCase(names.mkString(connector))
   }
 }

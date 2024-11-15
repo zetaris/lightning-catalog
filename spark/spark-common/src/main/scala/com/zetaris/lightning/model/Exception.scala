@@ -27,8 +27,14 @@ case class InvalidNamespaceException(message: String) extends RuntimeException(m
 
 case class TableNotFoundException(message: String) extends RuntimeException(message)
 
+case class TableDuplicatedException(message: String) extends RuntimeException(message)
+
 case class TableNotActivatedException(message: String) extends RuntimeException(message)
 
 case class DataQualityDuplicatedException(message: String) extends RuntimeException(message)
 
 case class DataQualityNotFoundException(message: String) extends RuntimeException(message)
+
+case class ReferenceTableFoundException(message: String) extends RuntimeException(message)
+
+case class ReferenceColumnFoundException(message: String) extends RuntimeException(message)
