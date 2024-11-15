@@ -51,12 +51,12 @@ export const initializeJsPlumb = (container, tables = [], openModal, handleRowCl
 
     jsPlumbInstance.bind('beforeDrop', (info) => {
       connectEndpoints(
-          jsPlumbInstance,
-          info.sourceId,
-          info.targetId,
-          'fk',
-          'many_to_many',
-          true
+        jsPlumbInstance,
+        info.sourceId,
+        info.targetId,
+        'fk',
+        'many_to_many',
+        true
       );
       addForeignKeyToConnection(jsPlumbInstance, info.sourceId, info.targetId, 'fk'); // Add foreign key icon
       return false;
@@ -119,16 +119,16 @@ export function getColumnConstraint(fullPath) {
   const table = savedTables.find(table => table.name === tablePath);
 
   if (!table) {
-      console.error(`Table not found for path: ${tablePath}`);
-      return null;
+    console.error(`Table not found for path: ${tablePath}`);
+    return null;
   }
 
   // Find the column within the table (use columnSpecs instead of columns)
   const column = table.desc.find(col => col.col_name === columnName);
 
   if (!column) {
-      console.error(`Column not found for name: ${columnName}`);
-      return null;
+    console.error(`Column not found for name: ${columnName}`);
+    return null;
   }
 
   // Check for constraints inside the column itself (like primaryKey, notNull, etc.)
@@ -136,29 +136,29 @@ export function getColumnConstraint(fullPath) {
 
   // Primary Key constraint
   if (column.primaryKey) {
-      constraints.push({
-          type: 'primaryKey',
-          details: column.primaryKey
-      });
+    constraints.push({
+      type: 'primaryKey',
+      details: column.primaryKey
+    });
   }
 
   // Not Null constraint
   if (column.notNull) {
-      constraints.push({
-          type: 'notNull',
-          details: column.notNull
-      });
+    constraints.push({
+      type: 'notNull',
+      details: column.notNull
+    });
   }
 
   // Foreign Key constraint (from table's foreignKeys array)
   if (table.foreignKeys && table.foreignKeys.length > 0) {
-      const foreignKey = table.foreignKeys.find(fk => fk.columns.includes(columnName));
-      if (foreignKey) {
-          constraints.push({
-              type: 'foreignKey',
-              details: foreignKey
-          });
-      }
+    const foreignKey = table.foreignKeys.find(fk => fk.columns.includes(columnName));
+    if (foreignKey) {
+      constraints.push({
+        type: 'foreignKey',
+        details: foreignKey
+      });
+    }
   }
 
   return constraints.length > 0 ? constraints : null; // Return all constraints related to the column
@@ -240,43 +240,43 @@ const addForeignKeyToConnection = (jsPlumbInstance, sourceId, targetId, relation
   }
 };
 
-export function addForeignKeyIconToColumn(columnElement, combinedTooltipData, tooltipData){
+export function addForeignKeyIconToColumn(columnElement, combinedTooltipData, tooltipData) {
   if (columnElement) {
-      const iconContainer = columnElement.querySelector('.icon-container');
+    const iconContainer = columnElement.querySelector('.icon-container');
 
-      if (iconContainer) {
-          requestAnimationFrame(() => {
-              // Create or reuse the root for rendering
-              if (!iconContainer._root) {
-                  iconContainer._root = createRoot(iconContainer);
-              }
+    if (iconContainer) {
+      requestAnimationFrame(() => {
+        // Create or reuse the root for rendering
+        if (!iconContainer._root) {
+          iconContainer._root = createRoot(iconContainer);
+        }
 
-              if (!tooltipData) {
-                  // Initial render of the icon and tooltip (only done once)
-                  iconContainer._root.render(
-                      <div className="tooltip-container">
-                          <LinkIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />
-                          <span className="tooltip-text">{combinedTooltipData}</span>
-                          <div className="fk-only"></div>
-                      </div>
-                  );
-              } else if (tooltipData === 'notNull') {
-                  iconContainer._root.render(
-                      <div className="tooltip-container">
-                          <LinkIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />
-                          <span className="tooltip-text">{combinedTooltipData}</span>
-                          <div className="fk-only"></div>
-                      </div>
-                  );
-              } else {
-                  // Update only the tooltip text if the icon already exists
-                  const tooltipElement = iconContainer.querySelector('.tooltip-text');
-                  if (tooltipElement) {
-                      tooltipElement.innerText = combinedTooltipData;
-                  }
-              }
-          });
-      }
+        if (!tooltipData) {
+          // Initial render of the icon and tooltip (only done once)
+          iconContainer._root.render(
+            <div className="tooltip-container">
+              <LinkIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />
+              <span className="tooltip-text">{combinedTooltipData}</span>
+              <div className="fk-only"></div>
+            </div>
+          );
+        } else if (tooltipData === 'notNull') {
+          iconContainer._root.render(
+            <div className="tooltip-container">
+              <LinkIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />
+              <span className="tooltip-text">{combinedTooltipData}</span>
+              <div className="fk-only"></div>
+            </div>
+          );
+        } else {
+          // Update only the tooltip text if the icon already exists
+          const tooltipElement = iconContainer.querySelector('.tooltip-text');
+          if (tooltipElement) {
+            tooltipElement.innerText = combinedTooltipData;
+          }
+        }
+      });
+    }
   }
 };
 
@@ -312,24 +312,41 @@ export const connectEndpoints = (jsPlumbInstance, sourceId, targetId, relationsh
     const leftIconStyle = { width: '100%', height: '100%', position: 'absolute', left: '-15px', top: '0px' };
     const rightIconStyle = { width: '100%', height: '100%', position: 'absolute', right: '-15px', top: '0px' };
 
+    const sourceIsRight = sourceEndpoint.elementId.endsWith('-right');
+    const targetIsLeft = targetEndpoint.elementId.endsWith('-left');
+
     if (relationship_type === 'one_to_one') {
-      sourceIconComponent = <OneRightIcon style={rightIconStyle} />;
-      targetIconComponent = <OneLeftIcon style={leftIconStyle} />;
+      sourceIconComponent = !sourceIsRight
+        ? <OneRightIcon style={rightIconStyle} />
+        : <OneLeftIcon style={leftIconStyle} />;
+      targetIconComponent = !targetIsLeft
+        ? <OneLeftIcon style={leftIconStyle} />
+        : <OneRightIcon style={rightIconStyle} />;
     } else if (relationship_type === 'one_to_many') {
-      sourceIconComponent = <OneRightIcon style={rightIconStyle} />;
-      targetIconComponent = <ManyLeftIcon style={leftIconStyle} />;
+      sourceIconComponent = !sourceIsRight
+        ? <OneRightIcon style={rightIconStyle} />
+        : <OneLeftIcon style={leftIconStyle} />;
+      targetIconComponent = !targetIsLeft
+        ? <ManyLeftIcon style={leftIconStyle} />
+        : <ManyRightIcon style={rightIconStyle} />;
     } else if (relationship_type === 'many_to_one') {
-      sourceIconComponent = <ManyRightIcon style={rightIconStyle} />;
-      targetIconComponent = <OneLeftIcon style={leftIconStyle} />;
+      sourceIconComponent = !sourceIsRight
+        ? <ManyRightIcon style={rightIconStyle} />
+        : <ManyLeftIcon style={leftIconStyle} />;
+      targetIconComponent = !targetIsLeft
+        ? <OneLeftIcon style={leftIconStyle} />
+        : <OneRightIcon style={rightIconStyle} />;
     } else if (relationship_type === 'many_to_many') {
-      sourceIconComponent = <ManyRightIcon style={rightIconStyle} />;
-      targetIconComponent = <ManyLeftIcon style={leftIconStyle} />;
+      sourceIconComponent = !sourceIsRight
+        ? <ManyRightIcon style={rightIconStyle} />
+        : <ManyLeftIcon style={leftIconStyle} />;
+      targetIconComponent = !targetIsLeft
+        ? <ManyLeftIcon style={leftIconStyle} />
+        : <ManyRightIcon style={rightIconStyle} />;
     }
 
-    const isSourceLeft = sourceId.endsWith('-left');
-    const isTargetLeft = targetId.endsWith('-left');
-    const sourceIcon = isSourceLeft ? sourceIconComponent : targetIconComponent;
-    const targetIcon = isTargetLeft ? sourceIconComponent : targetIconComponent;
+    const sourceIcon = sourceIconComponent;
+    const targetIcon = targetIconComponent;
 
     const connection = jsPlumbInstance.connect({
       source: sourceEndpoint,
@@ -367,7 +384,7 @@ export const connectEndpoints = (jsPlumbInstance, sourceId, targetId, relationsh
         }]
       ],
       connector: ["Flowchart", { stub: [30, 50], gap: 30, cornerRadius: 5 }],
-      paintStyle: { stroke: '#5c96bc', strokeWidth: 2 },
+      paintStyle: { stroke: '#ccc', strokeWidth: 1 },
     });
 
     // Use connection's main canvas for hover effects
@@ -381,7 +398,7 @@ export const connectEndpoints = (jsPlumbInstance, sourceId, targetId, relationsh
       });
 
       canvas.addEventListener("mouseleave", () => {
-        connection.setPaintStyle({ stroke: '#5c96bc', strokeWidth: 2 });
+        connection.setPaintStyle({ stroke: '#ccc', strokeWidth: 1 });
         canvas.style.cursor = 'default';
       });
     }
@@ -505,7 +522,7 @@ function calculateTablePositions(container) {
   return positions;
 }
 
-export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInstance, uuid, isNewTable, handleRowClickCallback, handlePreViewButtonClick, 
+export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInstance, uuid, isNewTable, handleRowClickCallback, handlePreViewButtonClick,
   handleTableInfoClick, handleActivateTableClick, handleDeActivateTableClick, handleDataQualityButtonClick, handleTableDoubleClick) => {
 
   const uniqueTableId = selectedTable.id || `table-${uuid}`;
@@ -517,7 +534,7 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
   }
 
   const tableContainer = document.createElement('div');
-  tableContainer.className = 'table-container '+tableName;
+  tableContainer.className = 'table-container ' + tableName;
   tableContainer.style.position = 'absolute';
   tableContainer.id = uniqueTableId;
 
@@ -532,7 +549,7 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
 
   // Create table header (caption)
   const caption = document.createElement('div');
-  caption.className = 'table-header'; 
+  caption.className = 'table-header';
   caption.ondblclick = (e) => {
     e.stopPropagation();
     handleTableDoubleClick();
@@ -556,7 +573,7 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
     const iconElement = isExpanded
       ? React.createElement(CollapsingIcon, { className: 'ellipsis-btn' })
       : React.createElement(ExpandingIcon, { className: 'ellipsis-btn' });
-    
+
     iconRoot.render(iconElement);
   };
 
@@ -569,24 +586,25 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
     const rows = tableElement.querySelectorAll('tr');
 
     rows.forEach((row, index) => {
-      if (index !== 0) { // Skip the header row
+      if (index !== 0) {
         const leftEndpointId = row.querySelector('td:first-child')?.id;
         const rightEndpointId = row.querySelector('td:last-child')?.id;
 
-        // Check if the row has connections on either endpoint
-        const hasConnection = 
-          (leftEndpointId && jsPlumbInstance.getConnections({ source: leftEndpointId }).length > 0) ||
-          (rightEndpointId && jsPlumbInstance.getConnections({ target: rightEndpointId }).length > 0);
+        const leftConnections = leftEndpointId
+          ? jsPlumbInstance.getConnections({ source: leftEndpointId }).concat(jsPlumbInstance.getConnections({ target: leftEndpointId }))
+          : [];
+        const rightConnections = rightEndpointId
+          ? jsPlumbInstance.getConnections({ source: rightEndpointId }).concat(jsPlumbInstance.getConnections({ target: rightEndpointId }))
+          : [];
+        const hasConnection = leftConnections.length > 0 || rightConnections.length > 0;
 
-        // Only hide the row if it has no connections
+
         if (!hasConnection) {
           row.style.display = isExpanded ? '' : 'none';
-
           if (leftEndpointId) {
             const leftEndpoint = jsPlumbInstance.getEndpoints(leftEndpointId)?.[0];
             if (leftEndpoint) leftEndpoint.setVisible(isExpanded);
           }
-
           if (rightEndpointId) {
             const rightEndpoint = jsPlumbInstance.getEndpoints(rightEndpointId)?.[0];
             if (rightEndpoint) rightEndpoint.setVisible(isExpanded);
@@ -597,7 +615,6 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
 
     jsPlumbInstance.repaintEverything();
 
-    // Update the icon based on the expanded state
     renderToggleIcon();
   };
 
@@ -642,7 +659,7 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
       dataQualityOption.innerText = 'Data Quality Check';
       dataQualityOption.onclick = (e) => {
         e.stopPropagation();
-        handleDataQualityButtonClick(tableName);
+        handleDataQualityButtonClick(selectedTable);
         popupMenu.classList.add('hidden');
       };
 
@@ -731,7 +748,7 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
 
   // Create popup menu for Delete Table and Preview Table options
   const popupMenu = document.createElement('div');
-  popupMenu.className = 'popup-menu hidden'; 
+  popupMenu.className = 'popup-menu hidden';
 
   // Append ellipsis button container and popup menu to the caption
   caption.appendChild(captionText);
@@ -804,7 +821,7 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
     nameCell.appendChild(columnNameText);
 
     const typeCell = document.createElement('td');
-    typeCell.className = 'table-cell'; 
+    typeCell.className = 'table-cell';
     typeCell.style.textAlign = 'left';
     typeCell.innerText = column.data_type.replace(/"/g, '');
 
@@ -879,18 +896,123 @@ const removeTable = (tableId, jsPlumbInstance) => {
   localStorage.setItem('connections', JSON.stringify(connections));
 };
 
-// Make a table container draggable
+const getDistance = (point1, point2) => {
+  return Math.sqrt(Math.pow(point1.x - point2.x, 2) + Math.pow(point1.y - point2.y, 2));
+};
+
+const getOptimalEndpointPosition = (sourceId, targetId) => {
+  if (typeof sourceId !== 'string' || typeof targetId !== 'string') {
+    console.error("Invalid sourceId or targetId. Expected strings but got:", { sourceId, targetId });
+    return { sourceId, targetId };
+  }
+
+  const sourceLeftId = sourceId.includes('-left') ? sourceId : sourceId.replace(/-right$/, '-left');
+  const sourceRightId = sourceId.includes('-right') ? sourceId : sourceId.replace(/-left$/, '-right');
+  const targetLeftId = targetId.includes('-left') ? targetId : targetId.replace(/-right$/, '-left');
+  const targetRightId = targetId.includes('-right') ? targetId : targetId.replace(/-left$/, '-right');
+
+  const sourceLeftElement = document.getElementById(sourceLeftId);
+  const sourceRightElement = document.getElementById(sourceRightId);
+  const targetLeftElement = document.getElementById(targetLeftId);
+  const targetRightElement = document.getElementById(targetRightId);
+
+  const sourceLeft = sourceLeftElement?.getBoundingClientRect();
+  const sourceRight = sourceRightElement?.getBoundingClientRect();
+  const targetLeft = targetLeftElement?.getBoundingClientRect();
+  const targetRight = targetRightElement?.getBoundingClientRect();
+
+  if (sourceLeft && sourceRight && targetLeft && targetRight) {
+    const distances = [
+      {
+        sourceId: sourceLeftId,
+        targetId: targetLeftId,
+        distance: getDistance(
+          { x: sourceLeft.left, y: sourceLeft.top + sourceLeft.height / 2 },
+          { x: targetLeft.left, y: targetLeft.top + targetLeft.height / 2 }
+        )
+      },
+      {
+        sourceId: sourceLeftId,
+        targetId: targetRightId,
+        distance: getDistance(
+          { x: sourceLeft.left, y: sourceLeft.top + sourceLeft.height / 2 },
+          { x: targetRight.right, y: targetRight.top + targetRight.height / 2 }
+        )
+      },
+      {
+        sourceId: sourceRightId,
+        targetId: targetLeftId,
+        distance: getDistance(
+          { x: sourceRight.right, y: sourceRight.top + sourceRight.height / 2 },
+          { x: targetLeft.left, y: targetLeft.top + targetLeft.height / 2 }
+        )
+      },
+      {
+        sourceId: sourceRightId,
+        targetId: targetRightId,
+        distance: getDistance(
+          { x: sourceRight.right, y: sourceRight.top + sourceRight.height / 2 },
+          { x: targetRight.right, y: targetRight.top + targetRight.height / 2 }
+        )
+      }
+    ];
+
+    const optimalEndpoints = distances.reduce((min, current) => (current.distance < min.distance ? current : min));
+
+    return {
+      sourceId: optimalEndpoints.sourceId,
+      targetId: optimalEndpoints.targetId
+    };
+  } else {
+    console.error("Unable to retrieve bounding box for one or more endpoint elements.");
+    return { sourceId, targetId };
+  }
+};
+
 const makeTableDraggable = (tableElement, jsPlumbInstance, container) => {
   try {
     if (tableElement) {
       jsPlumbInstance.draggable(tableElement.id, {
-        containment: container, // Ensure that the table is dragged only within the container
+        containment: container,
         stop: (params) => {
           const newPosition = {
             top: params.pos[1],
             left: params.pos[0]
           };
           localStorage.setItem(tableElement.id, JSON.stringify(newPosition));
+
+          const connections = JSON.parse(localStorage.getItem("connections")) || [];
+          const relevantConnections = connections.filter(
+            (connection) =>
+              connection.sourceId.includes(tableElement.id) ||
+              connection.targetId.includes(tableElement.id)
+          );
+
+          relevantConnections.forEach((connection) => {
+            const sourceId = typeof connection.sourceId === 'string' ? connection.sourceId : connection.sourceId.toString();
+            const targetId = typeof connection.targetId === 'string' ? connection.targetId : connection.targetId.toString();
+            const optimalEndpoints = getOptimalEndpointPosition(sourceId, targetId);
+
+            const existingConnection = jsPlumbInstance.getConnections({
+              source: connection.sourceId,
+              target: connection.targetId
+            })[0];
+            if (existingConnection) {
+              jsPlumbInstance.deleteConnection(existingConnection);
+            }
+
+            connectEndpoints(
+              jsPlumbInstance,
+              optimalEndpoints.sourceId,
+              optimalEndpoints.targetId,
+              connection.relationship,
+              connection.relationship_type || 'many_to_many',
+              true
+            );
+            addForeignKeyToConnection(jsPlumbInstance, optimalEndpoints.sourceId, optimalEndpoints.targetId, 'fk');
+          });
+
+          jsPlumbInstance.repaintEverything();
         }
       });
     } else {
@@ -931,87 +1053,87 @@ const addEndpoint = (jsPlumbInstance, elementId, anchorPosition, config = {}) =>
 
 export const handleOptimizeView = (container, zoomLevel, setZoomLevel, setOffset) => {
   if (container) {
-      // Get all table-container elements inside the main container
-      const tableContainers = Array.from(container.querySelectorAll('.table-container'));
+    // Get all table-container elements inside the main container
+    const tableContainers = Array.from(container.querySelectorAll('.table-container'));
 
-      if (tableContainers.length === 0) {
-          return; // No tables to optimize view for
-      }
+    if (tableContainers.length === 0) {
+      return; // No tables to optimize view for
+    }
 
-      // Find the bounding box of all table-containers
-      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    // Find the bounding box of all table-containers
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
-      tableContainers.forEach(container => {
-          const left = parseFloat(container.style.left);
-          const top = parseFloat(container.style.top);
-          const right = left + container.offsetWidth;
-          const bottom = top + container.offsetHeight;
+    tableContainers.forEach(container => {
+      const left = parseFloat(container.style.left);
+      const top = parseFloat(container.style.top);
+      const right = left + container.offsetWidth;
+      const bottom = top + container.offsetHeight;
 
-          minX = Math.min(minX, left);
-          minY = Math.min(minY, top);
-          maxX = Math.max(maxX, right);
-          maxY = Math.max(maxY, bottom);
-      });
+      minX = Math.min(minX, left);
+      minY = Math.min(minY, top);
+      maxX = Math.max(maxX, right);
+      maxY = Math.max(maxY, bottom);
+    });
 
-      // console.log("minX : ", minX, "minY : ", minY, "maxX : ", maxX, "maxY : ", maxY, "actualContainerWidth : ", actualContainerWidth, "actualContainerHeight : ", actualContainerHeight)
+    // console.log("minX : ", minX, "minY : ", minY, "maxX : ", maxX, "maxY : ", maxY, "actualContainerWidth : ", actualContainerWidth, "actualContainerHeight : ", actualContainerHeight)
 
-      // Calculate required zoom level to fit all tables within the container
-      const widthRatio = (600) / (maxX - minX);
-      const heightRatio = (600) / (maxY - minY);
-      const optimalZoomLevel = Math.min(widthRatio, heightRatio);
+    // Calculate required zoom level to fit all tables within the container
+    const widthRatio = (600) / (maxX - minX);
+    const heightRatio = (600) / (maxY - minY);
+    const optimalZoomLevel = Math.min(widthRatio, heightRatio);
 
-      // Apply the calculated zoom level
-      const finalZoomLevel = Math.max(0.8, Math.min(optimalZoomLevel, 2)); // Limit zoom between 0.8 and 2
-      setZoomLevel(finalZoomLevel);
-      localStorage.setItem('zoomLevel', finalZoomLevel);
+    // Apply the calculated zoom level
+    const finalZoomLevel = Math.max(0.8, Math.min(optimalZoomLevel, 2)); // Limit zoom between 0.8 and 2
+    setZoomLevel(finalZoomLevel);
+    localStorage.setItem('zoomLevel', finalZoomLevel);
 
-      // Calculate the offset to center the tables in the viewport
-      const centerOffsetX = -(minX) * finalZoomLevel + 30;
-      const centerOffsetY = -(minY) * finalZoomLevel;
+    // Calculate the offset to center the tables in the viewport
+    const centerOffsetX = -(minX) * finalZoomLevel + 30;
+    const centerOffsetY = -(minY) * finalZoomLevel;
 
-      // Set the new zoom level and offset
-      setOffset({ x: centerOffsetX, y: centerOffsetY });
-      localStorage.setItem('offsetX', centerOffsetX);
-      localStorage.setItem('offsetY', centerOffsetY);
+    // Set the new zoom level and offset
+    setOffset({ x: centerOffsetX, y: centerOffsetY });
+    localStorage.setItem('offsetX', centerOffsetX);
+    localStorage.setItem('offsetY', centerOffsetY);
   }
 };
 
 export const handleZoomIn = (container, setZoomLevel, setOffset, jsPlumbInstance) => {
   setZoomLevel((prevZoom) => {
-      const newZoom = Math.min(prevZoom + 0.1, 2);
-      jsPlumbInstance.setZoom(newZoom);
-      adjustOffsetForZoom(container, newZoom / prevZoom, setOffset);
-      localStorage.setItem('zoomLevel', newZoom);
-      return newZoom;
+    const newZoom = Math.min(prevZoom + 0.1, 2);
+    jsPlumbInstance.setZoom(newZoom);
+    adjustOffsetForZoom(container, newZoom / prevZoom, setOffset);
+    localStorage.setItem('zoomLevel', newZoom);
+    return newZoom;
   });
 };
 
 export const handleZoomOut = (container, setZoomLevel, setOffset, jsPlumbInstance) => {
   setZoomLevel((prevZoom) => {
-      const newZoom = Math.max(prevZoom - 0.1, 0.1);
-      jsPlumbInstance.setZoom(newZoom);
-      adjustOffsetForZoom(container, newZoom / prevZoom, setOffset);
-      localStorage.setItem('zoomLevel', newZoom);
-      return newZoom;
+    const newZoom = Math.max(prevZoom - 0.1, 0.1);
+    jsPlumbInstance.setZoom(newZoom);
+    adjustOffsetForZoom(container, newZoom / prevZoom, setOffset);
+    localStorage.setItem('zoomLevel', newZoom);
+    return newZoom;
   });
 };
 
 const adjustOffsetForZoom = (container, scaleFactor, setOffset) => {
   if (container) {
-      const containerRect = container.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
 
-      // Calculate center of screen
-      const centerX = (containerRect.left + containerRect.right) / 2 - 500;
-      const centerY = (containerRect.top + containerRect.bottom) / 2;
+    // Calculate center of screen
+    const centerX = (containerRect.left + containerRect.right) / 2 - 500;
+    const centerY = (containerRect.top + containerRect.bottom) / 2;
 
-      // Calculate offset
-      setOffset((prevOffset) => {
-          const newOffsetX = centerX - (centerX - prevOffset.x) * scaleFactor;
-          const newOffsetY = centerY - (centerY - prevOffset.y) * scaleFactor;
-          localStorage.setItem('offsetX', newOffsetX);
-          localStorage.setItem('offsetY', newOffsetY);
+    // Calculate offset
+    setOffset((prevOffset) => {
+      const newOffsetX = centerX - (centerX - prevOffset.x) * scaleFactor;
+      const newOffsetY = centerY - (centerY - prevOffset.y) * scaleFactor;
+      localStorage.setItem('offsetX', newOffsetX);
+      localStorage.setItem('offsetY', newOffsetY);
 
-          return { x: newOffsetX, y: newOffsetY };
-      });
+      return { x: newOffsetX, y: newOffsetY };
+    });
   }
 };    

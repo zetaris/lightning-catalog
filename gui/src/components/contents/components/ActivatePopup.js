@@ -1,12 +1,15 @@
 import React, { useState } from 'react';
-import Editor from './Editor'; // Assuming this is the path for your custom editor component
+import Editor from './Editor';
 import './Popup.css';
 
 const ActivatePopup = ({ onClose, onSubmit, table }) => {
-    const [expression, setExpression] = useState(`ACTIVATE USL TABLE ${table.name} AS SELECT * FROM [Data Source Table];`);
+    const [dataSource, setDataSource] = useState("--SELECT \n--CAST(id AS INT) AS [Column Name 1], \n--CAST(name AS STRING) AS [Column Name 2], \n--CAST(age AS STRING) AS [Column Name 3] \n--FROM [Table Name for the data source to connect];"); 
 
     const handleSubmit = () => {
-        onSubmit({ expression: expression });
+        const expression = `ACTIVATE USL TABLE ${table.name} AS ${dataSource};`;
+        console.log(expression)
+        
+        onSubmit({ expression });
         onClose();
     };
 
@@ -16,12 +19,14 @@ const ActivatePopup = ({ onClose, onSubmit, table }) => {
                 <div className="popup-content">
                     <div className="popup-title">Activate Table</div>
                     <div className="popup-field">
-                        {/* <label htmlFor="expressionEditor">Expression:</label> */}
+                        {/* Use Editor for the Data Source Table */}
+                        <label htmlFor="dataSourceEditor">Data Source Table:</label>
                         <div style={{ height: '200px', width: '100%' }}>
                             <Editor
-                                id="expressionEditor"
-                                content={expression}
-                                onChange={setExpression}
+                                id="dataSourceEditor"
+                                content={dataSource}
+                                onChange={setDataSource}
+                                placeholder="Enter Data Source Table"
                             />
                         </div>
                     </div>

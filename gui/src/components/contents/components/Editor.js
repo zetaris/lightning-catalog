@@ -4,7 +4,7 @@ import AceEditor from 'react-ace';
 
 import { defineCustomTheme, setupAceEditor, editorOptions } from '../../configs/editorConfig';
 
-const Editor = ({ id, content, onChange }) => {
+const Editor = ({ id, content, onChange, setEditorInstances }) => {
     useEffect(() => {
         defineCustomTheme();
     }, []);
@@ -12,8 +12,14 @@ const Editor = ({ id, content, onChange }) => {
     const handleEditorLoad = (editorInstance) => {
         if (editorInstance) {
             setupAceEditor(editorInstance);
+            if (typeof setEditorInstances === 'function') {
+                setEditorInstances((prevInstances) => ({
+                    ...prevInstances,
+                    [id]: editorInstance
+                }));
+            }
         }
-    };
+    };    
 
     return (
         <AceEditor

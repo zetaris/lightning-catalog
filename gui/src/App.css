@@ -2,6 +2,7 @@
   display: inline-block;
   width: 100%;
   height: 10vh;
+  border-bottom: 1px solid #ccc;
 }
 
 .navigation {
@@ -35,18 +36,4 @@ button {
   font-family: "PlusJakartaSans-Regular_SemiBold", "Plus Jakarta Sans SemiBold", "Plus Jakarta Sans", sans-serif;
   font-weight: 650;
   color: #676e72;
-}
-
-.ace-autocomplete .ace-keyword {
-  color: #134B70 !important;
-  font-weight: bold;
-}
-.ace-autocomplete .ace-function {
-  color: #FF5733 !important;
-}
-.ace-autocomplete .ace-data-type {
-  color: #2E8B57 !important;
-}
-.ace-autocomplete .ace-suggestion {
-  color: #6A5ACD !important;
 }

@@ -57,7 +57,7 @@ function App() {
               <div
                 {...separatorProps}
                 style={{
-                  width: '2px',
+                  width: '1px',
                   backgroundColor: '#ccc',
                   cursor: 'col-resize',
                   flexShrink: 0,
