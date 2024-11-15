@@ -21,7 +21,7 @@
 
 package com.zetaris.lightning.execution.command
 
-import com.zetaris.lightning.model.LightningModelFactory
+import com.zetaris.lightning.model.{LightningModelFactory, ReferenceColumnFoundException, ReferenceTableFoundException, TableDuplicatedException}
 import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
 import com.zetaris.lightning.parser.LightningExtendedParser
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
@@ -46,7 +46,21 @@ case class CompileUSLSpec(name: String,
     }
 
     if (duplications.nonEmpty) {
-      throw new RuntimeException(s"duplicated tables : ${duplications.mkString(",")}")
+      throw TableDuplicatedException(s"duplicated tables : ${duplications.mkString(",")}")
+    }
+  }
+
+  private def checkReferenceTableColumn(createTableSpecs: Seq[CreateTableSpec], foreignKey: ForeignKey): Unit = {
+
+    foreignKey.refTable.zip(foreignKey.refColumns).foreach { parent =>
+      val parentTableSpec = createTableSpecs.find(_.name.equalsIgnoreCase(parent._1)).getOrElse(
+        throw ReferenceTableFoundException(s"${parent._1} is not found")
+      )
+
+      parentTableSpec.columnSpecs.find(_.name.equalsIgnoreCase(parent._2)).getOrElse(
+        throw ReferenceColumnFoundException(s"${parent._1}.${parent._2} is not found")
+      )
+
     }
   }
 
@@ -63,12 +77,36 @@ case class CompileUSLSpec(name: String,
     }
 
     checkTableDuplication(createTableSpecs)
+    val createTableSpecWithFqnTable = createTableSpecs.map { tableSpec =>
+      val fkWithFqn = tableSpec.foreignKeys.map { fk =>
+        checkReferenceTableColumn(createTableSpecs, fk)
+        val fqnParentTable = fk.refTable.map(pt => s"${toFqn(namespace)}.$name.$pt")
+        fk.copy(refTable = fqnParentTable)
+      }
 
-    if (deploy) {
-      model.saveUnifiedSemanticLayer(withoutPrefix, name, createTableSpecs)
+      val tableSpecWithFqn = tableSpec.copy(foreignKeys = fkWithFqn)
+
+      val columnSpecWithFqn = tableSpecWithFqn.columnSpecs.map { cs =>
+        if (cs.foreignKey.isDefined) {
+          checkReferenceTableColumn(createTableSpecs, cs.foreignKey.get)
+          val fk = cs.foreignKey.get
+          val fqnParentTable = fk.refTable.map(pt =>  s"${toFqn(namespace)}.$name.$pt" )
+          val fkWithFqn = fk.copy(refTable = fqnParentTable)
+          cs.copy(foreignKey = Some(fkWithFqn))
+        } else {
+          cs
+        }
+      }
+
+      tableSpecWithFqn.copy(columnSpecs = columnSpecWithFqn)
     }
 
-    val json = UnifiedSemanticLayer.toJson(withoutPrefix, name, createTableSpecs)
+
+    if (deploy) {
+      model.saveUnifiedSemanticLayer(withoutPrefix, name, createTableSpecWithFqnTable)
+    }
+
+    val json = UnifiedSemanticLayer.toJson(withoutPrefix, name, createTableSpecWithFqnTable)
     Row(json) :: Nil
   }
 }
