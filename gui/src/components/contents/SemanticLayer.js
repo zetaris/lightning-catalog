@@ -842,6 +842,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                     const sourceTable = `lightning.${ddlJson.namespace.join('.')}.${ddlJson.name}.${table.name}`;
                     const sourceTableUuid = allTables.find(t => t.name === sourceTable)?.uuid;
     
+                    // Corrected targetTableName formation
                     const targetTableName = col.foreignKey.refTable.join('.');
                     const targetTableObj = allTables.find(t => t.name === targetTableName);
     
