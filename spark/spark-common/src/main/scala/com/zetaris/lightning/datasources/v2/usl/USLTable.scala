@@ -46,7 +46,7 @@ case class USLTable(createTableSpec: CreateTableSpec, registeredSql: Option[Stri
 
   override def newScanBuilder(options: CaseInsensitiveStringMap): USLTableScanBuilder = {
     if (registeredSql.isEmpty) {
-      throw TableNotActivatedException(s"table(${toFqn(createTableSpec.namespace)}.${createTableSpec.namespace}) is not activated")
+      throw TableNotActivatedException(s"table(${toFqn(createTableSpec.namespace)}.${createTableSpec.name}) is not activated")
     }
     USLTableScanBuilder(createTableSpec, registeredSql.get)
   }

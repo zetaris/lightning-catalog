@@ -56,9 +56,9 @@ object DataQualitySpec extends LightningSource {
    * @param sparkSession
    * @param table
    * @param expression
-   * @return count of total record, data frame of good record, bad record
+   * @return count of total record, data frame of good record
    */
-  def runDQ(sparkSession: SparkSession, table: Seq[String], expression: String): (Long, DataFrame, DataFrame) = {
+  def runDQ(sparkSession: SparkSession, table: Seq[String], expression: String): (Long, DataFrame) = {
     val tracker = new QueryPlanningTracker
 
     val totRecord = getTotalRecordCount(sparkSession, table)
@@ -70,16 +70,12 @@ object DataQualitySpec extends LightningSource {
     val goodRecord = SparkSQLBridge.ofRows(sparkSession,
       sparkSession.sessionState.analyzer.execute(goodFilter), tracker)
 
-    val badFilter = Filter(Not(exp), unresolved)
-    val badRecord = SparkSQLBridge.ofRows(sparkSession,
-      sparkSession.sessionState.analyzer.execute(badFilter), tracker)
-
-    (totRecord, goodRecord, badRecord)
+    (totRecord, goodRecord)
   }
 
   def runPrimaryKeyConstraints(sparkSession: SparkSession,
                                table: Seq[String],
-                               column: Seq[String]): (Long, Long, Long) = {
+                               column: Seq[String]): (Long, Long) = {
     val totRecord = getTotalRecordCount(sparkSession, table)
 
     val goodRecord = sparkSession.sql(
@@ -98,7 +94,7 @@ object DataQualitySpec extends LightningSource {
          |)
          |""".stripMargin).collect()(0).getLong(0)
 
-    (totRecord, goodRecord, badRecord)
+    (totRecord, goodRecord)
   }
 
   def getPrimaryKeyConstraintsRecords(sparkSession: SparkSession,
@@ -147,7 +143,7 @@ object DataQualitySpec extends LightningSource {
                                table: Seq[String],
                                column: Seq[String],
                                refTable: Seq[String],
-                               refColumn: Seq[String]): (Long, Long, Long) = {
+                               refColumn: Seq[String]): (Long, Long) = {
     val totRecord = getTotalRecordCount(sparkSession, table)
 
     val goodRecord = if (column.size == 1) {
@@ -186,7 +182,7 @@ object DataQualitySpec extends LightningSource {
            |""".stripMargin).collect()(0).getLong(0)
     }
 
-    (totRecord, goodRecord, badRecord)
+    (totRecord, goodRecord)
   }
 
   def getForeignKeyConstraintsRecords(sparkSession: SparkSession,
@@ -321,7 +317,8 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
 
   private def runDQ(sparkSession: SparkSession, createTableSpec: CreateTableSpec, dq: DataQuality): Row = {
     val dqStat = DataQualitySpec.runDQ(sparkSession, createTableSpec.namespace :+ createTableSpec.name, dq.expression)
-    Row(dq.name, createTableSpec.name, "Custom Data Quality", dqStat._1, dqStat._2.count(), dqStat._3.count())
+    val goodCount = dqStat._2.count()
+    Row(dq.name, createTableSpec.name, "Custom Data Quality", dqStat._1, goodCount, dqStat._1 - goodCount)
   }
 
   private def runPkConstraints(sparkSession: SparkSession,
@@ -334,7 +331,7 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
         equalToMultiPartIdentifier(constraintOrColumnName, pkConstraints.columns)) {
         val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, pkConstraints.columns)
         Some(Row(constraintOrColumnName, createTableSpec.name, "Primary Key constraint",
-          pkCheck._1, pkCheck._2, pkCheck._3))
+          pkCheck._1, pkCheck._2, pkCheck._1 - pkCheck._2))
       } else {
         None
       }
@@ -343,7 +340,7 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
         cs.name.equalsIgnoreCase(constraintOrColumnName)).map { pk =>
         val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, Seq(pk.name))
         Row(pk.name, createTableSpec.name, "Primary Key constraint",
-          pkCheck._1, pkCheck._2, pkCheck._3)
+          pkCheck._1, pkCheck._2, pkCheck._1 - pkCheck._2)
       }
     }
   }
@@ -353,13 +350,13 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
       val pkConstraints = createTableSpec.primaryKey.get
       val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, pkConstraints.columns)
       Row(createTableSpec.primaryKey.get.name.getOrElse(toFqn(createTableSpec.primaryKey.get.columns, "_")),
-        createTableSpec.name, "Primary Key constraint", pkCheck._1, pkCheck._2, pkCheck._3) :: Nil
+        createTableSpec.name, "Primary Key constraint", pkCheck._1, pkCheck._2, pkCheck._1 - pkCheck._2) :: Nil
     } else {
       createTableSpec.columnSpecs.flatMap { pk =>
         if (pk.primaryKey.isDefined) {
           val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, Seq(pk.name))
           Some(Row(pk.primaryKey.get.name.getOrElse(pk.name), createTableSpec.name, "Primary Key constraint",
-            pkCheck._1, pkCheck._2, pkCheck._3))
+            pkCheck._1, pkCheck._2, pkCheck._1 - pkCheck._2))
         } else {
           None
         }
@@ -375,7 +372,7 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
         equalToMultiPartIdentifier(constraintOrColumnName, uc.columns)) {
         val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, uc.columns)
         Some(Row(createTableSpec.primaryKey.get.name.get, createTableSpec.name, "Unique Constraint",
-          pkCheck._1, pkCheck._2, pkCheck._3))
+          pkCheck._1, pkCheck._2, pkCheck._1 - pkCheck._2))
       } else {
         None
       }
@@ -383,7 +380,7 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
       if (uc.unique.isDefined && uc.name.equalsIgnoreCase(constraintOrColumnName)) {
         val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, Seq(uc.name))
         Some(Row(createTableSpec.primaryKey.get.name.get, createTableSpec.name, "Unique Constraint",
-          pkCheck._1, pkCheck._2, pkCheck._3))
+          pkCheck._1, pkCheck._2, pkCheck._1 - pkCheck._2))
       } else {
         None
       }
@@ -395,7 +392,7 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
       if (uc.name.isDefined) {
         val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, uc.columns)
         Some(Row(createTableSpec.primaryKey.get.name.get, createTableSpec.name, "Unique Constraint",
-          pkCheck._1, pkCheck._2, pkCheck._3))
+          pkCheck._1, pkCheck._2, pkCheck._1 - pkCheck._2))
       } else {
         None
       }
@@ -403,7 +400,7 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
       if (uc.unique.isDefined) {
         val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, Seq(uc.name))
         Some(Row(createTableSpec.primaryKey.get.name.get, createTableSpec.name, "Unique Constraint",
-          pkCheck._1, pkCheck._2, pkCheck._3))
+          pkCheck._1, pkCheck._2, pkCheck._1 - pkCheck._2))
       } else {
         None
       }
@@ -419,7 +416,7 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
         val fkCheck = DataQualitySpec.runForeignKeyConstraints(sparkSession, table,
           fk.columns, fk.refTable, fk.refColumns)
         Some(Row(constraintOrColumnName, createTableSpec.name, "Foreign Key Constraint",
-          fkCheck._1, fkCheck._2, fkCheck._3))
+          fkCheck._1, fkCheck._2, fkCheck._1 - fkCheck._2))
       } else {
         None
       }
@@ -428,7 +425,7 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
         val fkCheck = DataQualitySpec.runForeignKeyConstraints(sparkSession, table,
           Seq(cs.name), cs.foreignKey.get.refTable, cs.foreignKey.get.refColumns)
         Some(Row(constraintOrColumnName, createTableSpec.name, "Foreign Key Constraint",
-          fkCheck._1, fkCheck._2, fkCheck._3))
+          fkCheck._1, fkCheck._2, fkCheck._1 - fkCheck._2))
       } else {
         None
       }
@@ -440,13 +437,13 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
       val fkCheck = DataQualitySpec.runForeignKeyConstraints(sparkSession, table,
         fk.columns, fk.refTable, fk.refColumns)
       Row(fk.name.getOrElse(toFqn(fk.columns, "_")), createTableSpec.name, "Foreign Key Constraint",
-        fkCheck._1, fkCheck._2, fkCheck._3)
+        fkCheck._1, fkCheck._2, fkCheck._1 - fkCheck._2)
     } ++ createTableSpec.columnSpecs.flatMap { cs =>
       if (cs.foreignKey.isDefined) {
         val fkCheck = DataQualitySpec.runForeignKeyConstraints(sparkSession, table,
           Seq(cs.name), cs.foreignKey.get.refTable, cs.foreignKey.get.refColumns)
         Some(Row(cs.foreignKey.get.name.getOrElse(cs.name), createTableSpec.name, "Foreign Key Constraint",
-          fkCheck._1, fkCheck._2, fkCheck._3))
+          fkCheck._1, fkCheck._2, fkCheck._1 - fkCheck._2))
       } else {
         None
       }
@@ -489,8 +486,9 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
       createTableSpec.dqAnnotations.map { dq =>
         val dqStat = DataQualitySpec.runDQ(sparkSession,
           createTableSpec.namespace :+ createTableSpec.name, dq.expression)
+        val goodCount = dqStat._2.count()
         Row(dq.name, createTableSpec.name, "Custom Data Quality",
-          dqStat._1, dqStat._2.count(), dqStat._3.count())
+          dqStat._1, goodCount, dqStat._1 - goodCount)
       } ++
         runPkConstraints(sparkSession, createTableSpec) ++
         runUniqueConstraints(sparkSession, createTableSpec) ++
