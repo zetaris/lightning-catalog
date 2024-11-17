@@ -265,7 +265,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
         throw TableNotFoundException(s"${ident.namespace().mkString(".")}.${ident.name()}")
       )
 
-      val tableFullPath = s"$modelDir/$subDir/${ident.name()}_table_query.json"
+      val tableFullPath = s"$modelDir/$subDir/${uslName}_${ident.name()}_table_query.json"
       if (FileSystemUtils.fileExists(tableFullPath)) {
         val tableJson = FileSystemUtils.readFile(tableFullPath)
         val uslTable = UnifiedSemanticLayerTable(tableJson)
@@ -338,7 +338,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
    */
   override def saveUnifiedSemanticLayerTableQuery(namespace: Seq[String], name: String, query: String): Unit = {
     val json = UnifiedSemanticLayerTable.toJson(name, query)
-    val subDir = nameSpaceToDir(namespace)
+    val subDir = nameSpaceToDir(namespace.dropRight(1))
     FileSystemUtils.createFolderIfNotExist(s"$modelDir/$subDir")
 
     val fullPath = s"$modelDir/$subDir/${namespace.last}_${name}_table_query.json"

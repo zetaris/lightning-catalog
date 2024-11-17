@@ -256,7 +256,13 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
             }
           case Some(datasource) =>
             val catalog = loadCatalogUnit(datasource)
-            val sourceNamespace = ident.namespace().drop(datasource.namespace.length + 1)
+            val sourceNamespace = if (datasource.dataSourceType == DataSourceType.ICEBERG ||
+              datasource.dataSourceType == DataSourceType.DELTA) {
+              Array(namespace.last)
+            } else {
+              ident.namespace().drop(datasource.namespace.length + 1)
+            }
+
             catalog.loadTable(Identifier.of(sourceNamespace, ident.name()), datasource.toTagSchema())
           case _ =>
             throw new RuntimeException(s"namespace(${ident.namespace().mkString(".")}), name(${ident.name()}) is not defined")
@@ -311,7 +317,7 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
     findParentDataSource(namespace) match {
       case Some(datasource) =>
         val catalog = loadCatalogUnit(datasource)
-        if (datasource.dataSourceType == DataSourceType.DELTA) {
+        if (datasource.dataSourceType == DataSourceType.DELTA || datasource.dataSourceType == DataSourceType.ICEBERG) {
           catalog.listTables(Array(namespace.last))
         } else {
           val sourceNamespace = namespace.drop(datasource.namespace.length + 1)
