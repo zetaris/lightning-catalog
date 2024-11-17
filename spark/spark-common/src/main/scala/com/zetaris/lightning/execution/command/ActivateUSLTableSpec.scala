@@ -78,7 +78,7 @@ case class ActivateUSLTableSpec(table: Seq[String], query: String) extends Light
       }
     }
 
-    model.saveUnifiedSemanticLayerTableQuery(namespace, tableName, query)
+    model.saveUnifiedSemanticLayerTableQuery(namespace :+ uslName, tableName, query)
     val json = UnifiedSemanticLayerTable.toJson(tableName, query)
 
     Row(json) :: Nil

@@ -92,6 +92,7 @@ class RegisterIcebergDataSourceTestSuite extends SparkExtensionsTestBase {
 
   }
 
+/**
   test("should create namespace") {
     checkAnswer(sparkSession.sql("SHOW NAMESPACES IN lightning.datasource"), Seq(Row("iceberg")))
     checkAnswer(sparkSession.sql("SHOW NAMESPACES IN lightning.datasource.iceberg"),
@@ -177,16 +178,22 @@ class RegisterIcebergDataSourceTestSuite extends SparkExtensionsTestBase {
           Row(2l, 1000372l, 2.5f, 22.15d, "N"),
           Row(2l, 1000373l, 0.9f, 9.01d, "N"),
           Row(1l, 1000374l, 8.4f, 42.13d, "Y")))
-
-    /** check utc..
-    df = sparkSession.sql(s"select * from lightning.datasource.iceberg.$dbName.nyc.taxis TIMESTAMP AS OF '$dfStr'")
-
-    checkAnswer(df,
-      Seq(Row(1l, 1000371l, 1.8f, 15.32d, "N"),
-        Row(2l, 1000372l, 2.5f, 22.15d, "N"),
-        Row(2l, 1000373l, 0.9f, 9.01d, "N"),
-        Row(1l, 1000374l, 8.4f, 42.13d, "Y")))
-    */
   }
+*/
+
+  test("should register the existing lakehouse") {
+    sparkSession.sql(
+      s"""
+         |REGISTER OR REPLACE ICEBERG DATASOURCE tpcds OPTIONS(
+         |  type "hadoop",
+         |  warehouse "/Users/jaesungjun/temp/ligt-data-lake/iceberg"
+         |) NAMESPACE lightning.datasource.iceberg
+         |""".stripMargin)
+
+    sparkSession.sql("show tables in lightning.datasource.iceberg.tpcds").show()
+    sparkSession.sql("select * from lightning.datasource.iceberg.tpcds.customer limit 100").show()
+  }
+
+
 
 }

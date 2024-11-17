@@ -88,7 +88,8 @@ case class CreateTableSpec(name: String,
                            ifNotExit: Boolean,
                            namespace: Seq[String],
                            dqAnnotations: Seq[DataQuality] = Seq.empty,
-                           acAnnotations: Seq[AccessControl] = Seq.empty) extends LightningCommandBase {
+                           acAnnotations: Seq[AccessControl] = Seq.empty,
+                           activateQuery: Option[String] = None) extends LightningCommandBase {
   @transient
   var dqAnnotationExpression: Seq[Expression] = Seq.empty
   val ctePlan = scala.collection.mutable.Map.empty[String, LogicalPlan]

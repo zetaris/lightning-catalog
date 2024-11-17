@@ -97,6 +97,10 @@ class ActivateUCLTableTestSuite extends SparkExtensionsTestBase with H2TestBase 
          |""".stripMargin
     )
 
+    val loadJson = sparkSession.sql("LOAD USL ordermart NAMESPACE lightning.metastore.crm").collect()(0).getString(0)
+    println(loadJson)
+
+
     val df = sparkSession.sql(s"select * from lightning.metastore.crm.ordermart.customer where id > 0")
     checkAnswer(df,
       Seq(Row(1, "chris lynch", "100 VIC"),
