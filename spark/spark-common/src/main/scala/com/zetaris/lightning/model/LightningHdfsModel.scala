@@ -318,7 +318,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
     val json = FileSystemUtils.readFile(fullPath)
     val usl = UnifiedSemanticLayer(json)
     val tableSpecWithActivatedQuery = usl.tables.map { tableSpec =>
-      val queryPath = s"$modelDir/$subDir/${namespace.last}_${tableSpec.name}_table_query.json"
+      val queryPath = s"$modelDir/$subDir/${name}_${tableSpec.name}_table_query.json"
       if (FileSystemUtils.folderExist(queryPath)) {
         val json = FileSystemUtils.readFile(fullPath)
         tableSpec.copy(activateQuery = Some(json))
