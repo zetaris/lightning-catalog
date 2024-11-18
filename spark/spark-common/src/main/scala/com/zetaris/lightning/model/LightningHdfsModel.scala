@@ -320,7 +320,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
     val tableSpecWithActivatedQuery = usl.tables.map { tableSpec =>
       val queryPath = s"$modelDir/$subDir/${name}_${tableSpec.name}_table_query.json"
       if (FileSystemUtils.folderExist(queryPath)) {
-        val json = FileSystemUtils.readFile(fullPath)
+        val json = FileSystemUtils.readFile(queryPath)
         tableSpec.copy(activateQuery = Some(json))
       } else {
         tableSpec
@@ -353,7 +353,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
   override def loadUnifiedSemanticLayerTableQuery(namespace: Seq[String],
                                                   name: String): UnifiedSemanticLayerTable.UnifiedSemanticLayerTable = {
     val subDir = nameSpaceToDir(namespace.dropRight(1))
-    val fullPath = s"$modelDir/$subDir/${name.last}_${name}_table_query.json"
+    val fullPath = s"$modelDir/$subDir/${namespace.last}_${name}_table_query.json"
 
     if (!FileSystemUtils.fileExists(fullPath)) {
       throw TableNotActivatedException(s"${namespace.mkString(".")}.${name}")
