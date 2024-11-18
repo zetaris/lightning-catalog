@@ -17,7 +17,7 @@
   box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.3); /* Subtle shadow */
   border-radius: 8px;
   width: 100%;
-  max-width: 600px; /* Adjusted to provide more width */
+  max-width: 800px; /* Adjusted to provide more width */
   box-sizing: border-box;
   max-height: 80vh;
   overflow-y: auto;

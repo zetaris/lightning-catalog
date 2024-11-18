@@ -1,23 +1,11 @@
 import { jsPlumb } from 'jsplumb';
-import { useEffect } from 'react';
 import './JsPlumbTables.css';
 import { createRoot } from 'react-dom/client';
 import React from 'react';
-import { ReactComponent as XmarkIcon } from '../../assets/images/xmark-solid.svg';
-import { ReactComponent as PlayIcon } from '../../assets/images/play-solid.svg';
 import { ReactComponent as EllipsisIcon } from '../../assets/images/ellipsis-vertical-solid.svg';
 import { ReactComponent as PkIcon } from '../../assets/images/key-outline.svg';
 import { ReactComponent as UniqueIcon } from '../../assets/images/fingerprint-solid.svg';
 import { ReactComponent as IndexIcon } from '../../assets/images/book-solid.svg';
-import { ReactComponent as CustomERDIcon } from '../../assets/images/customERD.svg';
-import { ReactComponent as ZeroMoreLeftIcon } from '../../assets/images/zero_more_left.svg';
-import { ReactComponent as ZeroMoreRightIcon } from '../../assets/images/zero_more_right.svg';
-import { ReactComponent as ZeroOneLeftIcon } from '../../assets/images/zero_one_left.svg';
-import { ReactComponent as ZeroOneRightIcon } from '../../assets/images/zero_one_right.svg';
-import { ReactComponent as OneMoreLeftIcon } from '../../assets/images/one_more_left.svg';
-import { ReactComponent as OneMoreRightIcon } from '../../assets/images/one_more_right.svg';
-import { ReactComponent as OneOnlyOneLeftIcon } from '../../assets/images/one_only_one_left.svg';
-import { ReactComponent as OneOnlyOneRightIcon } from '../../assets/images/zero_one_right.svg';
 import { ReactComponent as OneLeftIcon } from '../../assets/images/one_left.svg';
 import { ReactComponent as OneRightIcon } from '../../assets/images/one_right.svg';
 import { ReactComponent as ManyLeftIcon } from '../../assets/images/many_left.svg';
@@ -27,7 +15,7 @@ import { ReactComponent as CollapsingIcon } from '../../assets/images/down-left-
 import { ReactComponent as LinkIcon } from '../../assets/images/link-solid.svg';
 
 
-export const initializeJsPlumb = (container, tables = [], openModal, handleRowClickCallback, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleDeActivateTableClick, handleDataQualityButtonClick, handleTableDoubleClick, handleDirectConnection) => {
+export const initializeJsPlumb = (container, tables = [], openModal, handleRowClickCallback, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleDirectConnection) => {
   const jsPlumbInstance = jsPlumb.getInstance({
     Container: container,
   });
@@ -36,7 +24,7 @@ export const initializeJsPlumb = (container, tables = [], openModal, handleRowCl
     // Ensure tables is an array
     if (Array.isArray(tables)) {
       tables.forEach((table) => {
-        setupTableForSelectedTable(container, table, jsPlumbInstance, table.id, false, handleRowClickCallback, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleDeActivateTableClick, handleDataQualityButtonClick, handleTableDoubleClick); // false to indicate it's an existing table
+        setupTableForSelectedTable(container, table, jsPlumbInstance, table.id, false, handleRowClickCallback, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick); // false to indicate it's an existing table
       });
     }
 
@@ -523,7 +511,7 @@ function calculateTablePositions(container) {
 }
 
 export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInstance, uuid, isNewTable, handleRowClickCallback, handlePreViewButtonClick,
-  handleTableInfoClick, handleActivateTableClick, handleDeActivateTableClick, handleDataQualityButtonClick, handleTableDoubleClick) => {
+  handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick) => {
 
   const uniqueTableId = selectedTable.id || `table-${uuid}`;
   const tableName = selectedTable.name;
@@ -636,12 +624,12 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
     popupMenu.innerHTML = '';
 
     if (isActive) {
-      const deActivateTableOption = document.createElement('div');
-      deActivateTableOption.className = 'popup-menu-option';
-      deActivateTableOption.innerText = 'Deactivate Table';
-      deActivateTableOption.onclick = (e) => {
+      const activateQueryOption = document.createElement('div');
+      activateQueryOption.className = 'popup-menu-option';
+      activateQueryOption.innerText = 'Activate Query';
+      activateQueryOption.onclick = (e) => {
         e.stopPropagation();
-        handleDeActivateTableClick(selectedTable);
+        handleActivateQueryClick(selectedTable);
         popupMenu.classList.add('hidden');
       };
 
@@ -663,14 +651,14 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
         popupMenu.classList.add('hidden');
       };
 
-      const tableInfoOption = document.createElement('div');
-      tableInfoOption.className = 'popup-menu-option';
-      tableInfoOption.innerText = 'Table Info';
-      tableInfoOption.onclick = (e) => {
-        e.stopPropagation();
-        handleTableInfoClick(selectedTable);
-        popupMenu.classList.add('hidden');
-      };
+      // const tableInfoOption = document.createElement('div');
+      // tableInfoOption.className = 'popup-menu-option';
+      // tableInfoOption.innerText = 'Table Info';
+      // tableInfoOption.onclick = (e) => {
+      //   e.stopPropagation();
+      //   handleTableInfoClick(selectedTable);
+      //   popupMenu.classList.add('hidden');
+      // };
 
       const deleteOption = document.createElement('div');
       deleteOption.className = 'popup-menu-option';
@@ -681,10 +669,10 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
         popupMenu.classList.add('hidden');
       };
 
-      popupMenu.appendChild(deActivateTableOption);
+      popupMenu.appendChild(activateQueryOption);
       popupMenu.appendChild(previewOption);
       popupMenu.appendChild(dataQualityOption);
-      popupMenu.appendChild(tableInfoOption);
+      // popupMenu.appendChild(tableInfoOption);
       popupMenu.appendChild(deleteOption);
     } else {
       const activateTableOption = document.createElement('div');
