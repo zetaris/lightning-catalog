@@ -15,7 +15,7 @@ import { ReactComponent as CollapsingIcon } from '../../assets/images/down-left-
 import { ReactComponent as LinkIcon } from '../../assets/images/link-solid.svg';
 
 
-export const initializeJsPlumb = (container, tables = [], openModal, handleRowClickCallback, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleDirectConnection) => {
+export const initializeJsPlumb = (container, tables = [], openModal, handleRowClickCallback, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleListDQClick) => {
   const jsPlumbInstance = jsPlumb.getInstance({
     Container: container,
   });
@@ -24,7 +24,7 @@ export const initializeJsPlumb = (container, tables = [], openModal, handleRowCl
     // Ensure tables is an array
     if (Array.isArray(tables)) {
       tables.forEach((table) => {
-        setupTableForSelectedTable(container, table, jsPlumbInstance, table.id, false, handleRowClickCallback, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick); // false to indicate it's an existing table
+        setupTableForSelectedTable(container, table, jsPlumbInstance, table.id, false, handleRowClickCallback, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleListDQClick); // false to indicate it's an existing table
       });
     }
 
@@ -513,7 +513,7 @@ function calculateTablePositions(container) {
 }
 
 export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInstance, uuid, isNewTable, handleRowClickCallback, handlePreViewButtonClick,
-  handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick) => {
+  handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleListDQClick) => {
 
   const uniqueTableId = selectedTable.id || `table-${uuid}`;
   const tableName = selectedTable.name;
@@ -644,9 +644,18 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
         popupMenu.classList.add('hidden');
       };
 
+      const listDataQualityOption = document.createElement('div');
+      listDataQualityOption.className = 'popup-menu-option';
+      listDataQualityOption.innerText = 'Data Quality List';
+      listDataQualityOption.onclick = (e) => {
+        e.stopPropagation();
+        handleListDQClick(selectedTable);
+        popupMenu.classList.add('hidden');
+      };
+
       const dataQualityOption = document.createElement('div');
       dataQualityOption.className = 'popup-menu-option';
-      dataQualityOption.innerText = 'Data Quality Check';
+      dataQualityOption.innerText = 'Register Data Quality';
       dataQualityOption.onclick = (e) => {
         e.stopPropagation();
         handleDataQualityButtonClick(selectedTable);
@@ -673,6 +682,7 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
 
       popupMenu.appendChild(activateQueryOption);
       popupMenu.appendChild(previewOption);
+      popupMenu.appendChild(listDataQualityOption);
       popupMenu.appendChild(dataQualityOption);
       // popupMenu.appendChild(tableInfoOption);
       popupMenu.appendChild(deleteOption);

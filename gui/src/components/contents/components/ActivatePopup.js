@@ -4,9 +4,14 @@ import './Popup.css';
 
 const ActivatePopup = ({ onClose, onSubmit, table }) => {
     // Initialize dataSource with activateQuery if available, otherwise use a default template
-    const [dataSource, setDataSource] = useState(
-        JSON.parse(table.activateQuery).query || ""
-    );
+    const [dataSource, setDataSource] = useState(() => {
+        try {
+            return table.activateQuery ? JSON.parse(table.activateQuery).query || "" : "";
+        } catch (error) {
+            console.error("Invalid JSON format:", error);
+            return "";
+        }
+    });
 
     const handleSubmit = () => {
         const expression = `ACTIVATE USL TABLE ${table.name} AS ${dataSource};`;

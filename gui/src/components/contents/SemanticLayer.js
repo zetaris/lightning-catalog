@@ -15,6 +15,7 @@ import { ReactComponent as Exclamation } from '../../assets/images/circle-exclam
 import { ReactComponent as Spinner } from '../../assets/images/spinner-solid.svg';
 import { TableInfoSlider } from './TableInfoSlider';
 import DataQualityPopup from './components/DataQualityPopup.js';
+import DataQualityListPopup from './components/DataQualityListPopup.js';
 import ActivePopup from './components/ActivatePopup.js';
 
 function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
@@ -44,6 +45,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
     const [selectedTableInfo, setSelectedTableInfo] = useState(null);
     const [editorContent, setEditorContent] = useState('');
     const [showDQPopup, setShowDQPopup] = useState(false);
+    const [showDQListPopup, setShowDQListPopup] = useState(false);
     const [showActivePopup, setShowActivePopup] = useState(false);
     const [activateTable, setactivateTable] = useState(false);
     const [activateTargetTable, setActivateTargetTable] = useState(null);
@@ -53,6 +55,10 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
     const [dqResults, setDQResults] = useState([]);
     const [viewMode, setViewMode] = useState('output');
     let selectedRowData = [];
+    const [pagination, setPagination] = useState({
+        pageIndex: 0,
+        pageSize: 30,
+    });
 
     const reSizingOffset = 115;
 
@@ -62,13 +68,16 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
         setShowDQPopup(false);
     };
 
+    const handleCloseDQListPopup = () => {
+        setShowDQListPopup(false);
+    };
+
     const handleCloseActivePopup = () => {
         setShowActivePopup(false);
     };
 
     const handlePopupSubmit = (data) => {
-        console.log('Popup submitted data:', data);
-        // Handle submitted data (name and expression)
+        // console.log('Popup submitted data:', data);
     };
 
     const getLineage = () => {
@@ -124,10 +133,16 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
     };
 
     const runDQ = async () => {
+        let updatedDQResults = dqResults.map((dqEntry) => ({
+            ...dqEntry,
+            Status: 'N/A',
+            Total_record: 'N/A',
+            Good_record: 'N/A',
+            Bad_record: 'N/A',
+            errorMessage: '',
+        }));
 
-        const updatedDQResults = [...dqResults];
-
-        await loadDQ();
+        setDQResults(updatedDQResults);
 
         for (const dqEntry of selectedRowData) {
             dqEntry.Status = 'loading';
@@ -135,6 +150,9 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
             dqEntry.Good_record = 'fetching data...';
             dqEntry.Bad_record = 'fetching data...';
 
+            updatedDQResults = updatedDQResults.map((entry) =>
+                entry.Name === dqEntry.Name ? dqEntry : entry
+            );
             setDQResults([...updatedDQResults]);
 
             const runDQQuery = `RUN DQ ${dqEntry.Name} TABLE ${dqEntry.Table}`;
@@ -165,12 +183,20 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                 dqEntry.errorMessage = error.message || 'An unexpected error occurred';
             }
 
+            updatedDQResults = updatedDQResults.map((entry) =>
+                entry.Name === dqEntry.Name ? dqEntry : entry
+            );
             setDQResults([...updatedDQResults]);
         }
     };
 
     const handleTableDoubleClick = () => {
         // console.log("handleTableDoubleClick");
+    }
+
+    const handleListDQClick = (table) => {
+        setActivateTargetTable(table);
+        setShowDQListPopup(true);
     }
 
     const handleDataQualityButtonClick = (table) => {
@@ -417,7 +443,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                 const tableWithUuid = { ...selectedTable, uuid }; // Add UUID to the table object
 
                 requestAnimationFrame(() => {
-                    setupTableForSelectedTable(jsPlumbRef.current, tableWithUuid, jsPlumbInstanceRef.current, uuid, false, handleRowClick, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick);
+                    setupTableForSelectedTable(jsPlumbRef.current, tableWithUuid, jsPlumbInstanceRef.current, uuid, false, handleRowClick, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleListDQClick);
                     jsPlumbInstanceRef.current.recalculateOffsets(jsPlumbRef.current);
                     jsPlumbInstanceRef.current.repaint();
 
@@ -474,14 +500,14 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
 
         // Initialize jsPlumb instance
         if (!jsPlumbInstanceRef.current && jsPlumbRef.current) {
-            jsPlumbInstanceRef.current = initializeJsPlumb(jsPlumbRef.current, [], openModal, handleRowClick, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleDirectConnection);
+            jsPlumbInstanceRef.current = initializeJsPlumb(jsPlumbRef.current, [], openModal, handleRowClick, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleListDQClick);
         }
 
         // Render saved tables from localStorage if available
         if (savedTables.length > 0 && jsPlumbInstanceRef.current) {
             const activatedTableNames = [];
             savedTables.forEach((table) => {
-                setupTableForSelectedTable(jsPlumbRef.current, table, jsPlumbInstanceRef.current, table.uuid, false, handleRowClick, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick);
+                setupTableForSelectedTable(jsPlumbRef.current, table, jsPlumbInstanceRef.current, table.uuid, false, handleRowClick, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleListDQClick);
                 if (table.isActivated) {
                     activatedTableNames.push(table.name);
                 }
@@ -570,6 +596,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                     handleActivateQueryClick,
                     handleDataQualityButtonClick,
                     handleTableDoubleClick,
+                    handleListDQClick,
                 );
             });
 
@@ -752,6 +779,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                 name: tableName,
                 desc: columns,
                 foreignKeyConstraints: foreignKeyConstraints.length ? foreignKeyConstraints : [],
+                dqAnnotations: table.dqAnnotations,
                 uuid: `${uuidv4()}`,
                 position: position,
                 isActivated: isActivated,
@@ -930,8 +958,11 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                 data={data}
                 enableSorting={true}
                 enableColumnFilters={true}
+                onPaginationChange={setPagination}
+                state={{ pagination }}
                 initialState={{
                     density: 'compact',
+                    pagination: { pageSize: 30, pageIndex: 0 }
                 }}
             />
         );
@@ -1073,6 +1104,12 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
             return null;
         };
 
+        const handlePaginationChange = ({ pageIndex, pageSize }) => {
+            console.log(pageIndex)
+            console.log(pageSize)
+            setPagination({ pageIndex, pageSize });
+        };
+
         return (
             <>
                 <div style={{ position: 'relative' }}>
@@ -1093,8 +1130,12 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                         data={dqData}
                         enableSorting
                         enableColumnFilters
-                        defaultPageSize={30}
-                        initialState={{ density: 'compact'}}
+                        onPaginationChange={setPagination}
+                        state={{ pagination }}
+                        initialState={{
+                            density: 'compact',
+                            pagination: { pageSize: 30, pageIndex: 0 }
+                        }}
                     />
                 </div>
                 <Tooltip visible={tooltip.visible} message={tooltip.message} position={tooltip.position} />
@@ -1458,6 +1499,14 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                         <DataQualityPopup
                             onClose={handleCloseDQPopup}
                             onSubmit={handlePopupSubmit}
+                            table={activateTargetTable}
+                            setPopupMessage={setPopupMessage}
+                        />
+                    )}
+
+                    {showDQListPopup && (
+                        <DataQualityListPopup
+                            onClose={handleCloseDQListPopup}
                             table={activateTargetTable}
                             setPopupMessage={setPopupMessage}
                         />

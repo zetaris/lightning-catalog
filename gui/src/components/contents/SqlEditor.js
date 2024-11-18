@@ -120,27 +120,27 @@ function SqlEditor({ toggleRefreshNav }) {
     const runQuery = async () => {
         const activeEditorInstance = editorInstances[activeEditor];
         const selectedText = activeEditorInstance?.getSelectedText();
-        
+
         const activeEditorContent = editors.find((editor) => editor.id === activeEditor)?.content;
         const cleanQuery = selectedText && selectedText.trim() !== ""
             ? selectedText
             : removeComments(activeEditorContent);
-        
+
         if (!cleanQuery || cleanQuery.trim() === "") {
             setQueryResult({ error: "Query is empty. Please provide a valid SQL query." });
             return;
         }
-    
+
         setLoading(true);
-    
+
         // Update query history state and localStorage
         const newQueryHistory = [...queryHistory, { query: cleanQuery, timestamp: new Date().toLocaleString() }];
         setQueryHistory(newQueryHistory);
         localStorage.setItem('queryHistory', JSON.stringify(newQueryHistory));
-    
+
         const result = await fetchApi(cleanQuery);
         setLoading(false);
-        
+
         if (result?.error) {
             setQueryResult({ error: result.message });
         } else {
@@ -151,7 +151,7 @@ function SqlEditor({ toggleRefreshNav }) {
             localStorage.setItem('queryResult', JSON.stringify(finalResult));
         }
     };
-    
+
 
     const RenderTableForApi = ({ data }) => {
         const normalizedData = data.map((row) => ({
