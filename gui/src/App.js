@@ -14,6 +14,11 @@ function App() {
   const [semanticLayerInfo, setSemanticLayerInfo] = useState([]); // State to manage semantic layers
   const [uslNamebyClick, setUslNamebyClick] = useState(''); // State to manage semantic layers
 
+  const handleSetView = (newView) => {
+    setView(newView);
+    setRefreshNav((prev) => !prev);
+  };
+
   // Function to handle updates or changes that should refresh navigation
   const toggleRefreshNav = () => {
     setRefreshNav((prev) => !prev); // Toggle the state to refresh Navigation
@@ -40,7 +45,7 @@ function App() {
     <div>
       {/* Header section */}
       <div className="header">
-        <Header setView={setView} />
+        <Header setView={handleSetView} view={view} />
       </div>
 
       {/* Resizable layout for Navigation and Content */}
@@ -50,7 +55,7 @@ function App() {
             <>
               {/* Navigation Section with refreshNav prop to trigger refresh */}
               <div className="navigation" style={{ minWidth: '200px', width: position }}>
-                <Navigation refreshNav={refreshNav} view={view} onTableSelect={handleTableSelect} onGenerateDDL={onGenerateDDL} setView={setView} setUslNamebyClick={setUslNamebyClick} /> {/* Pass the state to Navigation */}
+                <Navigation refreshNav={refreshNav} view={view} onTableSelect={handleTableSelect} onGenerateDDL={onGenerateDDL} setView={handleSetView} setUslNamebyClick={setUslNamebyClick} /> {/* Pass the state to Navigation */}
               </div>
 
               {/* Resizable separator */}

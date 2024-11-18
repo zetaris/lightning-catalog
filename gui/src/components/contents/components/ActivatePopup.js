@@ -5,7 +5,7 @@ import './Popup.css';
 const ActivatePopup = ({ onClose, onSubmit, table }) => {
     // Initialize dataSource with activateQuery if available, otherwise use a default template
     const [dataSource, setDataSource] = useState(
-        table.activateQuery || "--SELECT \n--CAST(id AS INT) AS [Column Name 1], \n--CAST(name AS STRING) AS [Column Name 2], \n--CAST(age AS STRING) AS [Column Name 3] \n--FROM [Table Name for the data source to connect];"
+        JSON.parse(table.activateQuery).query || ""
     );
 
     const handleSubmit = () => {

@@ -3,13 +3,21 @@ import './Components.css';
 import logo from '../assets/images/lightning-logo.png';
 import '../styleguides/styleguides.css';
 
-function Header({ setView }) {
+function Header({ setView, view }) {
   const [selectedTab, setSelectedTab] = useState('');
 
   useEffect(() => {
     const savedTab = sessionStorage.getItem('selectedTab') || 'sqlEditor';
-    handleClick(savedTab);
+    setSelectedTab(savedTab);
+    setView(savedTab);
   }, []);
+
+  useEffect(() => {
+    if (view !== selectedTab) {
+      setSelectedTab(view);
+      sessionStorage.setItem('selectedTab', view);
+    }
+  }, [view, selectedTab]);
 
   const handleClick = (viewName) => {
     setSelectedTab(viewName);

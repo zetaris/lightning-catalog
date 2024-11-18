@@ -74,7 +74,7 @@ const SetSemanticLayerModal = ({ showPopup, setShowPopup, ddlName, setDdlName, d
         >
           <label>DDL Code</label>
           <div className='label-text'>Enter DDL code, drag & drop or click to select file (.sql/.txt).</div>
-          <div style={{ height: '300px', width: '100%' }}>
+          <div style={{ height: '500px', width: '100%' }}>
             <Editor
               id="ddl-editor"
               content={ddlCode}

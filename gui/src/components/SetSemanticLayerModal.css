@@ -9,7 +9,7 @@
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    padding-top: 100px; /* Adjusted for higher placement */
+    padding-top: 80px; /* Adjusted for higher placement */
     z-index: 1000;
 }
 
@@ -17,7 +17,7 @@
 .popup-modal {
     background-color: #fff;
     padding: 30px 40px;
-    width: 800px; /* Further increased modal width */
+    width: 1000px; /* Further increased modal width */
     border-radius: 10px;
     box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
     box-sizing: border-box;
