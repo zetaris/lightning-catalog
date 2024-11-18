@@ -161,3 +161,36 @@
 .action-button:hover {
   color: #27A7D2;
 }
+
+/* Data Quality Popup specific styles */
+.popup ul {
+  list-style-type: none; /* Remove bullet points */
+  padding: 0; /* Remove default padding */
+  margin: 0; /* Remove default margin */
+}
+
+.popup .dq-annotation-item {
+  margin-bottom: 12px; /* Space between each annotation */
+  padding: 8px 12px; /* Internal padding for item */
+  background-color: #f9f9f9; /* Subtle background for each item */
+  border: 1px solid #ddd; /* Border for definition */
+  border-radius: 4px;
+}
+
+.popup .dq-annotation-item .dq-annotation-name,
+.popup .dq-annotation-item .dq-annotation-expression {
+  display: flex;
+  align-items: center;
+  margin-bottom: 6px; /* Space between label and value */
+}
+
+.popup .dq-annotation-item .dq-annotation-label {
+  width: 120px; /* Consistent width for labels */
+  font-weight: 600;
+  color: #333;
+}
+
+.popup .dq-annotation-item .dq-annotation-value {
+  color: #444;
+  word-break: break-word; /* Long text wrapping */
+}
