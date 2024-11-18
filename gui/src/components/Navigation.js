@@ -71,9 +71,8 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
 
   useEffect(() => {
     const fetchInitialData = async () => {
+      // Fetch DataSource tree
       const dataSourceChildren = await fetchDatasources('lightning.datasource');
-      const semanticLayerChildren = await fetchDatasources('lightning.metastore', true);
-  
       if (dataSourceChildren) {
         const updatedDataSources = dataSources.map((node) => ({
           ...node,
@@ -81,7 +80,6 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
         }));
         setDataSources(updatedDataSources);
   
-        // Fetch second level for each child node
         for (const childNode of dataSourceChildren) {
           const secondLevelChildren = await fetchDatasources(childNode.fullPath);
           childNode.children = secondLevelChildren || [];
@@ -89,6 +87,8 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
         setDataSources(updatedDataSources);
       }
   
+      // Fetch SemanticLayer tree
+      const semanticLayerChildren = await fetchDatasources('lightning.metastore', true);
       if (semanticLayerChildren) {
         const updatedSemanticLayers = semanticLayerFiles.map((node) => ({
           ...node,
@@ -96,7 +96,6 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
         }));
         setSemanticLayerFiles(updatedSemanticLayers);
   
-        // Fetch second level for each child node
         for (const childNode of semanticLayerChildren) {
           const secondLevelChildren = await fetchDatasources(childNode.fullPath, true);
           childNode.children = secondLevelChildren || [];
@@ -276,7 +275,7 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
               )}
 
               {/* Add button for isTable nodes in semanticLayer view */}
-              {node.isTable === true && view === 'semanticLayer' && !isSemanticLayer && (
+              {/* {node.isTable === true && view === 'semanticLayer' && !isSemanticLayer && (
                 <button
                   className='btn-table-add'
                   onClick={(event) => {
@@ -286,7 +285,7 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
                 >
                   Add
                 </button>
-              )}
+              )} */}
             </span>
           }
           onClick={() => {
