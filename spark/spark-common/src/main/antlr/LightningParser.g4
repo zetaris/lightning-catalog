@@ -13,7 +13,11 @@ statement
 
 ddlStatement
     : registerDataSource | registerCatalog | createTable | compileUSL | activateUSLTable | loadUSL | updateUSL |
-      registerDQ | listDQ | runDQ
+      registerDQ | listDQ | runDQ | removeDQ
+    ;
+
+removeDQ
+    : REMOVE DQ name = identifier TABLE table=multipartIdentifier
     ;
 
 runDQ

@@ -29,7 +29,7 @@ import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.sql.catalyst.expressions.aggregate.Count
 import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Literal, Not}
 import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter}
-import org.apache.spark.sql.types.{LongType, StringType}
+import org.apache.spark.sql.types.{BooleanType, LongType, StringType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSQLBridge, SparkSession}
 
 import scala.util.{Failure, Success, Try}
@@ -496,3 +496,29 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
     }
   }
 }
+
+case class RemovedDataQualitySpec(name: String, table: Seq[String]) extends LightningCommandBase {
+  override val output: Seq[AttributeReference] = Seq(
+    AttributeReference("remove", BooleanType, false)()
+  )
+
+  override def runCommand(sparkSession: SparkSession): Seq[Row] = {
+    val model = LightningModelFactory(dataSourceConfigMap(sparkSession))
+    val uslFqn = table.dropRight(2)
+    val usl = model.loadUnifiedSemanticLayer(uslFqn.dropRight(1), uslFqn.last)
+    val tableSpecRemoved = usl.tables.map { createTableSpec =>
+      val dq = createTableSpec.dqAnnotations.find(_.name.eq(name))
+      val removed = if (dq.isDefined) {
+        createTableSpec.dqAnnotations.filterNot(_.name.equalsIgnoreCase(name))
+      } else {
+        createTableSpec.dqAnnotations
+      }
+
+      createTableSpec.copy(dqAnnotations = removed)
+    }
+
+    model.saveUnifiedSemanticLayer(uslFqn.dropRight(1), uslFqn.last, tableSpecRemoved)
+    Row(true) :: Nil
+  }
+}
+
