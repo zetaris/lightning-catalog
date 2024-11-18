@@ -51,6 +51,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
     const [activateTables, setActivateTables] = useState(null);
     const resizingRef = useRef(false);
     const [dqResults, setDQResults] = useState([]);
+    const [viewMode, setViewMode] = useState('output');
     let selectedRowData = [];
 
     const reSizingOffset = 115;
@@ -101,11 +102,11 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                     Table: `${namespace}.${dq.table}`,
                     Type: dq.type,
                     Expression: dq.expression,
-                    Total_record: 'N/A',       // Placeholder values
-                    Good_record: 'N/A',        // Placeholder values
-                    Bad_record: 'N/A',         // Placeholder values
-                    Status: 'N/A',             // No processing status
-                    isChecked: false           // Checkbox state
+                    Total_record: 'N/A',
+                    Good_record: 'N/A',
+                    Bad_record: 'N/A',
+                    Status: 'N/A',
+                    isChecked: false
                 };
 
                 if (dq.type === 'Custom Data Quality') {
@@ -119,14 +120,14 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
         }
 
         setDQResults(dqResults);
-        setCondition('dqResult')
+        setViewMode('dq')
     };
 
     const runDQ = async () => {
-        if (condition !== 'dqResult') {
-            setPopupMessage('Please proceed with the load first.')
-        }
+
         const updatedDQResults = [...dqResults];
+
+        await loadDQ();
 
         for (const dqEntry of selectedRowData) {
             dqEntry.Status = 'loading';
@@ -165,7 +166,6 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
             }
 
             setDQResults([...updatedDQResults]);
-            setCondition('dqResult');
         }
     };
 
@@ -229,7 +229,6 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
 
         let result = await fetchActivateTableApi(requestData);
         if (!result.error) {
-            setPopupMessage(`The ${result.name} table has been activated.`);
             setActivateTables((prevTables) => {
                 const updatedTables = [...prevTables, table];
                 updateActivatedTables(true, updatedTables);
@@ -797,7 +796,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
 
     const handlePreViewButtonClick = (tableName) => {
         // console.log(`Preview button clicked for table Name: ${tableName}`);
-        runQuery(`SELECT * FROM ` + tableName).then(() => {
+        runQuery(`SELECT * FROM ` + tableName + ` LIMIT 100`).then(() => {
             setCondition('preview');
         });
     };
@@ -964,19 +963,19 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
         const [dqData, setDQData] = useState(data);
         const [selectedRows, setSelectedRows] = useState({});
         const [tooltip, setTooltip] = useState({ visible: false, message: '', position: { x: 0, y: 0 } });
-    
+
         const handleCheckboxChange = (rowId) => {
             setSelectedRows((prevSelectedRows) => {
                 const newSelectedRows = {
                     ...prevSelectedRows,
                     [rowId]: !prevSelectedRows[rowId]
                 };
-    
+
                 selectedRowData = dqData.filter((row) => newSelectedRows[row.Name]);
                 return newSelectedRows;
             });
         };
-    
+
         const toggleSelectAll = () => {
             const allSelected = Object.values(selectedRows).every((isChecked) => isChecked);
             const newSelectedRows = {};
@@ -984,10 +983,10 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                 newSelectedRows[item.Name] = !allSelected;
             });
             setSelectedRows(newSelectedRows);
-    
+
             selectedRowData = dqData.filter((row) => newSelectedRows[row.Name]);
         };
-    
+
         const dqColumns = [
             {
                 accessorKey: 'Checkbox',
@@ -1038,14 +1037,14 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                 Cell: ({ cell }) => renderFetchingStatus(cell.getValue())
             },
         ];
-    
+
         const renderFetchingStatus = (value) => {
             if (value === 'fetching data...') {
                 return <span>fetching data...</span>;
             }
             return value || '';
         };
-    
+
         const renderStatus = (status, errorMessage) => {
             const handleMouseEnter = (event) => {
                 const rect = event.target.getBoundingClientRect();
@@ -1055,9 +1054,9 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                     position: { x: rect.left + window.scrollX, y: rect.top + window.scrollY - 30 }
                 });
             };
-    
+
             const handleMouseLeave = () => setTooltip({ visible: false, message: '', position: { x: 0, y: 0 } });
-    
+
             if (status === 'loading') {
                 return <Spinner className="spinner" style={{ width: '20px', height: '20px', fill: '#27A7D2' }} />;
             } else if (status === 'success') {
@@ -1073,7 +1072,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
             }
             return null;
         };
-    
+
         return (
             <>
                 <div style={{ position: 'relative' }}>
@@ -1094,7 +1093,8 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                         data={dqData}
                         enableSorting
                         enableColumnFilters
-                        initialState={{ density: 'compact' }}
+                        defaultPageSize={30}
+                        initialState={{ density: 'compact'}}
                     />
                 </div>
                 <Tooltip visible={tooltip.visible} message={tooltip.message} position={tooltip.position} />
@@ -1260,14 +1260,16 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
             return <div>{queryResult.error}</div>;
         }
 
-        if (condition === 'preview') {
-            return <div>{queryResult ? queryResult : "Generating SQL..."}</div>;
-        } else if (condition === 'build') {
-            return <div>{queryResult ? queryResult : "Generating SQL..."}</div>;
-        } else if (condition === 'rules') {
-            return renderRulesTable();
-        } else if (condition === 'dqResult') {
+        if (viewMode === 'dq') {
             return dqResults.length > 0 ? <RenderDQTable data={dqResults} /> : null;
+        } else {
+            if (condition === 'preview') {
+                return <div>{queryResult ? queryResult : "Generating SQL..."}</div>;
+            } else if (condition === 'build') {
+                return <div>{queryResult ? queryResult : "Generating SQL..."}</div>;
+            } else if (condition === 'rules') {
+                return renderRulesTable();
+            }
         }
     };
 
@@ -1366,14 +1368,14 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                         style={{
                             position: 'relative',
                             height: `${position - reSizingOffset}px`,
-                            overflow: 'hidden',
+                            overflow: 'auto',
                         }}
                     >
                         <div
                             ref={jsPlumbRef}
                             style={{
-                                width: '5000px',
-                                height: '5000px',
+                                width: '100000px',
+                                height: '100000px',
                                 position: 'absolute',
                                 transform: `scale(${zoomLevel})`,
                                 transformOrigin: '0 0',
@@ -1399,6 +1401,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                             {/* <button className="btn-primary" onClick={(deleteAllTables)}>Delete USL</button> */}
                             <button className="btn-primary" onClick={(loadDQ)}>Load Data Quality</button>
                             {/* <button className="btn-primary" onClick={(runDQ)}>Run Data Quality</button> */}
+                            <button className="btn-primary" onClick={(() => setViewMode('output'))}>Output</button>
                             <div className="zoom-controls">
                                 {/* <button className="btn-primary" >Optimize View</button> */}
                                 <LocationIcon onClick={() => handleOptimizeView(jsPlumbRef.current, zoomLevel, setZoomLevel, setOffset)} style={{ width: '30px', height: '30px', cursor: 'pointer' }} />

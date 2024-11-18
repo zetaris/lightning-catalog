@@ -501,7 +501,9 @@ function calculateTablePositions(container) {
     // Calculate y position based on the table directly above, if available
     if (row > 0 && positions[i - gridSize]) {
       const aboveTablePosition = positions[i - gridSize];
-      y = aboveTablePosition.y + 600; // Fixed vertical offset for spacing
+      const aboveTableContainer = container.querySelectorAll('.table-container')[i - gridSize];
+      const dynamicOffsetY = aboveTableContainer ? aboveTableContainer.offsetHeight + 100 : 600;
+      y = aboveTablePosition.y + dynamicOffsetY; // Dynamic vertical offset based on actual table height
     }
 
     positions.push({ x, y });
@@ -1106,22 +1108,40 @@ export const handleZoomOut = (container, setZoomLevel, setOffset, jsPlumbInstanc
   });
 };
 
+// const adjustOffsetForZoom = (container, scaleFactor, setOffset) => {
+//   if (container) {
+//     const containerRect = container.getBoundingClientRect();
+
+//     // Calculate center of screen
+//     const centerX = (containerRect.left + containerRect.right) / 2 - 500;
+//     const centerY = (containerRect.top + containerRect.bottom) / 2;
+
+//     // Calculate offset
+//     setOffset((prevOffset) => {
+//       const newOffsetX = centerX - (centerX - prevOffset.x) * scaleFactor;
+//       const newOffsetY = centerY - (centerY - prevOffset.y) * scaleFactor;
+//       localStorage.setItem('offsetX', newOffsetX);
+//       localStorage.setItem('offsetY', newOffsetY);
+
+//       return { x: newOffsetX, y: newOffsetY };
+//     });
+//   }
+// };    
+
 const adjustOffsetForZoom = (container, scaleFactor, setOffset) => {
   if (container) {
     const containerRect = container.getBoundingClientRect();
 
-    // Calculate center of screen
-    const centerX = (containerRect.left + containerRect.right) / 2 - 500;
-    const centerY = (containerRect.top + containerRect.bottom) / 2;
+    // const centerX = (containerRect.left + containerRect.right) / 2 - container.offsetLeft;
+    // const centerY = (containerRect.top + containerRect.bottom) / 2 - container.offsetTop;
 
-    // Calculate offset
+    const centerX = 0;
+    const centerY = 0;
+
     setOffset((prevOffset) => {
       const newOffsetX = centerX - (centerX - prevOffset.x) * scaleFactor;
       const newOffsetY = centerY - (centerY - prevOffset.y) * scaleFactor;
-      localStorage.setItem('offsetX', newOffsetX);
-      localStorage.setItem('offsetY', newOffsetY);
-
       return { x: newOffsetX, y: newOffsetY };
     });
   }
-};    
+};
