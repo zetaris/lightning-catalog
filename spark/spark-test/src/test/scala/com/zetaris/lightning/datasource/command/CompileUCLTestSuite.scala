@@ -89,7 +89,7 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
     val srcJson = df.collect()(0).getString(0)
     val srcUSL = UnifiedSemanticLayer(srcJson)
 
-    val loadJson = sparkSession.sql("LOAD USL crmdb NAMESPACE lightning.metastore.crm").collect()(0).getString(0)
+    val loadJson = sparkSession.sql("LOAD USL crmdb NAMESPACE lightning.metastore").collect()(0).getString(0)
     val loadUSL = UnifiedSemanticLayer(loadJson)
 
     assert(srcUSL.namespace.mkString(".") == loadUSL.namespace.mkString("."))
@@ -200,6 +200,10 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
 
     checkAnswer(sparkSession.sql(s"SHOW NAMESPACES IN lightning.metastore.crm"),
       Seq(Row("crmdb")))
+
+    sparkSession.sql(s"CREATE NAMESPACE lightning.metastore.crm.otherone")
+    checkAnswer(sparkSession.sql(s"SHOW NAMESPACES IN lightning.metastore.crm"),
+      Seq(Row("crmdb"), Row("otherone")))
 
     checkAnswer(sparkSession.sql(s"SHOW TABLES in lightning.metastore.crm.crmdb"), Seq(
       Row("crmdb", "customer", false),

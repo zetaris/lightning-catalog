@@ -21,44 +21,30 @@
 
 package com.zetaris.lightning.execution.command
 
-import com.zetaris.lightning.catalog.LightningSource
 import com.zetaris.lightning.model.LightningModelFactory
-import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
-import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.{Row, SparkSession}
 
-case class LoadUSL(namespace: Seq[String], name: String) extends LightningCommandBase {
+case class ShowNamespacesOrTables(namespace: Seq[String]) extends LightningCommandBase {
   override val output: Seq[AttributeReference] = Seq(
-    AttributeReference("json", StringType, false)()
+    AttributeReference("name", StringType, false)(),
+    AttributeReference("type", StringType, false)()
   )
 
   override def runCommand(sparkSession: SparkSession): Seq[Row] = {
-    checkNamespaceLen(namespace)
-
-    val model = LightningModelFactory(dataSourceConfigMap(sparkSession))
-    val usl = model.loadUnifiedSemanticLayer(namespace.drop(1), name)
-    val json = UnifiedSemanticLayer.toJson(usl.namespace, usl.name, usl.tables)
-
-    Row(json) :: Nil
-  }
-}
-
-case class UpdateUSL(namespace: Seq[String], name: String, json: String)
-  extends LightningCommandBase with LightningSource{
-  override val output: Seq[AttributeReference] = Seq(
-    AttributeReference("updated", StringType, false)()
-  )
-
-  override def runCommand(sparkSession: SparkSession): Seq[Row] = {
-    checkTableNamespaceLen(namespace)
     val model = LightningModelFactory(dataSourceConfigMap(sparkSession))
 
-    val namespaceWithoutPrefix = namespace.drop(1)
-    model.loadUnifiedSemanticLayer(namespaceWithoutPrefix, name)
-    val usl = UnifiedSemanticLayer(json)
-    model.saveUnifiedSemanticLayer(namespaceWithoutPrefix, name, usl.tables)
-
-    Row(s"${toFqn(namespace)}.$name") :: Nil
+    sparkSession.sql(s"show namespaces in ${toFqn(namespace)}").collect().map { row =>
+      val name = row.getString(0)
+      val isUsl = model.canLoadUnifiedSemanticLayer(namespace.drop(1), name)
+      if (isUsl) {
+        Row(name, "usl")
+      } else {
+        Row(name, "namespace")
+      }
+    } ++ sparkSession.sql(s"show tables in ${toFqn(namespace)}").collect().map { row =>
+      Row(row.getString(1), "table")
+    }
   }
 }

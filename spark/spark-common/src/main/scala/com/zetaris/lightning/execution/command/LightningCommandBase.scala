@@ -53,6 +53,12 @@ abstract class LightningCommandBase extends LeafRunnableCommand with LightningSo
     val meta = model.loadNamespaceMeta(namespace)
   }
 
+  protected def checkNamespaceLen(table: Seq[String]): Unit = {
+    if (table.size < 2) {
+      throw new RuntimeException(s"namespace should be at least 2 level")
+    }
+  }
+
   protected def checkTableNamespaceLen(table: Seq[String]): Unit = {
     if (table.size < 3) {
       throw new RuntimeException(s"table name identifier should be at least 3 level")

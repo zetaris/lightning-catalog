@@ -13,7 +13,11 @@ statement
 
 ddlStatement
     : registerDataSource | registerCatalog | createTable | compileUSL | activateUSLTable | loadUSL | updateUSL |
-      registerDQ | listDQ | runDQ | removeDQ
+      registerDQ | listDQ | runDQ | removeDQ | showNamespacesOrTables
+    ;
+
+showNamespacesOrTables
+    : SHOW NAMESPACES OR TABLES IN namespace=multipartIdentifier
     ;
 
 removeDQ

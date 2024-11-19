@@ -107,6 +107,14 @@ trait LightningModel {
   def loadTable(ident: Identifier): Table
 
   /**
+   * check unfied semantic layer can be loaded or not
+   * @param namespace
+   * @param name
+   * @param tables
+   */
+  def canLoadUnifiedSemanticLayer(namespace: Seq[String], name: String): Boolean
+
+  /**
    * Save unified semantic layer
    * @param namespace
    * @param name

@@ -330,7 +330,7 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
       if (constraintName.equalsIgnoreCase(constraintOrColumnName) ||
         equalToMultiPartIdentifier(constraintOrColumnName, pkConstraints.columns)) {
         val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, pkConstraints.columns)
-        Some(Row(constraintOrColumnName, createTableSpec.name, "Primary Key constraint",
+        Some(Row(constraintOrColumnName, createTableSpec.name, "Primary Key Constraint",
           pkCheck._1, pkCheck._2, pkCheck._1 - pkCheck._2))
       } else {
         None
@@ -339,7 +339,7 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
       createTableSpec.columnSpecs.find(cs => cs.primaryKey.isDefined &&
         cs.name.equalsIgnoreCase(constraintOrColumnName)).map { pk =>
         val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, Seq(pk.name))
-        Row(pk.name, createTableSpec.name, "Primary Key constraint",
+        Row(pk.name, createTableSpec.name, "Primary Key Constraint",
           pkCheck._1, pkCheck._2, pkCheck._1 - pkCheck._2)
       }
     }
@@ -350,12 +350,12 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
       val pkConstraints = createTableSpec.primaryKey.get
       val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, pkConstraints.columns)
       Row(createTableSpec.primaryKey.get.name.getOrElse(toFqn(createTableSpec.primaryKey.get.columns, "_")),
-        createTableSpec.name, "Primary Key constraint", pkCheck._1, pkCheck._2, pkCheck._1 - pkCheck._2) :: Nil
+        createTableSpec.name, "Primary Key Constraint", pkCheck._1, pkCheck._2, pkCheck._1 - pkCheck._2) :: Nil
     } else {
       createTableSpec.columnSpecs.flatMap { pk =>
         if (pk.primaryKey.isDefined) {
           val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, Seq(pk.name))
-          Some(Row(pk.primaryKey.get.name.getOrElse(pk.name), createTableSpec.name, "Primary Key constraint",
+          Some(Row(pk.primaryKey.get.name.getOrElse(pk.name), createTableSpec.name, "Primary Key Constraint",
             pkCheck._1, pkCheck._2, pkCheck._1 - pkCheck._2))
         } else {
           None
@@ -504,10 +504,10 @@ case class RemovedDataQualitySpec(name: String, table: Seq[String]) extends Ligh
 
   override def runCommand(sparkSession: SparkSession): Seq[Row] = {
     val model = LightningModelFactory(dataSourceConfigMap(sparkSession))
-    val uslFqn = table.dropRight(2)
+    val uslFqn = table.dropRight(1).drop(1)
     val usl = model.loadUnifiedSemanticLayer(uslFqn.dropRight(1), uslFqn.last)
-    val tableSpecRemoved = usl.tables.map { createTableSpec =>
-      val dq = createTableSpec.dqAnnotations.find(_.name.eq(name))
+    val removedTableSpec = usl.tables.map { createTableSpec =>
+      val dq = createTableSpec.dqAnnotations.find(_.name.equalsIgnoreCase(name))
       val removed = if (dq.isDefined) {
         createTableSpec.dqAnnotations.filterNot(_.name.equalsIgnoreCase(name))
       } else {
@@ -517,7 +517,7 @@ case class RemovedDataQualitySpec(name: String, table: Seq[String]) extends Ligh
       createTableSpec.copy(dqAnnotations = removed)
     }
 
-    model.saveUnifiedSemanticLayer(uslFqn.dropRight(1), uslFqn.last, tableSpecRemoved)
+    model.saveUnifiedSemanticLayer(uslFqn.dropRight(1), uslFqn.last, removedTableSpec)
     Row(true) :: Nil
   }
 }
