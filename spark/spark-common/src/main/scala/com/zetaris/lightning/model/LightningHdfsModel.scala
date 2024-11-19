@@ -21,7 +21,7 @@ package com.zetaris.lightning.model
 
 import com.zetaris.lightning.catalog.LightningCatalogCache
 import com.zetaris.lightning.datasources.v2.usl.USLTable
-import com.zetaris.lightning.execution.command.CreateTableSpec
+import com.zetaris.lightning.execution.command.{CreateTableSpec, ShowNamespacesOrTables}
 import com.zetaris.lightning.execution.command.DataSourceType.FileTypeSource
 import com.zetaris.lightning.model.serde.DataSource.{DataSource, toJson}
 import com.zetaris.lightning.model.serde.UnifiedSemanticLayerTable
@@ -218,7 +218,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
   def dropNamespace(namespace: Array[String], cascade: Boolean): Unit = {
     val subDir = nameSpaceToDir(namespace)
     val fullPath = s"$modelDir/$subDir"
-    val subNamespaces = FileSystemUtils.listDirectories(fullPath)
+    val subNamespaces = FileSystemUtils.listDirectories(fullPath).filterNot(_.startsWith("."))
     if (!cascade && subNamespaces.nonEmpty) {
       throw new RuntimeException(s"${LightningModelFactory.toFqn(namespace)} has sub namespaces")
     }
@@ -265,7 +265,8 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
         throw TableNotFoundException(s"${ident.namespace().mkString(".")}.${ident.name()}")
       )
 
-      val tableFullPath = s"$modelDir/$subDir/${uslName}_${ident.name()}_table_query.json"
+      val tableFullPath = s"$modelDir/$subDir/.$uslName/${ident.name()}_activation_query.json"
+
       if (FileSystemUtils.fileExists(tableFullPath)) {
         val tableJson = FileSystemUtils.readFile(tableFullPath)
         val uslTable = UnifiedSemanticLayerTable(tableJson)
@@ -318,7 +319,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
     val json = FileSystemUtils.readFile(fullPath)
     val usl = UnifiedSemanticLayer(json)
     val tableSpecWithActivatedQuery = usl.tables.map { tableSpec =>
-      val queryPath = s"$modelDir/$subDir/${name}_${tableSpec.name}_table_query.json"
+      val queryPath = s"$modelDir/$subDir/.${name}/${tableSpec.name}_activation_query.json"
       if (FileSystemUtils.folderExist(queryPath)) {
         val json = FileSystemUtils.readFile(queryPath)
         tableSpec.copy(activateQuery = Some(json))
@@ -340,8 +341,9 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
     val json = UnifiedSemanticLayerTable.toJson(name, query)
     val subDir = nameSpaceToDir(namespace.dropRight(1))
     FileSystemUtils.createFolderIfNotExist(s"$modelDir/$subDir")
+    FileSystemUtils.createFolderIfNotExist(s"$modelDir/$subDir/.${namespace.last}")
 
-    val fullPath = s"$modelDir/$subDir/${namespace.last}_${name}_table_query.json"
+    val fullPath = s"$modelDir/$subDir/.${namespace.last}/${name}_activation_query.json"
     FileSystemUtils.saveFile(fullPath, json)
   }
 
@@ -353,7 +355,8 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
   override def loadUnifiedSemanticLayerTableQuery(namespace: Seq[String],
                                                   name: String): UnifiedSemanticLayerTable.UnifiedSemanticLayerTable = {
     val subDir = nameSpaceToDir(namespace.dropRight(1))
-    val fullPath = s"$modelDir/$subDir/${namespace.last}_${name}_table_query.json"
+    val fullPath = s"$modelDir/$subDir/.${namespace.last}/${name}_activation_query.json"
+
 
     if (!FileSystemUtils.fileExists(fullPath)) {
       throw TableNotActivatedException(s"${namespace.mkString(".")}.${name}")

@@ -30,8 +30,8 @@ import org.apache.spark.sql.catalyst.analysis.{EliminateSubqueryAliases, Unresol
 import org.apache.spark.sql.catalyst.expressions.Expression
 import org.apache.spark.sql.catalyst.parser.ParserInterface
 import org.apache.spark.sql.catalyst.plans.logical.{LogicalPlan, UpdateTable}
-import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
 import org.apache.spark.sql.catalyst.trees.Origin
+import org.apache.spark.sql.catalyst.{FunctionIdentifier, TableIdentifier}
 import org.apache.spark.sql.types.{DataType, StructType}
 
 import java.util.Locale
@@ -178,7 +178,8 @@ class LightningExtendedParser(delegate: ParserInterface) extends ParserInterface
       normalized.contains("register dq") ||
       normalized.contains("list dq") ||
       normalized.contains("run dq") ||
-      normalized.contains("remove dq")
+      normalized.contains("remove dq") ||
+      normalized.contains("show namespaces or tables")
   }
 
   def parseLightning(sqlText: String): LogicalPlan = {

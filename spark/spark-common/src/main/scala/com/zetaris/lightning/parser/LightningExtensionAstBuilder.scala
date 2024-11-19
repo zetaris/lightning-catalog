@@ -20,7 +20,7 @@
 package com.zetaris.lightning.parser
 
 import com.zetaris.lightning.execution.command.ReferenceControl.{Cascade, NoAction, ReferenceControl, Restrict, SetDefault, SetNull}
-import com.zetaris.lightning.execution.command.{AccessControl, ActivateUSLTableSpec, Annotation, AnnotationStatement, Assignment, ColumnSpec, CompileUSLSpec, CreateTableSpec, DataQuality, DataSourceType, ForeignKey, ListDataQualitySpec, LoadUSL, NotNullColumn, PrimaryKeyColumn, RegisterCatalogSpec, RegisterDataQualitySpec, RegisterDataSourceSpec, RemovedDataQualitySpec, RunDataQualitySpec, UniqueKeyColumn, UpdateUSL}
+import com.zetaris.lightning.execution.command.{AccessControl, ActivateUSLTableSpec, Annotation, AnnotationStatement, Assignment, ColumnSpec, CompileUSLSpec, CreateTableSpec, DataQuality, DataSourceType, ForeignKey, ListDataQualitySpec, LoadUSL, NotNullColumn, PrimaryKeyColumn, RegisterCatalogSpec, RegisterDataQualitySpec, RegisterDataSourceSpec, RemovedDataQualitySpec, RunDataQualitySpec, ShowNamespacesOrTables, UniqueKeyColumn, UpdateUSL}
 import com.zetaris.lightning.model.{InvalidNamespaceException, LightningModelFactory}
 import com.zetaris.lightning.parser.LightningParserUtils.validateTableConstraints
 import org.antlr.v4.runtime.ParserRuleContext
@@ -219,8 +219,8 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
   }
 
   private def validateNamespace(namespace: Seq[String]): Unit = {
-    if (namespace.size < 3) {
-      throw InvalidNamespaceException(s"namespace must have at least three namespace : lightning.datasource|metastore.namespace")
+    if (namespace.size < 2) {
+      throw InvalidNamespaceException(s"namespace must have at least 2 level : lightning.datasource|metastore(.namespace)*")
     } else {
       val fqn = namespace.take(2).mkString(".").toLowerCase
       if (!LightningModelFactory.DEFAULT_NAMESPACES.exists(_.equals(fqn))) {
@@ -505,6 +505,12 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
 
     validateNamespace(table)
     RemovedDataQualitySpec(name, table)
+  }
+
+  override def visitShowNamespacesOrTables(ctx: ShowNamespacesOrTablesContext): ShowNamespacesOrTables = withOrigin(ctx) {
+    val namespace = visitMultipartIdentifier(ctx.namespace)
+
+    ShowNamespacesOrTables(namespace)
   }
 
 }

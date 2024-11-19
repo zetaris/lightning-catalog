@@ -149,7 +149,6 @@ class RegisterDataQualityTestSuite extends SparkExtensionsTestBase with H2TestBa
         Row("order_id", "order", "Custom Data Quality", "id > 0")))
   }
 
-
   test("should register dq express referencing other table") {
     sparkSession.sql(
       s"""
@@ -210,15 +209,79 @@ class RegisterDataQualityTestSuite extends SparkExtensionsTestBase with H2TestBa
          |id > 0 and item_count > 0 and cid IN (select id from lightning.metastore.crm.ordermart.customer)
          |""".stripMargin)
 
-    sparkSession.sql(s"LIST DQ USL lightning.metastore.crm.ordermart").show()
+    checkAnswer(sparkSession.sql("RUN DQ order_customer_fk TABLE lightning.metastore.crm.ordermart.order"),
+      Seq(Row("order_customer_fk", "order", "Custom Data Quality", 5, 5, 0)))
 
-    sparkSession.sql("RUN DQ order_customer_fk TABLE lightning.metastore.crm.ordermart.order").show()
-    sparkSession.sql("RUN DQ TABLE lightning.metastore.crm.ordermart.order").show()
+    checkAnswer(sparkSession.sql("RUN DQ TABLE lightning.metastore.crm.ordermart.order"),
+      Seq(
+        Row("cid", "order", "Foreign Key Constraint", 5, 5, 0),
+        Row("id", "order", "Primary Key Constraint", 5, 5, 0),
+        Row("iid", "order", "Foreign Key Constraint", 5, 5, 0),
+        Row("order_customer_fk", "order", "Custom Data Quality", 5, 5, 0)
+      )
+    )
 
-    sparkSession.sql("RUN DQ customer_rule TABLE lightning.metastore.crm.ordermart.customer").show()
-    sparkSession.sql("RUN DQ id TABLE lightning.metastore.crm.ordermart.order").show()
-    sparkSession.sql("RUN DQ cid TABLE lightning.metastore.crm.ordermart.order").show()
-    sparkSession.sql("RUN DQ iid TABLE lightning.metastore.crm.ordermart.order").show()
+    checkAnswer(sparkSession.sql("RUN DQ customer_rule TABLE lightning.metastore.crm.ordermart.customer"),
+      Seq(Row("customer_rule", "customer", "Custom Data Quality", 3, 3, 0))
+    )
+
+    checkAnswer(sparkSession.sql("RUN DQ id TABLE lightning.metastore.crm.ordermart.order"),
+      Seq(Row("id", "order", "Primary Key Constraint", 5, 5, 0)))
+
+    checkAnswer(sparkSession.sql("RUN DQ cid TABLE lightning.metastore.crm.ordermart.order"),
+      Seq(Row("cid", "order", "Foreign Key Constraint", 5, 5, 0)))
+
+    checkAnswer(sparkSession.sql("RUN DQ iid TABLE lightning.metastore.crm.ordermart.order"),
+      Seq(Row("iid", "order", "Foreign Key Constraint", 5, 5, 0)))
+
+  }
+
+  test("should remove dq expressions") {
+    sparkSession.sql(
+      s"""
+         |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.customer AS
+         |select * from lightning.datasource.h2.$dbName.$schema.customer
+         |""".stripMargin
+    )
+
+    sparkSession.sql(
+      s"""
+         |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.lineitem AS
+         |select * from lightning.datasource.h2.$dbName.$schema.lineitem
+         |""".stripMargin
+    )
+
+    sparkSession.sql(
+      s"""
+         |ACTIVATE usl TABLE lightning.metastore.crm.ordermart.order AS
+         |select * from lightning.datasource.h2.$dbName.$schema.order
+         |""".stripMargin
+    )
+
+    sparkSession.sql("REGISTER DQ customer_id TABLE lightning.metastore.crm.ordermart.customer AS id > 0 and length(address) > 0")
+    sparkSession.sql("REGISTER DQ order_id TABLE lightning.metastore.crm.ordermart.order AS id > 0")
+
+    checkAnswer(sparkSession.sql(s"LIST DQ USL lightning.metastore.crm.ordermart"),
+      Seq(
+        Row("id", "customer", "Primary key constraints", ""),
+        Row("id", "lineitem", "Primary key constraints", ""),
+        Row("id", "order", "Primary key constraints", ""),
+        Row("cid", "order", "Foreign key constraints", ""),
+        Row("iid", "order", "Foreign key constraints", ""),
+
+        Row("customer_id", "customer", "Custom Data Quality", "id > 0 and length(address) > 0"),
+        Row("order_id", "order", "Custom Data Quality", "id > 0")))
+
+    sparkSession.sql("REMOVE DQ order_id TABLE lightning.metastore.crm.ordermart.order")
+
+    checkAnswer(sparkSession.sql(s"LIST DQ USL lightning.metastore.crm.ordermart"),
+      Seq(
+        Row("id", "customer", "Primary key constraints", ""),
+        Row("id", "lineitem", "Primary key constraints", ""),
+        Row("id", "order", "Primary key constraints", ""),
+        Row("cid", "order", "Foreign key constraints", ""),
+        Row("iid", "order", "Foreign key constraints", ""),
+        Row("customer_id", "customer", "Custom Data Quality", "id > 0 and length(address) > 0")))
 
   }
 

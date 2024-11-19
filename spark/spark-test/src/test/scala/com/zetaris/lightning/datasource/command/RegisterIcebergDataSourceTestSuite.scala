@@ -184,14 +184,16 @@ class RegisterIcebergDataSourceTestSuite extends SparkExtensionsTestBase {
   test("should register the existing lakehouse") {
     sparkSession.sql(
       s"""
-         |REGISTER OR REPLACE ICEBERG DATASOURCE tpcds OPTIONS(
+         |REGISTER OR REPLACE ICEBERG DATASOURCE all_tpc OPTIONS(
          |  type "hadoop",
          |  warehouse "/Users/jaesungjun/temp/ligt-data-lake/iceberg"
          |) NAMESPACE lightning.datasource.iceberg
          |""".stripMargin)
 
-    sparkSession.sql("show tables in lightning.datasource.iceberg.tpcds").show()
-    sparkSession.sql("select * from lightning.datasource.iceberg.tpcds.customer limit 100").show()
+    sparkSession.sql("show namespaces in lightning.datasource.iceberg.all_tpc").show()
+    sparkSession.sql("show namespaces or tables in lightning.datasource.iceberg.all_tpc.tpcds").show()
+    sparkSession.sql("show tables in lightning.datasource.iceberg.all_tpc.tpcds").show()
+    sparkSession.sql("select * from lightning.datasource.iceberg.all_tpc.tpcds.customer limit 100").show()
   }
 
 
