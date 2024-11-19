@@ -21,6 +21,7 @@
 
 package com.zetaris.lightning.execution.command
 
+import com.zetaris.lightning.model.LightningModelFactory
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.{Row, SparkSession}
@@ -32,8 +33,16 @@ case class ShowNamespacesOrTables(namespace: Seq[String]) extends LightningComma
   )
 
   override def runCommand(sparkSession: SparkSession): Seq[Row] = {
+    val model = LightningModelFactory(dataSourceConfigMap(sparkSession))
+
     sparkSession.sql(s"show namespaces in ${toFqn(namespace)}").collect().map { row =>
-      Row(row.getString(0), "namespace")
+      val name = row.getString(0)
+      val isUsl = model.canLoadUnifiedSemanticLayer(namespace.drop(1), name)
+      if (isUsl) {
+        Row(name, "usl")
+      } else {
+        Row(name, "namespace")
+      }
     } ++ sparkSession.sql(s"show tables in ${toFqn(namespace)}").collect().map { row =>
       Row(row.getString(1), "table")
     }

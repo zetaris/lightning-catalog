@@ -133,7 +133,7 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
   override def listNamespaces(namespace: Seq[String]): Seq[String] = {
     val subDir = nameSpaceToDir(namespace)
     val fullPath = s"$modelDir/$subDir"
-    FileSystemUtils.listDirectories(fullPath) ++
+    FileSystemUtils.listDirectories(fullPath).filterNot(_.startsWith(".")) ++
       FileSystemUtils.listFiles(fullPath).filter { file =>
         file.endsWith("_ds.json")
       }.map(_.dropRight(8)) ++
@@ -287,6 +287,20 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
       val targetNamespace = LightningModelFactory.toMultiPartIdentifier(table.dsNamespace).toArray
       LightningCatalogCache.catalog.loadTable(table.schema, Identifier.of(targetNamespace, ident.name()))
     }
+  }
+
+  /**
+   * check unfied semantic layer can be loaded or not
+   * @param namespace
+   * @param name
+   * @param tables
+   */
+  def canLoadUnifiedSemanticLayer(namespace: Seq[String], name: String): Boolean = {
+    val subDir = nameSpaceToDir(namespace)
+    FileSystemUtils.createFolderIfNotExist(s"$modelDir/$subDir")
+
+    val fullPath = s"$modelDir/$subDir/${name}_usl.json"
+    FileSystemUtils.fileExists(fullPath)
   }
 
   /**
