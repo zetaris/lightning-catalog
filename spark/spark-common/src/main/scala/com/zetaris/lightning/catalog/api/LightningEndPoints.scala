@@ -22,11 +22,13 @@
 package com.zetaris.lightning.catalog.api
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.zetaris.lightning.execution.command.ShowDataQualityResult
 import org.apache.spark.sql.SparkSession
 import org.slf4j.LoggerFactory
 
+import java.io.{BufferedWriter, OutputStream, OutputStreamWriter}
 import javax.ws.rs._
-import javax.ws.rs.core.{MediaType, Response}
+import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import scala.util.{Failure, Success, Try}
 
 // SparkSession Init
@@ -45,8 +47,25 @@ class LightningResource {
     Try {
       LOGGER.info(s"query : $query")
       val df = spark().sql(query)
-      val resultJson = df.toJSON.collect()
-      mapper.writeValueAsString(resultJson)
+
+      new StreamingOutput() {
+        override def write(output: OutputStream): Unit = {
+          val itr = df.toJSON.toLocalIterator()
+          val writer = new BufferedWriter(new OutputStreamWriter(output))
+          writer.write("[")
+          while(itr.hasNext) {
+            val json = itr.next()
+            val jsonStr = mapper.writeValueAsString(json)
+            if (itr.hasNext) {
+              writer.write(s"$jsonStr,")
+            } else {
+              writer.write(jsonStr)
+            }
+          }
+          writer.write("]")
+          writer.flush()
+        }
+      }
     } match {
       case Failure(e) =>
         LOGGER.error("Spark error occurred", e)
@@ -59,8 +78,55 @@ class LightningResource {
         Response.status(Response.Status.INTERNAL_SERVER_ERROR)
           .entity(errorResponse)
           .build()
-      case Success(json) =>
-        Response.ok(json).build()
+      case Success(stream) =>
+        Response.ok(stream).build()
     }
   }
+
+  @POST
+  @Path("/qdq")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Consumes(Array(MediaType.TEXT_PLAIN))
+  def queryDQ(@QueryParam("name") name: String,
+              @QueryParam("table") table: String,
+              @QueryParam("validRecord") validRecord: Boolean): Response = {
+    Try {
+      LOGGER.info(s"dq : $name on $table")
+      val dq = ShowDataQualityResult(name, table.split("."), validRecord)
+      val df = dq.runQuery(spark())
+      new StreamingOutput() {
+        override def write(output: OutputStream): Unit = {
+          val itr = df.toJSON.toLocalIterator()
+          val writer = new BufferedWriter(new OutputStreamWriter(output))
+          writer.write("[")
+          while(itr.hasNext) {
+            val json = itr.next()
+            val jsonStr = mapper.writeValueAsString(json)
+            if (itr.hasNext) {
+              writer.write(s"$jsonStr,")
+            } else {
+              writer.write(jsonStr)
+            }
+          }
+          writer.write("]")
+          writer.flush()
+        }
+      }
+    } match {
+      case Failure(e) =>
+        LOGGER.error("Spark error occurred", e)
+
+        val errorResponse = s"""{
+          "error": "Spark execution error",
+          "message": "${e.getMessage}"
+        }"""
+
+        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(errorResponse)
+          .build()
+      case Success(stream) =>
+        Response.ok(stream).build()
+    }
+  }
+
 }

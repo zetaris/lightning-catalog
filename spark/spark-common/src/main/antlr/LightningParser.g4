@@ -13,11 +13,15 @@ statement
 
 ddlStatement
     : registerDataSource | registerCatalog | createTable | compileUSL | activateUSLTable | loadUSL | updateUSL |
-      registerDQ | listDQ | runDQ | removeDQ | showNamespacesOrTables
+      registerDQ | listDQ | runDQ | removeDQ | showNamespacesOrTables | showDQResult
     ;
 
 showNamespacesOrTables
     : SHOW NAMESPACES OR TABLES IN namespace=multipartIdentifier
+    ;
+
+showDQResult
+    : SHOW DQ (VALID | INVALID) RECORD name = identifier TABLE table=multipartIdentifier
     ;
 
 removeDQ
@@ -221,7 +225,7 @@ fullColumnName
     ;
 
 nonReserved
-    : ACTION | ARRAY  | ARRAY | AVRO | BUILD | CATALOG | CSV | DATASOURCE | DAY | DELTA | EXISTS  | HOUR |
-    | ICEBERG | INTERVAL | JDBC | JSON | LAKEHOUSE | MAP | MINUTE | MONTH | NAME | NO | OPTIONS
-    | ORC | PARQUET | REGISTER | SECOND | SET | STRUCT | TO | XML | YEAR
+    : ACTION | ARRAY  | ARRAY | AVRO | BUILD | CATALOG | CSV | DATASOURCE | DAY | DELTA | DQ | EXISTS  | HOUR |
+    | ICEBERG | INTERVAL | INVALID | JDBC | JSON | LAKEHOUSE | MAP | MINUTE | MONTH | NAME | NAMESPACE | NAMESPACES | NO | OPTIONS
+    | ORC | PARQUET | RECORD | REGISTER | REMOVE | SECOND | SET | STRUCT | TO | USL | VALID | XML | YEAR
     ;

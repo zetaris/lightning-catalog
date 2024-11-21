@@ -26,9 +26,8 @@ import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
 import com.zetaris.lightning.model.{DataQualityDuplicatedException, DataQualityNotFoundException, LightningModelFactory, TableNotFoundException}
 import org.apache.spark.sql.catalyst.QueryPlanningTracker
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
-import org.apache.spark.sql.catalyst.expressions.aggregate.Count
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Literal, Not}
-import org.apache.spark.sql.catalyst.plans.logical.{Aggregate, Filter}
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Not}
+import org.apache.spark.sql.catalyst.plans.logical.Filter
 import org.apache.spark.sql.types.{BooleanType, LongType, StringType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSQLBridge, SparkSession}
 
@@ -56,7 +55,7 @@ object DataQualitySpec extends LightningSource {
    * @param sparkSession
    * @param table
    * @param expression
-   * @return count of total record, data frame of good record
+   * @return count of total record, data frame of valid record
    */
   def runDQ(sparkSession: SparkSession, table: Seq[String], expression: String): (Long, DataFrame) = {
     val tracker = new QueryPlanningTracker
@@ -73,6 +72,31 @@ object DataQualitySpec extends LightningSource {
     (totRecord, goodRecord)
   }
 
+  /**
+   * run dq
+   *
+   * @param sparkSession
+   * @param table
+   * @param expression
+   * @return data frame of valid record and invalid record
+   */
+  def getDQRecord(sparkSession: SparkSession, table: Seq[String], expression: String): (DataFrame, DataFrame) = {
+    val tracker = new QueryPlanningTracker
+
+    val unresolved = UnresolvedRelation(table)
+    val exp = tryParse(expression, sparkSession.sessionState.sqlParser.parseExpression)
+    val goodFilter = Filter(exp, unresolved)
+
+    val goodRecord = SparkSQLBridge.ofRows(sparkSession,
+      sparkSession.sessionState.analyzer.execute(goodFilter), tracker)
+
+    val badFilter = Filter(Not(exp), unresolved)
+    val badRecord = SparkSQLBridge.ofRows(sparkSession,
+      sparkSession.sessionState.analyzer.execute(badFilter), tracker)
+
+    (goodRecord, badRecord)
+  }
+
   def runPrimaryKeyConstraints(sparkSession: SparkSession,
                                table: Seq[String],
                                column: Seq[String]): (Long, Long) = {
@@ -83,14 +107,6 @@ object DataQualitySpec extends LightningSource {
          |SELECT COUNT(*) FROM (
          |  SELECT ${column.mkString(",")} FROM ${toFqn(table)}
          |  GROUP BY ${column.mkString(",")} HAVING COUNT(${column.mkString(",")}) == 1
-         |)
-         |""".stripMargin).collect()(0).getLong(0)
-
-    val badRecord = sparkSession.sql(
-      s"""
-         |SELECT COUNT(*) FROM (
-         |  SELECT ${column.mkString(",")} FROM ${toFqn(table)}
-         |  GROUP BY ${column.mkString(",")} HAVING COUNT(${column.mkString(",")}) > 1
          |)
          |""".stripMargin).collect()(0).getLong(0)
 
@@ -164,24 +180,6 @@ object DataQualitySpec extends LightningSource {
            |""".stripMargin).collect()(0).getLong(0)
     }
 
-    val badRecord = if (column.size == 1) {
-      sparkSession.sql(
-        s"""
-           |SELECT COUNT(*) FROM ${toFqn(table)}
-           |  WHERE ${column(0)} NOT IN (
-           |    SELECT ${refColumn(0)} FROM ${toFqn(refTable)}
-           |  )
-           |""".stripMargin).collect()(0).getLong(0)
-    } else {
-      sparkSession.sql(
-        s"""
-           |SELECT COUNT(*) FROM ${toFqn(table)}
-           |  WHERE ARRAY(${column.mkString(",")}) NOT IN (
-           |    SELECT ARRAY${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
-           |  )
-           |""".stripMargin).collect()(0).getLong(0)
-    }
-
     (totRecord, goodRecord)
   }
 
@@ -189,7 +187,7 @@ object DataQualitySpec extends LightningSource {
                                       table: Seq[String],
                                       column: Seq[String],
                                       refTable: Seq[String],
-                                      refColumn: String): (DataFrame, DataFrame) = {
+                                      refColumn: Seq[String]): (DataFrame, DataFrame) = {
     val sqlGoodRecord = if (column.size == 1) {
       s"""
          |SELECT * FROM ${toFqn(table)}
@@ -522,3 +520,115 @@ case class RemovedDataQualitySpec(name: String, table: Seq[String]) extends Ligh
   }
 }
 
+case class ShowDataQualityResult(name: String, table: Seq[String], validRecord: Boolean) extends LightningCommandBase {
+  override val output: Seq[AttributeReference] = Seq(
+    AttributeReference("records", StringType, false)()
+  )
+
+  private def findPkConstraints(createTableSpec: CreateTableSpec,
+                                constraintOrColumnName: String): Option[Seq[String]] = {
+    if (createTableSpec.primaryKey.isDefined) {
+      val pkConstraints = createTableSpec.primaryKey.get
+      val constraintName = pkConstraints.name.get
+      if (constraintName.equalsIgnoreCase(constraintOrColumnName) ||
+        equalToMultiPartIdentifier(constraintOrColumnName, pkConstraints.columns)) {
+        Some(pkConstraints.columns)
+      } else {
+        None
+      }
+    } else {
+      createTableSpec.columnSpecs.find(cs => cs.primaryKey.isDefined &&
+        cs.name.equalsIgnoreCase(constraintOrColumnName)).map { pk =>
+        Seq(pk.name)
+      }
+    }
+  }
+
+  private def findUniqueConstraints(createTableSpec: CreateTableSpec,
+                                    constraintOrColumnName: String): Option[Seq[String]] = {
+    createTableSpec.unique.find(uc =>
+      uc.name.isDefined && uc.name.get.equalsIgnoreCase(constraintOrColumnName) ||
+        equalToMultiPartIdentifier(constraintOrColumnName, uc.columns)
+    ).map(uc => Some(uc.columns)).getOrElse {
+      createTableSpec.columnSpecs.find(col =>
+        col.unique.isDefined && col.name.equalsIgnoreCase(constraintOrColumnName)
+      ).map(col => Seq(col.name))
+    }
+  }
+
+  private def findFkConstraints(createTableSpec: CreateTableSpec,
+                                constraintOrColumnName: String): Option[(Seq[String], Seq[String], Seq[String])] = {
+    createTableSpec.foreignKeys.find(fk =>
+      fk.name.isDefined && fk.name.get.equalsIgnoreCase(constraintOrColumnName) ||
+        equalToMultiPartIdentifier(constraintOrColumnName, fk.columns)
+    ).map(fk => Some((fk.columns, fk.refTable, fk.refColumns))).getOrElse {
+      createTableSpec.columnSpecs.find(cs =>
+        cs.foreignKey.isDefined && cs.name.equalsIgnoreCase(constraintOrColumnName)
+      ).map { col =>
+        val fk = col.foreignKey.get
+        (fk.columns, fk.refTable, fk.refColumns)
+      }
+    }
+  }
+
+  private def getDQRecord(sparkSession: SparkSession): DataFrame = {
+    val model = LightningModelFactory(dataSourceConfigMap(sparkSession))
+    val tableName = table.last
+    val uslName = table.dropRight(1).last
+    val uslNameSpace = table.dropRight(2).drop(1)
+    val usl = model.loadUnifiedSemanticLayer(uslNameSpace, uslName)
+
+    val createTableSpec = usl.tables.find(_.name.equalsIgnoreCase(tableName)).getOrElse(
+      throw TableNotFoundException(s"${toFqn(table)} is not defined")
+    )
+
+    val dq = createTableSpec.dqAnnotations.find(_.name.equalsIgnoreCase(name))
+    if (dq.isDefined) {
+      val record = DataQualitySpec.getDQRecord(sparkSession,
+        createTableSpec.namespace :+ createTableSpec.name, dq.get.expression)
+      if (validRecord) {
+        record._1
+      } else {
+        record._2
+      }
+    } else {
+      findPkConstraints(createTableSpec, name).map { pkCols =>
+        val record = DataQualitySpec.getPrimaryKeyConstraintsRecords(sparkSession, table, pkCols)
+        if (validRecord) {
+          record._1
+        } else {
+          record._2
+        }
+      }.getOrElse {
+        findUniqueConstraints(createTableSpec, name).map { unCols =>
+          val record = DataQualitySpec.getPrimaryKeyConstraintsRecords(sparkSession, table, unCols)
+          if (validRecord) {
+            record._1
+          } else {
+            record._2
+          }
+        }.getOrElse {
+          findFkConstraints(createTableSpec, name).map { fk =>
+            val record = DataQualitySpec.getForeignKeyConstraintsRecords(sparkSession, table, fk._1, fk._2, fk._3)
+            if (validRecord) {
+              record._1
+            } else {
+              record._2
+            }
+          }.getOrElse(throw DataQualityNotFoundException(s"$name is not found in ${toFqn(table)}"))
+        }
+      }
+    }
+
+  }
+
+  // use this to get actual records as running command end up with OOM for large records, instead use api end point by levearging streaming
+  def runQuery(sparkSession: SparkSession): DataFrame = {
+    getDQRecord(sparkSession)
+  }
+
+  override def runCommand(sparkSession: SparkSession): Seq[Row] = {
+    val df = getDQRecord(sparkSession)
+    df.collect().map(row => Row(row.json)).toSeq
+  }
+}
