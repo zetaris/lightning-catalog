@@ -104,11 +104,11 @@ object DataQualitySpec extends LightningSource {
 
     val goodRecord = sparkSession.sql(
       s"""
-         |SELECT COUNT(*) FROM (
-         |  SELECT ${column.mkString(",")} FROM ${toFqn(table)}
-         |  GROUP BY ${column.mkString(",")} HAVING COUNT(${column.mkString(",")}) == 1
-         |)
-         |""".stripMargin).collect()(0).getLong(0)
+         SELECT COUNT(*) FROM (
+           SELECT ${column.mkString(",")} FROM ${toFqn(table)}
+           GROUP BY ${column.mkString(",")} HAVING COUNT(${column.mkString(",")}) == 1
+         )
+         """.stripMargin).collect()(0).getLong(0)
 
     (totRecord, goodRecord)
   }
@@ -118,38 +118,38 @@ object DataQualitySpec extends LightningSource {
                                       column: Seq[String]): (DataFrame, DataFrame) = {
     val sqlGoodRecord = if (column.size == 1) {
       s"""
-         |SELECT * FROM ${toFqn(table)}
-         |WHERE ${column(0)} IN (
-         |  SELECT ${column(0)} FROM ${toFqn(table)}
-         |  GROUP BY ${column(0)} HAVING COUNT(${column(0)}) == 1
-         |)
-         |"""
+         SELECT * FROM ${toFqn(table)}
+         WHERE ${column(0)} IN (
+           SELECT ${column(0)} FROM ${toFqn(table)}
+           GROUP BY ${column(0)} HAVING COUNT(${column(0)}) == 1
+         )
+         """
     } else {
       s"""
-         |SELECT * FROM ${toFqn(table)}
-         |WHERE ARRAY(${column.mkString(",")}) IN (
-         |  SELECT ARRAY(${column.mkString(",")}) FROM ${toFqn(table)}
-         |  GROUP BY ${column.mkString(",")} HAVING COUNT(${column.mkString(",")}) == 1
-         |)
-         |"""
+         SELECT * FROM ${toFqn(table)}
+         WHERE ARRAY(${column.mkString(",")}) IN (
+           SELECT ARRAY(${column.mkString(",")}) FROM ${toFqn(table)}
+           GROUP BY ${column.mkString(",")} HAVING COUNT(${column.mkString(",")}) == 1
+         )
+         """
     }
 
     val sqlBadRecord = if (column.size == 1) {
       s"""
-         |SELECT * FROM ${toFqn(table)}
-         |WHERE ${column(0)} NOT IN (
-         |  SELECT ${column(0)} FROM ${toFqn(table)}
-         |  GROUP BY ${column(0)} HAVING COUNT(${column(0)}) == 1
-         |)
-         |"""
+         SELECT * FROM ${toFqn(table)}
+         WHERE ${column(0)} NOT IN (
+           SELECT ${column(0)} FROM ${toFqn(table)}
+           GROUP BY ${column(0)} HAVING COUNT(${column(0)}) == 1
+         )
+         """
     } else {
       s"""
-         |SELECT * FROM ${toFqn(table)}
-         |WHERE ARRAY(${column.mkString(",")}) NOT IN (
-         |  SELECT ARRAY(${column.mkString(",")}) FROM ${toFqn(table)}
-         |  GROUP BY ${column.mkString(",")} HAVING COUNT(${column.mkString(",")}) == 1
-         |)
-         |"""
+         SELECT * FROM ${toFqn(table)}
+         WHERE ARRAY(${column.mkString(",")}) NOT IN (
+           SELECT ARRAY(${column.mkString(",")}) FROM ${toFqn(table)}
+           GROUP BY ${column.mkString(",")} HAVING COUNT(${column.mkString(",")}) == 1
+         )
+         """
     }
 
     (sparkSession.sql(sqlGoodRecord), sparkSession.sql(sqlBadRecord))
@@ -165,19 +165,19 @@ object DataQualitySpec extends LightningSource {
     val goodRecord = if (column.size == 1) {
       sparkSession.sql(
         s"""
-           |SELECT COUNT(*) FROM ${toFqn(table)}
-           |  WHERE ${column(0)} IN (
-           |    SELECT ${refColumn(0)} FROM ${toFqn(refTable)}
-           |  )
-           |""".stripMargin).collect()(0).getLong(0)
+           SELECT COUNT(*) FROM ${toFqn(table)}
+             WHERE ${column(0)} IN (
+               SELECT ${refColumn(0)} FROM ${toFqn(refTable)}
+             )
+           """.stripMargin).collect()(0).getLong(0)
     } else {
       sparkSession.sql(
         s"""
-           |SELECT COUNT(*) FROM ${toFqn(table)}
-           |  WHERE ARRAY(${column.mkString(",")}) IN (
-           |    SELECT ARRAY${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
-           |  )
-           |""".stripMargin).collect()(0).getLong(0)
+           SELECT COUNT(*) FROM ${toFqn(table)}
+             WHERE ARRAY(${column.mkString(",")}) IN (
+               SELECT ARRAY${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
+             )
+           """.stripMargin).collect()(0).getLong(0)
     }
 
     (totRecord, goodRecord)
@@ -190,34 +190,34 @@ object DataQualitySpec extends LightningSource {
                                       refColumn: Seq[String]): (DataFrame, DataFrame) = {
     val sqlGoodRecord = if (column.size == 1) {
       s"""
-         |SELECT * FROM ${toFqn(table)}
-         |  WHERE ${column(0)} IN (
-         |    SELECT ${refColumn(0)} FROM ${toFqn(refTable)}
-         |  )
-         |""".stripMargin
+         SELECT * FROM ${toFqn(table)}
+           WHERE ${column(0)} IN (
+             SELECT ${refColumn(0)} FROM ${toFqn(refTable)}
+           )
+         """.stripMargin
     } else {
       s"""
-         |SELECT * FROM ${toFqn(table)}
-         |  WHERE ARRAY(${column.mkString(",")}) IN (
-         |    SELECT ARRAY${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
-         |  )
-         |""".stripMargin
+         SELECT * FROM ${toFqn(table)}
+           WHERE ARRAY(${column.mkString(",")}) IN (
+             SELECT ARRAY${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
+           )
+         """.stripMargin
     }
 
     val sqlBadRecord = if (column.size == 1) {
       s"""
-         |SELECT * FROM ${toFqn(table)}
-         |  WHERE ARRAY(${column.mkString(",")}) NOT IN (
-         |    SELECT ARRAY(${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
-         |  )
-         |""".stripMargin
+         SELECT * FROM ${toFqn(table)}
+           WHERE ARRAY(${column.mkString(",")}) NOT IN (
+             SELECT ARRAY(${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
+           )
+         """.stripMargin
     } else {
       s"""
-         |SELECT * FROM ${toFqn(table)}
-         |  WHERE ARRAY(${column.mkString(",")}) NOT IN (
-         |    SELECT ARRAY${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
-         |  )
-         |""".stripMargin
+         SELECT * FROM ${toFqn(table)}
+           WHERE ARRAY(${column.mkString(",")}) NOT IN (
+             SELECT ARRAY${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
+           )
+         """.stripMargin
     }
 
     (sparkSession.sql(sqlGoodRecord), sparkSession.sql(sqlBadRecord))
@@ -290,11 +290,11 @@ case class ListDataQualitySpec(uslNamespace: Seq[String]) extends LightningComma
         Row(pk.name, createTableSpec.name, "Primary key constraints", "")
       } ++ createTableSpec.foreignKeys.map { fk =>
         Row(fk.columns.mkString(","), createTableSpec.name, "Foreign key constraints", "")
-      } ++ createTableSpec.columnSpecs.find(_.foreignKey.isDefined).map { fk =>
+      } ++ createTableSpec.columnSpecs.filter(_.foreignKey.isDefined).map { fk =>
         Row(fk.name, createTableSpec.name, "Foreign key constraints", "")
       } ++ createTableSpec.unique.map { uk =>
         Row(uk.columns.mkString(","), createTableSpec.name, "Unique constraints", "")
-      } ++ createTableSpec.columnSpecs.find(_.unique.isDefined).map { uk =>
+      } ++ createTableSpec.columnSpecs.filter(_.unique.isDefined).map { uk =>
         Row(uk.name, createTableSpec.name, "Unique key constraints", "")
       } ++ createTableSpec.dqAnnotations.map { dq =>
         Row(dq.name, createTableSpec.name, "Custom Data Quality", dq.expression)
