@@ -7,18 +7,27 @@ import './Contents.css';
 import Editor from './components/Editor';
 import { queryBookContents, queryBookColumns } from '../configs/editorConfig';
 
+import { useDispatch, useSelector } from 'react-redux';
+import { setQueryResult, addQueryToHistory } from '../../store/querySlice';
+
 function SqlEditor({ toggleRefreshNav }) {
+    const dispatch = useDispatch();
+    const queryResult = useSelector((state) => state.query.queryResult);
+    const queryHistory = useSelector((state) => state.query.queryHistory);
+
     const [editors, setEditors] = useState([]);
     const [activeEditor, setActiveEditor] = useState(null);
-    const [queryResult, setQueryResult] = useState('');
     const [showHistory, setShowHistory] = useState(false);
-    const [queryHistory, setQueryHistory] = useState([]);
     const [loading, setLoading] = useState(false);
     const [showQueryBook, setShowQueryBook] = useState(false);
     const [popupMessage, setPopupMessage] = useState(null);
     const offset = 115;
     const resizingRef = useRef(false);
     const [editorInstances, setEditorInstances] = useState({});
+    const [pagination, setPagination] = useState({
+        pageIndex: 0,
+        pageSize: 30,
+    });
 
     useEffect(() => {
         const storedEditors = localStorage.getItem('editors');
@@ -33,22 +42,6 @@ function SqlEditor({ toggleRefreshNav }) {
             setActiveEditor(1);
         }
     }, []);
-
-    useEffect(() => {
-        const storedHistory = localStorage.getItem('queryHistory');
-        if (storedHistory) {
-            setQueryHistory(JSON.parse(storedHistory));
-        }
-
-        const storedQueryResult = localStorage.getItem('queryResult');
-        if (storedQueryResult) {
-            setQueryResult(JSON.parse(storedQueryResult));
-        }
-    }, []);
-
-    useEffect(() => {
-        localStorage.setItem('queryResult', JSON.stringify(queryResult));
-    }, [queryResult]);
 
     useEffect(() => {
         if (editors.length > 0) {
@@ -120,62 +113,118 @@ function SqlEditor({ toggleRefreshNav }) {
     const runQuery = async () => {
         const activeEditorInstance = editorInstances[activeEditor];
         const selectedText = activeEditorInstance?.getSelectedText();
-
+    
         const activeEditorContent = editors.find((editor) => editor.id === activeEditor)?.content;
         const cleanQuery = selectedText && selectedText.trim() !== ""
             ? selectedText
             : removeComments(activeEditorContent);
-
+    
         if (!cleanQuery || cleanQuery.trim() === "") {
-            setQueryResult({ error: "Query is empty. Please provide a valid SQL query." });
+            dispatch(setQueryResult({ error: "Query is empty. Please provide a valid SQL query." }));
             return;
         }
-
+    
         setLoading(true);
-
-        // Update query history state and localStorage
-        const newQueryHistory = [...queryHistory, { query: cleanQuery, timestamp: new Date().toLocaleString() }];
-        setQueryHistory(newQueryHistory);
-        localStorage.setItem('queryHistory', JSON.stringify(newQueryHistory));
-
+    
+        // Update query history in Redux state
+        dispatch(addQueryToHistory({ query: cleanQuery, timestamp: new Date().toLocaleString() }));
+    
         const result = await fetchApi(cleanQuery);
         setLoading(false);
-
+    
         if (result?.error) {
-            setQueryResult({ error: result.message });
+            dispatch(setQueryResult({ error: result.message }));
         } else {
             const parsedResult = result.map((item) => JSON.parse(item));
-            const finalResult = parsedResult.length ? <RenderTableForApi data={parsedResult} /> : "No data";
-
-            setQueryResult(finalResult);
-            localStorage.setItem('queryResult', JSON.stringify(finalResult));
+            dispatch(setQueryResult(parsedResult));
         }
     };
 
+    // const RenderTableForApi = ({ data }) => {
+    //     const normalizedData = data.map((row) => ({
+    //         ...row,
+    //         allKeys: [...new Set(Object.keys(row))]
+    //     }));
+    //     const columns = Object.keys(normalizedData[0]).map((key) => ({
+    //         accessorKey: key,
+    //         header: key.charAt(0).toUpperCase() + key.slice(1),
+    //     }));
+    //     return <MaterialReactTable columns={columns} data={data} enableSorting enableColumnFilters initialState={{ density: 'compact' }} />;
+    // };
+
+    const normalizeData = (data) => {
+        // Find all possible keys from the entire data set
+        const allKeys = new Set();
+        data.forEach((row) => {
+            Object.keys(row).forEach((key) => allKeys.add(key));
+        });
+
+        // Normalize each row to ensure all keys are present with default value of null
+        const normalizedData = data.map((row) => {
+            const normalizedRow = {};
+            allKeys.forEach((key) => {
+                normalizedRow[key] = row[key] !== undefined ? row[key] : null; // Set missing keys to null
+            });
+            return normalizedRow;
+        });
+
+        return normalizedData;
+    };
 
     const RenderTableForApi = ({ data }) => {
-        const normalizedData = data.map((row) => ({
-            ...row,
-            allKeys: [...new Set(Object.keys(row))]
-        }));
+        if (!data || data.length === 0) {
+            return <div>No data available</div>;
+        }
+    
+        // Normalize data to ensure all rows have the same keys
+        const normalizedData = normalizeData(data);
+    
+        // Extract table headers dynamically from the first object in the data array
         const columns = Object.keys(normalizedData[0]).map((key) => ({
             accessorKey: key,
             header: key.charAt(0).toUpperCase() + key.slice(1),
+            Cell: ({ cell }) => {
+                const value = cell.getValue();
+                if (!isNaN(value) && value !== null && value !== '') {
+                    // Format number with commas and align right
+                    return (
+                        <div style={{ textAlign: 'right' }}>
+                            {Number(value).toLocaleString()}
+                        </div>
+                    );
+                }
+                // Default rendering for non-numeric values
+                return <div style={{ textAlign: 'left' }}>{value}</div>;
+            },
         }));
-        return <MaterialReactTable columns={columns} data={data} enableSorting enableColumnFilters initialState={{ density: 'compact' }} />;
-    };
+    
+        return (
+            <MaterialReactTable
+                columns={columns}
+                data={normalizedData}
+                enableSorting={true}
+                enableColumnFilters={true}
+                onPaginationChange={setPagination}
+                state={{ pagination }}
+                initialState={{
+                    density: 'compact',
+                    pagination: { pageSize: 30, pageIndex: 0 },
+                }}
+            />
+        );
+    };    
 
     const renderTable = () => {
         if (loading) return <div>Fetching data...</div>;
-
+    
         if (showHistory) {
             return renderHistory();
         }
-
+    
         if (!queryResult) return <div>No result available</div>;
         if (queryResult.error) return <div>Error: {queryResult.error}</div>;
-
-        return queryResult;
+    
+        return <RenderTableForApi data={queryResult} />;
     };
 
     const renderQueryBook = () => {
@@ -274,7 +323,6 @@ function SqlEditor({ toggleRefreshNav }) {
 
     const closePopup = () => setPopupMessage(null);
 
-
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Resizable
@@ -333,15 +381,11 @@ function SqlEditor({ toggleRefreshNav }) {
                                             content={editor.content}
                                             onChange={(newValue) => handleEditorChange(newValue, editor.id)}
                                             setEditorInstances={setEditorInstances}
+                                            runQuery={runQuery}
                                         />
                                     )
                             )}
                         </div>
-                        {/* <div className="btn-line">
-                            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <button className="btn-primary" onClick={saveSQL}>Save SQL</button>
-                            </div>
-                        </div> */}
                         <div
                             {...separatorProps}
                             style={{
@@ -365,7 +409,7 @@ function SqlEditor({ toggleRefreshNav }) {
                                 }}
                             />
                         </div>
-                        <div className='result-box' style={{ '--position-offset': `${position - offset}px` }}>
+                        <div className='result-box' style={{ '--position-offset': `${position - offset}px`, display:'block' }}>
                             {loading ? <div>Fetching data...</div> : renderTable()}
                         </div>
 

@@ -1,19 +1,32 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView';
-import { TreeItem } from '@mui/x-tree-view/TreeItem';
+import { SimpleTreeView, TreeItem } from '@mui/x-tree-view';
 import { fetchApi } from '../utils/common';
-import { setPathKeywords } from '../components/configs/editorConfig';
 import './Navigation.css';
 import '../styleguides/styleguides.css';
 import { ReactComponent as CirclePlus } from '../assets/images/circle-plus-solid.svg';
+import { ReactComponent as TableIcon } from '../assets/images/table-solid.svg';
+import { ReactComponent as FolderIcon } from '../assets/images/folder-regular.svg';
+import { ReactComponent as PreviewIcon } from '../assets/images/circle-play-regular.svg';
+import { ReactComponent as MinusIcon } from '../assets/images/square-minus-regular-black.svg';
+import { ReactComponent as PlusIcon } from '../assets/images/square-plus-regular-black.svg';
 import SetSemanticLayerModal from './SetSemanticLayerModal';
 import Resizable from 'react-resizable-layout';
+import PreviewPopup from './PreviewPopup';
 
-const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, setUslNamebyClick }) => {
+const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) => {
 
   const reSizingOffset = 115;
   const resizingRef = useRef(false);
-  const [currentFullPaths, setCurrentFullPaths] = useState([]);
+  const [showPopup, setShowPopup] = useState(false);
+  const [ddlName, setDdlName] = useState('');
+  const [ddlCode, setDdlCode] = useState('');
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [columns, setColumns] = useState([]);
+  const [previewData, setPreviewData] = useState([]);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [expandedNodeIds, setExpandedNodeIds] = useState([]);
+  const [activeInputNode, setActiveInputNode] = useState(null);
+  const [inputValue, setInputValue] = useState('');
 
   // State for managing datasource tree structure
   const [dataSources, setDataSources] = useState([
@@ -30,17 +43,6 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
       children: null
     }
   ]);
-
-  const [showPopup, setShowPopup] = useState(false);
-  const [ddlName, setDdlName] = useState('');
-  const [ddlCode, setDdlCode] = useState('');
-  const [tableNames, setTableNames] = useState([]);
-
-  useEffect(() => {
-    if (currentFullPaths.length > 0) {
-      setPathKeywords(currentFullPaths);
-    }
-  }, [currentFullPaths]);
 
   // Update handleGenerateClick to pass the DDL to onGenerateDDL
   const handleGenerateClick = () => {
@@ -79,14 +81,8 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
           children: dataSourceChildren,
         }));
         setDataSources(updatedDataSources);
-  
-        for (const childNode of dataSourceChildren) {
-          const secondLevelChildren = await fetchDatasources(childNode.fullPath);
-          childNode.children = secondLevelChildren || [];
-        }
-        setDataSources(updatedDataSources);
       }
-  
+
       // Fetch SemanticLayer tree
       const semanticLayerChildren = await fetchDatasources('lightning.metastore', true);
       if (semanticLayerChildren) {
@@ -95,17 +91,10 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
           children: semanticLayerChildren,
         }));
         setSemanticLayerFiles(updatedSemanticLayers);
-  
-        for (const childNode of semanticLayerChildren) {
-          const secondLevelChildren = await fetchDatasources(childNode.fullPath, true);
-          childNode.children = secondLevelChildren || [];
-        }
-        setSemanticLayerFiles(updatedSemanticLayers);
       }
     };
-  
     fetchInitialData();
-  }, []);  
+  }, []);
 
   // Function to get the depth (level) of the current path
   const getCurrentLevel = (fullPath) => {
@@ -114,61 +103,27 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
   };
 
   const fetchDatasources = async (fullPath, isMetastore = false) => {
+    const excludedNamespaces = ["information_schema", "pg_catalog", "public"];
     let query;
     const currentLevel = getCurrentLevel(fullPath);
 
-    // Determine query logic based on namespace prefix and current level
-    if (fullPath.startsWith("lightning.datasource")) {
-      if (currentLevel === 2 || currentLevel === 3 || currentLevel === 4) {
-        query = `SHOW NAMESPACES IN ${fullPath};`;
-      } else if (currentLevel === 5) {
-        query = `SHOW TABLES IN ${fullPath};`;
-      } else if (currentLevel === 6) {
-        query = `DESC ${fullPath};`;
-      }
-    } else if (fullPath.startsWith("lightning.metastore")) {
-      if (currentLevel === 2 || currentLevel === 3) {
-        query = `SHOW NAMESPACES IN ${fullPath};`;
-      } else if (currentLevel === 4) {
-        query = `SHOW TABLES IN ${fullPath};`;
-      } else if (currentLevel === 5) {
-        query = `DESC ${fullPath};`;
-      }
+    // Determine query based on level
+    if (fullPath.startsWith("lightning.datasource") || fullPath.startsWith("lightning.metastore")) {
+      query = `SHOW NAMESPACES OR TABLES IN ${fullPath};`;
     }
 
-    let result;
-    if(currentLevel > 1){
-      result = await fetchApi(query);
-    }
+    const result = await fetchApi(query);
     if (!Array.isArray(result) || result.length === 0) return [];
 
-    // Process result based on the query type
-    if (query.startsWith('SHOW TABLES')) {
-      const parsedResult = result.map((item) => JSON.parse(item).tableName);
-      const excludedNamespaces = ["information_schema", "pg_catalog", "public"];
-      const filteredResult = parsedResult.filter(table => !excludedNamespaces.includes(table))
-        .map(table => ({ name: table, fullPath: `${fullPath}.${table}`, isTable: true, children: null }));
-
-      setCurrentFullPaths((prevPaths) => [...prevPaths, ...filteredResult.map((item) => item.fullPath)]);
-      return filteredResult;
-    } else if (query.startsWith('DESC')) {
-      const parsedResult = result.map((item) => JSON.parse(item));
-      return parsedResult.map((column) => ({
-        name: column.col_name,
-        dataTypeElement: <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>({column.data_type})</span>,
-        children: null
+    return result
+      .map((item) => JSON.parse(item))
+      .filter((parsedItem) => !excludedNamespaces.includes(parsedItem.name))
+      .map((parsedItem) => ({
+        name: parsedItem.name,
+        fullPath: `${fullPath}.${parsedItem.name}`,
+        type: parsedItem.type,
+        children: null,
       }));
-    } else {
-      const parsedResult = result.map((item) => JSON.parse(item).namespace);
-      const excludedNamespaces = ["information_schema", "pg_catalog", "public"];
-      return parsedResult.filter(namespace => !excludedNamespaces.includes(namespace))
-        .map(namespace => ({
-          name: namespace,
-          fullPath: `${fullPath}.${namespace}`,
-          children: null,
-          ...(isMetastore && currentLevel === 3 ? { isMetastoreLevel: true } : {})
-        }));
-    }
   };
 
   const getTableDesc = async (fullPath) => {
@@ -183,12 +138,30 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
   };
 
   const handleTreeItemClick = async (node) => {
-    const isMetastore = (node.name && node.name.includes('metastore')) || (node.fullPath && node.fullPath.includes('metastore'));
-    await fetchChildNodes(node, isMetastore);
+    if (node.type === 'table') {
+      const tableDetails = await getTableDesc(node.fullPath);
+
+      const tableChildren = tableDetails.map((column) => ({
+        name: column.col_name,
+        fullPath: `${node.fullPath}.${column.col_name}`,
+        type: 'column',
+        children: null,
+        dataTypeElement: (
+          <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
+            ({column.data_type})
+          </span>
+        ),
+      }));
+
+      node.children = tableChildren;
+      setDataSources((prevData) => updateNodeChildren(prevData, node.name, tableChildren));
+    } else {
+      await fetchChildNodes(node, node.fullPath?.startsWith("lightning.metastore"));
+    }
   };
 
+
   const fetchChildNodes = async (node, isMetastore = false) => {
-    if (node.children && node.children.length > 0) return;
     const childNodes = await fetchDatasources(node.fullPath || node.name, isMetastore);
     if (isMetastore) {
       setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, childNodes));
@@ -212,59 +185,155 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
   useEffect(() => {
   }, [refreshNav]);
 
-  const handleTableClick = async (node) => {
-    if (node.isTable === true && view === 'semanticLayer') {
-      const tableDesc = await getTableDesc(node.fullPath);
-      onTableSelect(node.fullPath, tableDesc);
-    }
-    fetchChildNodes(node, node.fullPath.includes('metastore'));
-  };
-
   const drawUSL = async (node) => {
-    // console.log(node.name)
     setUslNamebyClick(node.fullPath);
     setView('semanticLayer');
     sessionStorage.setItem('selectedTab', 'semanticLayer');
   }
 
+  const handlePreview = async (fullPath) => {
+    const query = `SELECT * FROM ${fullPath} LIMIT 100`;
+    const result = await fetchApi(query);
+
+    if (Array.isArray(result)) {
+      const parsedData = result.map(item => JSON.parse(item));
+      setPreviewData(parsedData);
+
+      if (parsedData.length > 0) {
+        const dynamicColumns = Object.keys(parsedData[0]).map(key => ({
+          accessorKey: key,
+          header: key.charAt(0).toUpperCase() + key.slice(1)
+        }));
+        setColumns(dynamicColumns);
+      }
+      setPreviewOpen(true);
+    } else {
+      setErrorMessage(`Error : ${result.message}`);
+      setPreviewOpen(true);
+    }
+  };
+
+  const handleClosePreview = () => {
+    setPreviewOpen(false);
+    setErrorMessage(null);
+  };
+
+  const handlePlusClick = async (event, node) => {
+    event.stopPropagation();
+
+    if (!node.children) {
+      const childNodes = await fetchDatasources(node.fullPath || node.name);
+      setDataSources((prev) => updateNodeChildren(prev, node.name, childNodes));
+    }
+
+    setExpandedNodeIds((prev) => [...new Set([...prev, node.uniqueId])]);
+
+    setActiveInputNode(node.uniqueId);
+    setInputValue('');
+  };
+
+  const handleMinusClick = async (event, node) => {
+    event.stopPropagation();
+
+    const query = `DROP NAMESPACE ${node.fullPath}`;
+
+    try {
+      const response = await fetchApi(query);
+      if (response.error) {
+        console.error(`Error dropping namespace: ${response.message}`);
+      } else {
+        setDataSources((prev) => removeNode(prev, node.name));
+      }
+    } catch (error) {
+      console.error(`Error during API call: ${error.message}`);
+    }
+  };
+
+  const removeNode = (nodes, nodeName) => {
+    return nodes
+      .map((node) => {
+        if (node.name === nodeName) {
+          return null;
+        }
+        if (node.children) {
+          return { ...node, children: removeNode(node.children, nodeName) };
+        }
+        return node;
+      })
+      .filter(Boolean);
+  };
+
+  const handleInputKeyDown = async (event, node) => {
+    if (event.key === 'Escape') {
+      setActiveInputNode(null);
+    } else if (event.key === 'Enter') {
+      const namespaceName = inputValue.trim();
+      if (!namespaceName) {
+        console.error('Namespace name cannot be empty.');
+        return;
+      }
+
+      const query = `CREATE NAMESPACE ${node.fullPath}.${namespaceName}`;
+
+      try {
+        const response = await fetchApi(query);
+        if (response.error) {
+          console.error(`Error creating namespace: ${response.message}`);
+        } else {
+          handleTreeItemClick(node);
+        }
+      } catch (error) {
+        console.error(`Error during API call: ${error.message}`);
+      }
+
+      setActiveInputNode(null);
+    }
+  };
+
   const renderTree = (nodes, parentPath = '', isSemanticLayer = false) => {
     return nodes.map((node, index) => {
       const currentPath = node.fullPath || (parentPath ? `${parentPath}.${node.name}` : node.name);
       const uniqueId = `${currentPath}-${index + 1}`;
+      const Icon = node.type === 'table' ? TableIcon : FolderIcon;
+      node.uniqueId = uniqueId;
 
-      // Check if the table is activated
-      const isActivated = tableNames.includes(node.name);
+      // Check if this node has children with type 'table' to show ERD button
+      const hasTableChild = Array.isArray(node.children) ? node.children.some((child) => child.type === 'table') || false : null;
 
       return (
         <TreeItem
           key={uniqueId}
           itemId={uniqueId}
           label={
-            <span style={{ color: isActivated ? '#27A7D2' : 'inherit' }} className="MuiTreeItem-label">
+            <span style={{ display: 'flex', alignItems: 'center' }}>
+              {node.type !== 'column' && (
+                <Icon style={{ width: '18px', height: '18px', marginRight: '8px', verticalAlign: 'middle', flexShrink: 0 }} />
+              )}
               {node.name}
               {node.dataTypeElement && node.dataTypeElement}
 
-              {/* Activate/DeActivate button for isTable nodes in semanticLayer view */}
-              {/* {node.isTable === true && isSemanticLayer && view === 'semanticLayer' && (
+              {node.type === 'table' && (
                 <button
-                  className='btn-table-add'
                   onClick={(event) => {
                     event.stopPropagation();
-                    if (isActivated) {
-                      deActivateTable(node.fullPath);
-                    } else {
-                      activateTable(node.fullPath);
-                    }
+                    handlePreview(node.fullPath);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    marginLeft: '8px',
+                    verticalAlign: 'middle',
                   }}
                 >
-                  {isActivated ? 'DeActivate' : 'Activate'}
+                  <PreviewIcon style={{ width: '18px', height: '18px' }} />
                 </button>
-              )} */}
+              )}
 
-              {/* Draw button for isMetastore nodes in semanticLayer view */}
-              {node.isMetastoreLevel === true && isSemanticLayer && (
+              {hasTableChild && isSemanticLayer && (
                 <button
-                  className='btn-table-add'
+                  className="btn-table-add"
                   onClick={(event) => {
                     event.stopPropagation();
                     drawUSL(node);
@@ -274,26 +343,57 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
                 </button>
               )}
 
-              {/* Add button for isTable nodes in semanticLayer view */}
-              {/* {node.isTable === true && view === 'semanticLayer' && !isSemanticLayer && (
-                <button
-                  className='btn-table-add'
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleTableClick(node);
-                  }}
-                >
-                  Add
-                </button>
-              )} */}
+              {node.type === 'namespace' && !isSemanticLayer && (
+                hasTableChild === false && (
+                  <div style={{ marginLeft: '10px', display: 'flex', alignItems: 'center' }}>
+                    <PlusIcon
+                      onClick={(event) => handlePlusClick(event, node)}
+                      style={{
+                        width: '25px',
+                        height: '25px',
+                        cursor: 'pointer',
+                        verticalAlign: 'middle',
+                      }}
+                    />
+                    <MinusIcon
+                      onClick={(event) => handleMinusClick(event, node)}
+                      style={{
+                        width: '25px',
+                        height: '25px',
+                        cursor: 'pointer',
+                        verticalAlign: 'middle',
+                      }}
+                    />
+                  </div>
+                )
+              )}
             </span>
           }
-          onClick={() => {
-            // const isMetastore = node.fullPath ? node.fullPath.includes('metastore') : false;
-            // fetchChildNodes(node, isMetastore);
-            handleTreeItemClick(node);
-          }}
+          onClick={() => handleTreeItemClick(node)}
         >
+          {activeInputNode === node.uniqueId && (
+            <div style={{ marginLeft: '30px' }}>
+              <input
+                autoFocus
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  handleInputKeyDown(e, node);
+                }}
+                style={{
+                  padding: '6px',
+                  border: '2px solid #27A7D2',
+                  borderRadius: '6px',
+                  width: '180px',
+                  outline: 'none',
+                }}
+                placeholder="Enter Namespace"
+              />
+
+            </div>
+          )}
+
           {Array.isArray(node.children) ? renderTree(node.children, currentPath, isSemanticLayer) : null}
         </TreeItem>
       );
@@ -301,83 +401,97 @@ const Navigation = ({ view, onTableSelect, refreshNav, onGenerateDDL, setView, s
   };
 
   return (
-    <Resizable
-      axis="y"
-      initial={700}
-      min={200}
-      max={1000}
-      onResizeStart={() => {
-        resizingRef.current = true;
-      }}
-      onResizeStop={(e, direction, ref, d) => {
-        resizingRef.current = false;
-      }}
-    >
-      {({ position, separatorProps }) => (
-        <div className="guideline" style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-          <div style={{ height: `${position - reSizingOffset}px`, overflowY: 'auto', padding: '0 30px', paddingTop: '20px' }}>
-            {/* Data Sources Tree */}
-            <div className="nav-tab bold-text">Data Sources</div>
-            <SimpleTreeView className="tree-view">
-              {renderTree(dataSources, '', false)}
-            </SimpleTreeView>
-          </div>
+    <>
+      <Resizable
+        axis="y"
+        initial={700}
+        min={200}
+        max={1000}
+        onResizeStart={() => {
+          resizingRef.current = true;
+        }}
+        onResizeStop={(e, direction, ref, d) => {
+          resizingRef.current = false;
+        }}
+      >
+        {({ position, separatorProps }) => (
+          <div className="guideline" style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
+            <div style={{ height: `${position - reSizingOffset}px`, overflowY: 'auto', padding: '0 30px', paddingTop: '20px' }}>
+              {/* Data Sources Tree */}
+              <div className="nav-tab bold-text">Data Sources</div>
+              <SimpleTreeView className="tree-view"
+                expandedItems={expandedNodeIds}
+                onExpandedItemsChange={(event, newExpanded) => {
+                  setExpandedNodeIds(newExpanded);
+                }}
+              >
+                {renderTree(dataSources, '', false)}
+              </SimpleTreeView>
+            </div>
 
-          {/* Separator */}
-          {/* <div
-            {...separatorProps}
-            className="separator"
-            style={{ height: '5px', cursor: 'row-resize', zIndex: '100' }}
-          /> */}
-          <div
-            {...separatorProps}
-            className="separator"
-            style={{
-              height: '1px',
-              backgroundColor: '#ccc',
-              cursor: 'row-resize',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-            }}
-          >
             <div
+              {...separatorProps}
+              className="separator"
               style={{
-                width: '50px',
-                height: '8px',
-                backgroundColor: '#888',
-                borderRadius: '4px',
-                position: 'absolute',
+                height: '1px',
+                backgroundColor: '#ccc',
+                cursor: 'row-resize',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
               }}
-            />
-          </div>
-
-          <div style={{ flexGrow: 1, overflowY: 'auto', paddingBottom: '100px', paddingRight: '30px', paddingLeft: '30px', paddingBottom: '50px' }}>
-            {/* Semantic Layer Tree */}
-            <div className="nav-tab bold-text" style={{ display: 'flex', alignItems: 'center' }}>
-              Semantic Layer
-              <CirclePlus
-                onClick={() => setShowPopup(true)}
-                style={{ height: '20px', width: '20px', fill: '#27A7D2', cursor: 'pointer', marginLeft: '10px' }}
+            >
+              <div
+                style={{
+                  width: '50px',
+                  height: '8px',
+                  backgroundColor: '#888',
+                  borderRadius: '4px',
+                  position: 'absolute',
+                }}
               />
             </div>
-            <SimpleTreeView className="tree-view">
-              {renderTree(semanticLayerFiles, '', true)}
-            </SimpleTreeView>
-            <SetSemanticLayerModal
-              showPopup={showPopup}
-              setShowPopup={setShowPopup}
-              ddlName={ddlName}
-              setDdlName={setDdlName}
-              ddlCode={ddlCode}
-              setDdlCode={setDdlCode}
-              handleGenerateClick={handleGenerateClick}
-            />
+
+            <div style={{ flexGrow: 1, overflowY: 'auto', paddingBottom: '100px', paddingRight: '30px', paddingLeft: '30px', paddingBottom: '50px' }}>
+              {/* Semantic Layer Tree */}
+              <div className="nav-tab bold-text" style={{ display: 'flex', alignItems: 'center' }}>
+                Semantic Layer
+                <CirclePlus
+                  onClick={() => setShowPopup(true)}
+                  style={{ height: '20px', width: '20px', fill: '#27A7D2', cursor: 'pointer', marginLeft: '10px' }}
+                />
+              </div>
+              <SimpleTreeView className="tree-view"
+                expandedItems={expandedNodeIds}
+                onExpandedItemsChange={(event, newExpanded) => {
+                  setExpandedNodeIds(newExpanded);
+                }}
+              >
+                {renderTree(semanticLayerFiles, '', true)}
+              </SimpleTreeView>
+              <SetSemanticLayerModal
+                showPopup={showPopup}
+                setShowPopup={setShowPopup}
+                ddlName={ddlName}
+                setDdlName={setDdlName}
+                ddlCode={ddlCode}
+                setDdlCode={setDdlCode}
+                handleGenerateClick={handleGenerateClick}
+              />
+            </div>
           </div>
-        </div>
-      )}
-    </Resizable>
+        )}
+      </Resizable>
+
+      <PreviewPopup
+        open={previewOpen}
+        onClose={handleClosePreview}
+        columns={columns}
+        data={previewData}
+        errorMessage={errorMessage}
+      />
+    </>
   );
 };
 

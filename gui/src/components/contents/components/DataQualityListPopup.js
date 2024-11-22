@@ -2,10 +2,9 @@ import React from 'react';
 import './Popup.css';
 
 const DataQualityListPopup = ({ onClose, table, setPopupMessage }) => {
-    if (!table.dqAnnotations || table.dqAnnotations.length === 0) {
-        setPopupMessage("No dqAnnotations available for this table.");
-        return null;
-    }
+    // if (!table.dqAnnotations || table.dqAnnotations.length === 0) {
+    //     setPopupMessage("No dqAnnotations available for this table.");
+    // }
 
     return (
         <div className="popup-overlay">

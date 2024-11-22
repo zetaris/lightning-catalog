@@ -161,11 +161,13 @@
     transition: background-color 0.3s ease, color 0.3s ease;
     font-family: 'PlusJakartaSans', sans-serif;
     font-weight: bold;
+    user-select: none;
   }
 
   .btn-header.selected {
     background-color: #27A7D2;
     color: #ffffff;
+    user-select: none;
   }
   
   .btn-header:hover {
@@ -183,6 +185,7 @@
     font-family: 'PlusJakartaSans', sans-serif;
     font-weight: bold;
     height: 40px;
+    user-select: none;
   }
 
   .btn-primary:hover {
@@ -200,6 +203,7 @@
     transition: background-color 0.3s ease, color 0.3s ease;
     font-family: 'PlusJakartaSans', sans-serif;
     font-weight: bold;
+    user-select: none;
   }
 
   .btn-line{

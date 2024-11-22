@@ -30,6 +30,7 @@
 .logo img {
   height: 40px;
   vertical-align: middle;
+  user-select: none;
 }
 
 .logo_text {
@@ -39,6 +40,7 @@
   font-family: "HighlandGothicFLF", sans-serif;
   color: #27A7D2;
   font-size: 22px;
+  user-select: none;
 }
 
 .menu-tabs {
