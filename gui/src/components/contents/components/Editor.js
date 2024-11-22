@@ -4,7 +4,7 @@ import AceEditor from 'react-ace';
 
 import { defineCustomTheme, setupAceEditor, editorOptions } from '../../configs/editorConfig';
 
-const Editor = ({ id, content, onChange, setEditorInstances }) => {
+const Editor = ({ id, content, onChange, setEditorInstances, runQuery }) => {
     useEffect(() => {
         defineCustomTheme();
     }, []);
@@ -18,6 +18,16 @@ const Editor = ({ id, content, onChange, setEditorInstances }) => {
                     [id]: editorInstance
                 }));
             }
+
+            editorInstance.commands.addCommand({
+                name: 'runQuery',
+                bindKey: { win: 'Ctrl-Enter', mac: 'Ctrl-Enter' },
+                exec: () => {
+                    if (typeof runQuery === 'function') {
+                        runQuery();
+                    }
+                },
+            });
         }
     };    
 

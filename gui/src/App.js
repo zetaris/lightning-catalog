@@ -49,13 +49,13 @@ function App() {
       </div>
 
       {/* Resizable layout for Navigation and Content */}
-      <div style={{ display: 'flex', height: '90vh' }}>
+      <div style={{ display: 'flex'}}>
         <Resizable axis={'x'} initial={300} min={200} max={400}>
           {({ position, separatorProps }) => (
             <>
               {/* Navigation Section with refreshNav prop to trigger refresh */}
               <div className="navigation" style={{ minWidth: '200px', width: position }}>
-                <Navigation refreshNav={refreshNav} view={view} onTableSelect={handleTableSelect} onGenerateDDL={onGenerateDDL} setView={handleSetView} setUslNamebyClick={setUslNamebyClick} /> {/* Pass the state to Navigation */}
+                <Navigation refreshNav={refreshNav} onGenerateDDL={onGenerateDDL} setView={handleSetView} setUslNamebyClick={setUslNamebyClick} /> {/* Pass the state to Navigation */}
               </div>
 
               {/* Resizable separator */}

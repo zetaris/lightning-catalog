@@ -6,6 +6,7 @@ import { ReactComponent as EllipsisIcon } from '../../assets/images/ellipsis-ver
 import { ReactComponent as PkIcon } from '../../assets/images/key-outline.svg';
 import { ReactComponent as UniqueIcon } from '../../assets/images/fingerprint-solid.svg';
 import { ReactComponent as IndexIcon } from '../../assets/images/book-solid.svg';
+import { ReactComponent as NNIcon } from '../../assets/images/notnull-icon.svg';
 import { ReactComponent as OneLeftIcon } from '../../assets/images/one_left.svg';
 import { ReactComponent as OneRightIcon } from '../../assets/images/one_right.svg';
 import { ReactComponent as ManyLeftIcon } from '../../assets/images/many_left.svg';
@@ -15,7 +16,7 @@ import { ReactComponent as CollapsingIcon } from '../../assets/images/down-left-
 import { ReactComponent as LinkIcon } from '../../assets/images/link-solid.svg';
 
 
-export const initializeJsPlumb = (container, tables = [], openModal, handleRowClickCallback, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleListDQClick) => {
+export const initializeJsPlumb = (container, tables = [], openModal, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleListDQClick) => {
   const jsPlumbInstance = jsPlumb.getInstance({
     Container: container,
   });
@@ -24,7 +25,7 @@ export const initializeJsPlumb = (container, tables = [], openModal, handleRowCl
     // Ensure tables is an array
     if (Array.isArray(tables)) {
       tables.forEach((table) => {
-        setupTableForSelectedTable(container, table, jsPlumbInstance, table.id, false, handleRowClickCallback, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleListDQClick); // false to indicate it's an existing table
+        setupTableForSelectedTable(container, table, jsPlumbInstance, table.id, false, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleListDQClick); // false to indicate it's an existing table
       });
     }
 
@@ -46,7 +47,7 @@ export const initializeJsPlumb = (container, tables = [], openModal, handleRowCl
         'many_to_many',
         true
       );
-      addForeignKeyToConnection(jsPlumbInstance, info.sourceId, info.targetId, 'fk'); // Add foreign key icon
+      addForeignKeyToConnection(jsPlumbInstance, info.sourceId, info.targetId, 'fk');
       return false;
     });
 
@@ -99,7 +100,6 @@ export function getRowInfo(sourceId, targetId) {
 }
 
 export function getColumnConstraint(fullPath) {
-  // Find the table in the ddlText by the full path (e.g., lightning.datasource.rdbms.my_postgres.nytaxis.customer)
   const tablePath = fullPath.split('.').slice(0, -1).join('.');
   const columnName = fullPath.split('.').pop();
   const savedTables = JSON.parse(localStorage.getItem('savedTables')) || [];
@@ -205,12 +205,11 @@ const removeForeignKeyIconFromColumn = (columnElement) => {
 const addForeignKeyToConnection = (jsPlumbInstance, sourceId, targetId, relationship) => {
   const { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn } = getRowInfo(sourceId, targetId);
 
-  // Operation to change svg image in target column
   const sourceColumnName = sourceColumn.querySelector('td')?.innerText || '';
-  const targetColumnClass = targetColumn.children[0].classList[0];
-  const constraints = getColumnConstraint(targetColumnClass);
+  const targetColumnName = targetColumn.querySelector('td')?.innerText || '';
+  const sourceColumnClass = sourceColumn.children[0].classList[0];
+  const constraints = getColumnConstraint(sourceColumnClass);
 
-  // Collect type, references, and source column info
   let tooltipData;
   if (constraints) {
     tooltipData = constraints.map((constraint) => {
@@ -219,12 +218,22 @@ const addForeignKeyToConnection = (jsPlumbInstance, sourceId, targetId, relation
     }).join(', ');
   }
 
-  // Add source column info to the tooltip
-  const combinedTooltipData = !tooltipData ? `foreignKey: (${sourceColumnName})` : `${tooltipData}, foreignKey: (${sourceColumnName})`;
+  const newTooltipData = tooltipData
+    ? `${tooltipData}, foreignKey: (${targetColumnName})`
+    : `foreignKey: (${targetColumnName})`;
 
-  // Add the foreign key icon to the target column if the relationship is 'fk'
   if (relationship === 'fk') {
-    addForeignKeyIconToColumn(targetColumn, combinedTooltipData, tooltipData);
+    const existingTooltipData = sourceColumn.getAttribute('data-tooltip') || '';
+
+    const combinedTooltipData = existingTooltipData.includes(newTooltipData)
+      ? existingTooltipData
+      : existingTooltipData
+        ? `${existingTooltipData}, ${newTooltipData}`
+        : newTooltipData;
+
+    sourceColumn.setAttribute('data-tooltip', combinedTooltipData);
+
+    addForeignKeyIconToColumn(sourceColumn, combinedTooltipData, tooltipData);
   }
 };
 
@@ -257,9 +266,10 @@ export function addForeignKeyIconToColumn(columnElement, combinedTooltipData, to
             </div>
           );
         } else {
-          // Update only the tooltip text if the icon already exists
           const tooltipElement = iconContainer.querySelector('.tooltip-text');
           if (tooltipElement) {
+            console.log(tooltipElement)
+            console.log(combinedTooltipData)
             tooltipElement.innerText = combinedTooltipData;
           }
         }
@@ -412,17 +422,22 @@ const addConstraintIconToColumn = (iconContainer, type, reference = '') => {
       case 'pk':
         IconComponent = <PkIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />;
         titleText = 'primary key';
-        iconClass = 'pk-icon'; // Class name for primary key icon
+        iconClass = 'pk-icon';
+        break;
+      case 'not-null':
+        IconComponent = <NNIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />;
+        titleText = 'not null';
+        iconClass = 'notnull-icon';
         break;
       case 'unique':
         IconComponent = <UniqueIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />;
         titleText = 'unique';
-        iconClass = 'unique-icon'; // Class name for unique icon
+        iconClass = 'unique-icon';
         break;
       case 'index':
         IconComponent = <IndexIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />;
         titleText = 'index';
-        iconClass = 'index-icon'; // Class name for index icon
+        iconClass = 'index-icon';
         break;
       default:
         return;
@@ -512,7 +527,7 @@ function calculateTablePositions(container) {
   return positions;
 }
 
-export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInstance, uuid, isNewTable, handleRowClickCallback, handlePreViewButtonClick,
+export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInstance, uuid, isNewTable, handlePreViewButtonClick,
   handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleListDQClick) => {
 
   const uniqueTableId = selectedTable.id || `table-${uuid}`;
@@ -801,10 +816,9 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
     if (column.primaryKey) {
       addConstraintIconToColumn(iconContainer, 'pk'); // Add Primary Key icon
     }
-    // if (column.notNull) {
-    //   console.log(column)
-    //   addConstraintIconToColumn(iconContainer, 'not-null'); // Add Not Null icon
-    // }
+    if (column.notNull) {
+      addConstraintIconToColumn(iconContainer, 'not-null'); // Add Not Null icon
+    }
     if (column.unique) {
       addConstraintIconToColumn(iconContainer, 'unique'); // Add Unique Key icon
     }
@@ -1096,6 +1110,12 @@ export const handleOptimizeView = (container, zoomLevel, setZoomLevel, setOffset
     localStorage.setItem('offsetX', centerOffsetX);
     localStorage.setItem('offsetY', centerOffsetY);
   }
+
+  const jsPlumbInstance = jsPlumb.getInstance({
+    Container: container,
+  });
+
+  jsPlumbInstance.repaintEverything();
 };
 
 export const handleZoomIn = (container, setZoomLevel, setOffset, jsPlumbInstance) => {
@@ -1104,6 +1124,7 @@ export const handleZoomIn = (container, setZoomLevel, setOffset, jsPlumbInstance
     jsPlumbInstance.setZoom(newZoom);
     adjustOffsetForZoom(container, newZoom / prevZoom, setOffset);
     localStorage.setItem('zoomLevel', newZoom);
+
     return newZoom;
   });
 };
@@ -1114,6 +1135,7 @@ export const handleZoomOut = (container, setZoomLevel, setOffset, jsPlumbInstanc
     jsPlumbInstance.setZoom(newZoom);
     adjustOffsetForZoom(container, newZoom / prevZoom, setOffset);
     localStorage.setItem('zoomLevel', newZoom);
+
     return newZoom;
   });
 };

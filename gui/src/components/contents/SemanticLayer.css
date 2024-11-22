@@ -1,45 +1,79 @@
 /* Container for the entire button line at the bottom of the semantic layer */
 .btn-line-semantic-layer {
-    z-index: 100; /* Ensure it's above other elements */
-    width: 100%; /* Full width */
-    display: flex; /* Flex to align items horizontally */
-    justify-content: space-between; /* Space out the two main groups of buttons */
-    align-items: center; /* Center align items vertically */
-    overflow-x: hidden; /* Allow scrolling horizontally if necessary */
-    white-space: nowrap; /* Prevent line breaks between buttons */
-    padding: 10px; /* Padding around the container */
-    gap: 10px; /* Gap between items inside the container */
-    box-sizing: border-box;
-    background-color: #fff;
+  z-index: 100;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  overflow-x: hidden;
+  white-space: nowrap;
+  padding: 10px;
+  gap: 10px;
+  box-sizing: border-box;
+  background-color: #fff;
 }
 
-/* Group of primary buttons like Preview, Build, Rules, etc. */
-.button-group {
-    display: flex; /* Flex to align items horizontally */
-    gap: 10px; /* Gap between buttons */
-    flex-grow: 1; /* Allow the button group to take as much space as possible */
+.btn-line {
+  width: 100%;
+  display: flex;
+  justify-content: flex-start; /* Aligns content to the left */
+  align-items: center;
+  padding: 10px;
+  box-sizing: border-box;
+  background-color: #fff;
+  overflow: hidden; /* Prevents vertical scroll */
 }
 
 .button-group2 {
-    display: flex; /* Flex to align items horizontally */
-    align-items: center; /* Center align items vertically */
-    gap: 5px; /* Gap between zoom buttons and the zoom level display */
-    margin-left: auto; /* Push zoom controls to the right */
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
-/* Container for zoom controls, positioned on the right */
+.usl-result-btn {
+  background-color: white;
+  color: #27A7D2;
+  border: none; /* Remove all borders */
+  border-bottom: 1px solid #cccccc; /* Add only bottom border */
+  border-right: 1px solid #cccccc; /* Add only right border */
+  padding: 12px 20px;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  font-family: 'PlusJakartaSans', sans-serif;
+  font-weight: bold;
+}
+
+.usl-result-btn:hover,
+.usl-result-btn.selected { /* Apply hover style to both hover and selected states */
+  background-color: #27A7D2;
+  color: #fff;
+}
+
+.usl-name {
+  color: #858585;
+  font-family: 'PlusJakartaSans', sans-serif;
+  font-weight: 500;
+  font-style: italic;
+  user-select: none;
+}
+
 .zoom-controls {
-    display: flex; /* Flex to align items horizontally */
-    align-items: center; /* Center align items vertically */
-    gap: 10px; /* Gap between zoom buttons and the zoom level display */
-    margin-left: auto; /* Push zoom controls to the right */
+  position: fixed;
+  top: 9vh;
+  right: 0.8vw;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 8px;
+  z-index: 100;
 }
 
-/* Styling for the zoom level text */
 .zoom-level {
-    width: 40px; /* Fixed width for the zoom level display */
-    text-align: center; /* Center the text within the container */
-    font-family: 'PlusJakartaSans-Bold', sans-serif;
+  width: 40px;
+  text-align: center;
+  font-family: 'PlusJakartaSans-Bold', sans-serif;
 }
 
 .popup-overlay {
@@ -68,7 +102,7 @@
   animation: fadeIn 0.3s ease;
 }
 
-.popup-message > p {
+.popup-message>p {
   margin: 20px 0;
   color: #333;
 }
@@ -80,37 +114,38 @@
 
 /* custom tooltip */
 .tooltip-container {
-    position: relative;
-    display: inline-block;
-  }
-  
-  .tooltip-text {
-    visibility: hidden;
-    background-color: black;
-    color: #fff;
-    text-align: center;
-    border-radius: 4px;
-    padding: 5px;
-    position: absolute;
-    z-index: 1;
-    bottom: 125%;
-    left: 50%;
-    transform: translateX(-50%);
-    white-space: nowrap;
-    opacity: 0;
-    transition: opacity 0.3s;
-    font-size: 20px;
-  }
-  
-  .tooltip-container:hover .tooltip-text {
-    visibility: visible;
-    opacity: 1;
-  }
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-text {
+  visibility: hidden;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  border-radius: 4px;
+  padding: 5px;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 20px;
+}
+
+.tooltip-container:hover .tooltip-text {
+  visibility: visible;
+  opacity: 1;
+}
 
 @keyframes rotate {
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -118,4 +153,40 @@
 
 .spinner {
   animation: rotate 2s linear infinite;
+}
+
+.result-box {
+  background-color: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.tabs {
+  display: flex;
+  gap: 10px;
+  border-bottom: 1px solid #ddd;
+  margin-bottom: 10px;
+}
+
+.tab-button {
+  padding: 10px 15px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  color: #666;
+  border-bottom: 2px solid transparent;
+  transition: color 0.3s ease, border-bottom 0.3s ease;
+  user-select: none;
+}
+
+.tab-button.active {
+  color: #27A7D2;
+  border-bottom: 2px solid #27A7D2;
+  user-select: none;
+}
+
+.tab-content {
+  flex-grow: 1;
+  padding-top: 10px;
 }
