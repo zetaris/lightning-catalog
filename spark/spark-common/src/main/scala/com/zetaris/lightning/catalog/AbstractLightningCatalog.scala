@@ -318,10 +318,15 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
     findParentDataSource(namespace) match {
       case Some(datasource) =>
         val catalog = loadCatalogUnit(datasource)
+
+        val sourceNamespace = namespace.drop(datasource.namespace.length + 1)
         if (datasource.dataSourceType == DataSourceType.DELTA || datasource.dataSourceType == DataSourceType.ICEBERG) {
-          catalog.listTables(Array(namespace.last))
+          if (sourceNamespace.isEmpty) {
+            Array.empty[Identifier]
+          } else {
+            catalog.listTables(sourceNamespace)
+          }
         } else {
-          val sourceNamespace = namespace.drop(datasource.namespace.length + 1)
           catalog.listTables(sourceNamespace)
         }
 
