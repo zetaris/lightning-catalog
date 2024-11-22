@@ -20,6 +20,7 @@
 package com.zetaris.lightning.spark
 
 import java.sql.{Connection, DriverManager}
+import scala.collection.mutable.ArrayBuffer
 
 trait H2TestBase { self: SparkExtensionsTestBase =>
 
@@ -27,7 +28,28 @@ trait H2TestBase { self: SparkExtensionsTestBase =>
 
   def buildH2Connection(db: String): java.sql.Connection = {
     val h2Url = s"jdbc:h2:mem:$db;DB_CLOSE_DELAY=-1"
-    DriverManager.getConnection(h2Url)
+    val conn = DriverManager.getConnection(h2Url)
+
+    try{
+      val stmt = conn.prepareStatement("show schemas")
+      val rs = stmt.executeQuery()
+      val allSchemas = ArrayBuffer.empty[String]
+      while(rs.next()) {
+        val schema = rs.getString(0)
+        if (!schema.equalsIgnoreCase("INFORMATION_SCHEMA")) {
+          allSchemas += schema
+        }
+      }
+
+      allSchemas.foreach { schema =>
+        conn.prepareStatement(s"""DROP SCHEMA IF EXISTS "$schema" CASCADE""").executeUpdate()
+      }
+    } catch {
+      case _: Throwable =>
+    }
+
+    conn
+
   }
 
   def createH2SimpleTable(db: String, schema: String): Unit = {
@@ -40,7 +62,7 @@ trait H2TestBase { self: SparkExtensionsTestBase =>
     catch {case _: Throwable =>}
 
 
-    conn.prepareStatement(s"""DROP SCHEMA IF EXISTS "$schema"""").executeUpdate()
+    conn.prepareStatement(s"""DROP SCHEMA IF EXISTS "$schema" CASCADE""").executeUpdate()
 
     conn.prepareStatement(s"""CREATE SCHEMA "$schema"""").executeUpdate()
     conn.prepareStatement(s"""create table "$schema"."test_users" (uid INTEGER primary key, jid integer)""").executeUpdate()
@@ -60,6 +82,7 @@ trait H2TestBase { self: SparkExtensionsTestBase =>
   }
 
   def createCustomerOrderTable(conn: Connection, schema: String): Unit = {
+    conn.prepareStatement(s"""DROP SCHEMA IF EXISTS "$schema" CASCADE """).executeUpdate()
     conn.prepareStatement(s"""CREATE SCHEMA "$schema"""").executeUpdate()
     conn.prepareStatement(s"""create table "$schema"."customer" (id BIGINT primary key, name varchar(30), address varchar(50))""").executeUpdate()
     conn.prepareStatement(s"""create table "$schema"."lineitem" (id BIGINT primary key, name varchar(30), price decimal)""").executeUpdate()

@@ -256,12 +256,13 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
             }
           case Some(datasource) =>
             val catalog = loadCatalogUnit(datasource)
-            val sourceNamespace = if (datasource.dataSourceType == DataSourceType.ICEBERG ||
-              datasource.dataSourceType == DataSourceType.DELTA) {
-              Array(namespace.last)
-            } else {
-              ident.namespace().drop(datasource.namespace.length + 1)
-            }
+//            val sourceNamespace = if (datasource.dataSourceType == DataSourceType.ICEBERG ||
+//              datasource.dataSourceType == DataSourceType.DELTA) {
+//              Array(namespace.last)
+//            } else {
+//              ident.namespace().drop(datasource.namespace.length + 1)
+//            }
+            val sourceNamespace = ident.namespace().drop(datasource.namespace.length + 1)
 
             catalog.loadTable(Identifier.of(sourceNamespace, ident.name()), datasource.toTagSchema())
           case _ =>

@@ -117,6 +117,13 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
 
     assert(srcUSL.tables(1).columnSpecs(1).name == loadUSL.tables(1).columnSpecs(1).name)
     assert(srcUSL.tables(1).columnSpecs(1).dataType == loadUSL.tables(1).columnSpecs(1).dataType)
+
+    sparkSession.sql("create namespace lightning.metastore.newname")
+    checkAnswer(sparkSession.sql(s"SHOW namespaces  or   TABLES in lightning.metastore"), Seq(
+      Row("crmdb", "usl"),
+      Row("newname", "namespace")))
+
+
   }
 
 

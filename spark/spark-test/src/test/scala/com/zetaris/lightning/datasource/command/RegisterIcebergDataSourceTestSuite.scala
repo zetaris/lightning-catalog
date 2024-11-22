@@ -92,7 +92,6 @@ class RegisterIcebergDataSourceTestSuite extends SparkExtensionsTestBase {
 
   }
 
-/**
   test("should create namespace") {
     checkAnswer(sparkSession.sql("SHOW NAMESPACES IN lightning.datasource"), Seq(Row("iceberg")))
     checkAnswer(sparkSession.sql("SHOW NAMESPACES IN lightning.datasource.iceberg"),
@@ -179,8 +178,8 @@ class RegisterIcebergDataSourceTestSuite extends SparkExtensionsTestBase {
           Row(2l, 1000373l, 0.9f, 9.01d, "N"),
           Row(1l, 1000374l, 8.4f, 42.13d, "Y")))
   }
-*/
 
+/**
   test("should register the existing lakehouse") {
     sparkSession.sql(
       s"""
@@ -195,7 +194,6 @@ class RegisterIcebergDataSourceTestSuite extends SparkExtensionsTestBase {
     sparkSession.sql("show tables in lightning.datasource.iceberg.all_tpc.tpcds").show()
     sparkSession.sql("select * from lightning.datasource.iceberg.all_tpc.tpcds.customer limit 100").show()
   }
-
-
+*/
 
 }

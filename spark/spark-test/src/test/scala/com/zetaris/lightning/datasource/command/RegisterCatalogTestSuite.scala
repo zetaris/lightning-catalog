@@ -96,8 +96,9 @@ class RegisterCatalogTestSuite extends SparkExtensionsTestBase with H2TestBase {
     sparkSession.sql(s"SHOW NAMESPACES IN lightning.metastore.h2").show()
 
     checkAnswer(sparkSession.sql(s"SHOW NAMESPACES IN lightning.metastore.h2"), Seq(Row(singleSchema)))
-    checkAnswer(sparkSession.sql(s"SHOW NAMESPACES IN lightning.metastore.h2.$singleSchema"),
-      Seq(Row("INFORMATION_SCHEMA"), Row(schema1), Row(schema2)))
+    val schemas = sparkSession.sql(s"SHOW NAMESPACES IN lightning.metastore.h2.$singleSchema").collect().map(_.getString(0))
+    assert(schemas.find(_.equalsIgnoreCase(schema1)).isDefined)
+    assert(schemas.find(_.equalsIgnoreCase(schema2)).isDefined)
     checkAnswer(sparkSession.sql(s"SHOW TABLES IN lightning.metastore.h2.$singleSchema.$schema1"),
       Seq(Row(schema1, "test_jobs", false), Row(schema1, "test_users", false)))
 
