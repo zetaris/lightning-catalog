@@ -297,7 +297,6 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
    */
   def canLoadUnifiedSemanticLayer(namespace: Seq[String], name: String): Boolean = {
     val subDir = nameSpaceToDir(namespace)
-    FileSystemUtils.createFolderIfNotExist(s"$modelDir/$subDir")
 
     val fullPath = s"$modelDir/$subDir/${name}_usl.json"
     FileSystemUtils.fileExists(fullPath)

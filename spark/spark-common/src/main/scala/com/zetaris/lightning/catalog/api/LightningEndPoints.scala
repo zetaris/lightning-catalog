@@ -83,24 +83,79 @@ class LightningResource {
     }
   }
 
-  @POST
+  @GET
   @Path("/qdq")
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Consumes(Array(MediaType.TEXT_PLAIN))
   def queryDQ(@QueryParam("name") name: String,
               @QueryParam("table") table: String,
-              @QueryParam("validRecord") validRecord: Boolean): Response = {
+              @QueryParam("validRecord") validRecord: Boolean,
+              @QueryParam("limit") limit: Int): Response = {
     Try {
-      LOGGER.info(s"dq : $name on $table")
+      LOGGER.info(s"qdq : $name on $table")
       val dq = ShowDataQualityResult(name, table.split("."), validRecord)
       val df = dq.runQuery(spark())
+      var recCount = 0
       new StreamingOutput() {
         override def write(output: OutputStream): Unit = {
           val itr = df.toJSON.toLocalIterator()
           val writer = new BufferedWriter(new OutputStreamWriter(output))
+          var keepGoing = true
           writer.write("[")
+          while(itr.hasNext && keepGoing) {
+            val json = itr.next()
+            recCount += 1
+            val jsonStr = mapper.writeValueAsString(json)
+            if (itr.hasNext) {
+              writer.write(s"$jsonStr,")
+            } else {
+              writer.write(jsonStr)
+            }
+
+            if (limit > 0 && recCount >= limit) {
+              keepGoing = false
+            }
+          }
+          writer.write("]")
+          writer.flush()
+        }
+      }
+    } match {
+      case Failure(e) =>
+        LOGGER.error("Spark error occurred", e)
+
+        val errorResponse = s"""{
+          "error": "Spark execution error",
+          "message": "${e.getMessage}"
+        }"""
+
+        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+          .entity(errorResponse)
+          .build()
+      case Success(stream) =>
+        Response.ok(stream).build()
+    }
+  }
+
+  @GET
+  @Path("/edq")
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Consumes(Array(MediaType.TEXT_PLAIN))
+  def exportDQ(@QueryParam("name") name: String,
+              @QueryParam("table") table: String,
+              @QueryParam("validRecord") validRecord: Boolean): Response = {
+    Try {
+      LOGGER.info(s"edq : $name on $table")
+      val dq = ShowDataQualityResult(name, table.split("."), validRecord)
+      val df = dq.runQuery(spark())
+      var recCount = 0
+      new StreamingOutput() {
+        override def write(output: OutputStream): Unit = {
+          val itr = df.toJSON.toLocalIterator()
+          val writer = new BufferedWriter(new OutputStreamWriter(output))
           while(itr.hasNext) {
             val json = itr.next()
+            recCount += 1
             val jsonStr = mapper.writeValueAsString(json)
             if (itr.hasNext) {
               writer.write(s"$jsonStr,")
@@ -108,7 +163,6 @@ class LightningResource {
               writer.write(jsonStr)
             }
           }
-          writer.write("]")
           writer.flush()
         }
       }

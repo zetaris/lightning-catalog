@@ -309,8 +309,8 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
     AttributeReference("table", StringType, false)(),
     AttributeReference("type", StringType, false)(),
     AttributeReference("total_record", LongType, false)(),
-    AttributeReference("good_record", LongType, false)(),
-    AttributeReference("bad_record", LongType, false)()
+    AttributeReference("valid_record", LongType, false)(),
+    AttributeReference("invalid_record", LongType, false)()
   )
 
   private def runDQ(sparkSession: SparkSession, createTableSpec: CreateTableSpec, dq: DataQuality): Row = {
