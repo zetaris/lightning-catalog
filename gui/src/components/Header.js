@@ -3,7 +3,7 @@ import './Components.css';
 import logo from '../assets/images/lightning-logo.png';
 import '../styleguides/styleguides.css';
 
-function Header({ setView, view }) {
+function Header({ setView, view, setIsLoading }) {
   const [selectedTab, setSelectedTab] = useState('');
 
   useEffect(() => {
@@ -19,10 +19,13 @@ function Header({ setView, view }) {
     }
   }, [view, selectedTab]);
 
-  const handleClick = (viewName) => {
+  const handleClick = async (viewName) => {
+    setIsLoading(true);
     setSelectedTab(viewName);
+    await new Promise((resolve) => setTimeout(resolve, 10));
     setView(viewName);
     sessionStorage.setItem('selectedTab', viewName);
+    setIsLoading(false);
   };
 
   return (

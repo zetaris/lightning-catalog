@@ -12,11 +12,15 @@ const PreviewPopup = ({ open, onClose, columns, data, errorMessage }) => {
             if (typeof value === 'number') {
                 return (
                     <div style={{ textAlign: 'right' }}>
-                        {value.toLocaleString()}
+                        {value.toLocaleString()} 
                     </div>
                 );
             }
-            return value;
+            return (
+                <div style={{ textAlign: 'left' }}>
+                    {value}
+                </div>
+            );
         }
     }));
 
@@ -32,7 +36,7 @@ const PreviewPopup = ({ open, onClose, columns, data, errorMessage }) => {
                         <p>{errorMessage}</p>
                     ) : (
                         <MaterialReactTable
-                            columns={columns}
+                            columns={formattedColumns}
                             data={data}
                             enableSorting={true}
                             enableColumnFilters={true}

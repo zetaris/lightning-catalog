@@ -9,7 +9,7 @@ import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-monokai';
 import 'ace-builds/src-noconflict/ext-language_tools';
 
-function Content({ view, toggleRefreshNav, selectedTable, semanticLayerInfo, uslNamebyClick }) {
+function Content({ view, toggleRefreshNav, selectedTable, semanticLayerInfo, uslNamebyClick, setIsLoading }) {
   
   // Load editor configurations once the component is mounted
   useEffect(() => {
@@ -23,7 +23,7 @@ function Content({ view, toggleRefreshNav, selectedTable, semanticLayerInfo, usl
         <SqlEditor toggleRefreshNav={toggleRefreshNav} />
       )}
       {view === 'semanticLayer' && (
-        <SemanticLayer selectedTable={selectedTable} semanticLayerInfo={semanticLayerInfo} uslNamebyClick={uslNamebyClick} />
+        <SemanticLayer selectedTable={selectedTable} semanticLayerInfo={semanticLayerInfo} uslNamebyClick={uslNamebyClick} setIsLoading={setIsLoading}  />
       )}
       {view === 'documentation' && window.open('https://github.com/zetaris/lightning-catalog/tree/master/doc', '_blank')}
     </div>

@@ -48,7 +48,7 @@ const SetSemanticLayerModal = ({ showPopup, setShowPopup, ddlName, setDdlName, d
   if (!showPopup) return null;
 
   return (
-    <div className="popup-overlay">
+    <div className="popup-overlay" style={{paddingTop:'0px'}}>
       <div className="popup-modal">
         <h3 className="popup-title">Create Semantic Layer</h3>
 

@@ -93,7 +93,7 @@ class LightningResource {
               @QueryParam("limit") limit: Int): Response = {
     Try {
       LOGGER.info(s"qdq : $name on $table")
-      val dq = ShowDataQualityResult(name, table.split("."), validRecord)
+      val dq = ShowDataQualityResult(name, table.split("\\."), validRecord)
       val df = dq.runQuery(spark())
       var recCount = 0
       new StreamingOutput() {
@@ -146,7 +146,7 @@ class LightningResource {
               @QueryParam("validRecord") validRecord: Boolean): Response = {
     Try {
       LOGGER.info(s"edq : $name on $table")
-      val dq = ShowDataQualityResult(name, table.split("."), validRecord)
+      val dq = ShowDataQualityResult(name, table.split("\\."), validRecord)
       val df = dq.runQuery(spark())
       var recCount = 0
       new StreamingOutput() {

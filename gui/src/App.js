@@ -3,62 +3,85 @@ import Header from './components/Header';
 import Content from './components/Content';
 import Navigation from './components/Navigation';
 import Resizable from 'react-resizable-layout';
-import './App.css'; // Import the CSS file
-import { fetchApiForListSemanticLayers } from './utils/common'
+import './App.css';
+
+const LoadingIndicator = () => (
+  <div
+    style={{
+      position: 'fixed',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      zIndex: 1000,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      color: '#fff',
+      padding: '20px',
+      borderRadius: '8px',
+      textAlign: 'center',
+    }}
+  >
+    Loading...
+  </div>
+);
 
 function App() {
-  // State to manage view and navigation updates
   const [view, setView] = useState('');
-  const [refreshNav, setRefreshNav] = useState(false); // This will trigger navigation refresh
+  const [refreshNav, setRefreshNav] = useState(false);
   const [selectedTable, setSelectedTable] = useState(null);
-  const [semanticLayerInfo, setSemanticLayerInfo] = useState([]); // State to manage semantic layers
-  const [uslNamebyClick, setUslNamebyClick] = useState(''); // State to manage semantic layers
+  const [semanticLayerInfo, setSemanticLayerInfo] = useState([]);
+  const [uslNamebyClick, setUslNamebyClick] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSetView = (newView) => {
     setView(newView);
     setRefreshNav((prev) => !prev);
   };
 
-  // Function to handle updates or changes that should refresh navigation
   const toggleRefreshNav = () => {
-    setRefreshNav((prev) => !prev); // Toggle the state to refresh Navigation
+    setRefreshNav((prev) => !prev);
   };
 
   const handleTableSelect = (name, desc) => {
     setSelectedTable({ name, desc });
   };
 
-  // onGenerateDDL function to handle the new semantic layer from Navigation
   const onGenerateDDL = (name, ddlCode) => {
-    // Create a new semantic layer object
-    const newLayer = {
-      name: name,
-      ddl: ddlCode
-    };
-
-    // Add the new semantic layer to the list of semantic layers
+    const newLayer = { name, ddl: ddlCode };
     setSemanticLayerInfo([newLayer]);
-    toggleRefreshNav(); // Trigger navigation refresh after adding the new semantic layer
+    toggleRefreshNav();
   };
+
+  useEffect(() => {
+    setIsLoading(true);
+
+    const simulateLoading = setTimeout(() => {
+      setIsLoading(false);
+    }, 0);
+
+    return () => clearTimeout(simulateLoading);
+  }, [view, refreshNav]);
 
   return (
     <div>
-      {/* Header section */}
+      {isLoading && <LoadingIndicator />}
+
       <div className="header">
-        <Header setView={handleSetView} view={view} />
+        <Header setView={handleSetView} view={view} setIsLoading={setIsLoading}/>
       </div>
 
-      {/* Resizable layout for Navigation and Content */}
-      <div style={{ display: 'flex'}}>
-        <Resizable axis={'x'} initial={300} min={200} max={400}>
+      <div style={{ display: 'flex' }}>
+        <Resizable axis="x" initial={300} min={200} max={400}>
           {({ position, separatorProps }) => (
             <>
-              {/* Navigation Section with refreshNav prop to trigger refresh */}
               <div className="navigation" style={{ minWidth: '200px', width: position }}>
-                <Navigation refreshNav={refreshNav} onGenerateDDL={onGenerateDDL} setView={handleSetView} setUslNamebyClick={setUslNamebyClick} /> {/* Pass the state to Navigation */}
+                <Navigation
+                  refreshNav={refreshNav}
+                  onGenerateDDL={onGenerateDDL}
+                  setView={handleSetView}
+                  setUslNamebyClick={setUslNamebyClick}
+                />
               </div>
 
-              {/* Resizable separator */}
               <div
                 {...separatorProps}
                 style={{
@@ -79,16 +102,20 @@ function App() {
                     backgroundColor: '#888',
                     borderRadius: '4px',
                     position: 'absolute',
-                    zIndex: '10'
+                    zIndex: '10',
                   }}
                 />
               </div>
 
-
-              {/* Content Section */}
               <div className="content" style={{ flexGrow: 1 }}>
-                <Content view={view} toggleRefreshNav={toggleRefreshNav} selectedTable={selectedTable} semanticLayerInfo={semanticLayerInfo} uslNamebyClick={uslNamebyClick} />
-                {/* Pass the handler to Content for triggering navigation refresh */}
+                <Content
+                  view={view}
+                  toggleRefreshNav={toggleRefreshNav}
+                  selectedTable={selectedTable}
+                  semanticLayerInfo={semanticLayerInfo}
+                  uslNamebyClick={uslNamebyClick}
+                  setIsLoading={setIsLoading}
+                />
               </div>
             </>
           )}
