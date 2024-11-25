@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import Resizable from 'react-resizable-layout';
 import { initializeJsPlumb, setupTableForSelectedTable, connectEndpoints, handleOptimizeView, handleZoomIn, handleZoomOut, getColumnConstraint, getRowInfo, addForeignKeyIconToColumn } from '../configs/JsPlumbConfig';
 import { v4 as uuidv4 } from 'uuid';
-import { fetchApi, fetchActivateTableApi } from '../../utils/common';
+import { fetchApi, fetchActivateTableApi, qdqApi, edqApi } from '../../utils/common';
 import './Contents.css';
 import './SemanticLayer.css'
 import RelationshipModal from './RelationshipModal';
@@ -18,7 +18,7 @@ import DataQualityPopup from './components/DataQualityPopup.js';
 import DataQualityListPopup from './components/DataQualityListPopup.js';
 import ActivePopup from './components/ActivatePopup.js';
 
-function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
+function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIsLoading }) {
     const jsPlumbRef = useRef(null);
     const jsPlumbInstanceRef = useRef(null);
     const [condition, setCondition] = useState('');
@@ -59,6 +59,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
         pageIndex: 0,
         pageSize: 30,
     });
+    const [outputTabInfo, setOutputTabInfo] = useState(null);
 
     const reSizingOffset = 115;
 
@@ -104,8 +105,8 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                     Type: dq.type,
                     Expression: dq.expression,
                     Total_record: 'N/A',
-                    Good_record: 'N/A',
-                    Bad_record: 'N/A',
+                    Valid_record: 'N/A',
+                    Invalid_record: 'N/A',
                     Status: 'N/A',
                     isChecked: false
                 };
@@ -129,8 +130,8 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
             ...dqEntry,
             Status: 'N/A',
             Total_record: 'N/A',
-            Good_record: 'N/A',
-            Bad_record: 'N/A',
+            Valid_record: 'N/A',
+            Invalid_record: 'N/A',
             errorMessage: '',
         }));
 
@@ -139,8 +140,8 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
         for (const dqEntry of selectedRowData) {
             dqEntry.Status = 'loading';
             dqEntry.Total_record = 'fetching data...';
-            dqEntry.Good_record = 'fetching data...';
-            dqEntry.Bad_record = 'fetching data...';
+            dqEntry.Valid_record = 'fetching data...';
+            dqEntry.Invalid_record = 'fetching data...';
 
             updatedDQResults = updatedDQResults.map((entry) =>
                 entry.Name === dqEntry.Name ? dqEntry : entry
@@ -154,23 +155,23 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
 
                 if (runDQResult?.error) {
                     dqEntry.Total_record = '';
-                    dqEntry.Good_record = '';
-                    dqEntry.Bad_record = '';
+                    dqEntry.Valid_record = '';
+                    dqEntry.Invalid_record = '';
                     dqEntry.Status = 'error';
                     dqEntry.errorMessage = runDQResult.message;
                 } else {
                     const resultData = runDQResult?.[0] && JSON.parse(runDQResult[0]);
                     dqEntry.Total_record = resultData?.total_record || '0';
-                    dqEntry.Good_record = resultData?.good_record || '0';
-                    dqEntry.Bad_record = resultData?.bad_record || '0';
+                    dqEntry.Valid_record = resultData?.valid_record || '0';
+                    dqEntry.Invalid_record = resultData?.invalid_record || '0';
 
-                    dqEntry.Status = dqEntry.Bad_record !== '0' ? 'warning' : 'success';
+                    dqEntry.Status = dqEntry.Invalid_record !== '0' ? 'warning' : 'success';
                     dqEntry.errorMessage = '';
                 }
             } catch (error) {
                 dqEntry.Total_record = '';
-                dqEntry.Good_record = '';
-                dqEntry.Bad_record = '';
+                dqEntry.Valid_record = '';
+                dqEntry.Invalid_record = '';
                 dqEntry.Status = 'error';
                 dqEntry.errorMessage = error.message || 'An unexpected error occurred';
             }
@@ -387,6 +388,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
     }, [isDragging, dragStart]);
 
     useEffect(() => {
+        setIsLoading(true);
         reFreshScreen();
 
         const savedZoomLevel = localStorage.getItem('zoomLevel');
@@ -417,6 +419,8 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
         if (!savedZoomLevel || !savedOffsetX || !savedOffsetY) {
             handleOptimizeView(jsPlumbRef.current, zoomLevel, setZoomLevel, setOffset);
         }
+
+        setIsLoading(false);
 
     }, []);
 
@@ -533,12 +537,12 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                     savedConnections.forEach(({ sourceId, targetId, relationship, relationship_type }, index) => {
                         connectEndpoints(jsPlumbInstanceRef.current, sourceId, targetId, relationship, relationship_type, false);
                         const { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn } = getRowInfo(sourceId, targetId);
-                    
+
                         const sourceColumnName = sourceColumn.querySelector('td')?.innerText || '';
                         const targetColumnName = targetColumn.querySelector('td')?.innerText || '';
                         const sourceColumnClass = sourceColumn.children[0].classList[0];
                         const constraints = getColumnConstraint(sourceColumnClass);
-                    
+
                         let tooltipData;
                         if (constraints) {
                             tooltipData = constraints.map((constraint) => {
@@ -546,25 +550,25 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                                 return reference ? `${constraint.type}: ${reference}` : `${constraint.type}`;
                             }).join(', ');
                         }
-                    
+
                         const newTooltipData = tooltipData
                             ? `${tooltipData}, foreignKey: (${targetColumnName})`
                             : `foreignKey: (${targetColumnName})`;
-                    
+
                         if (relationship === 'fk') {
                             const existingTooltipData = sourceColumn.getAttribute('data-tooltip') || '';
-                    
+
                             const combinedTooltipArray = [
                                 ...new Set([...existingTooltipData.split(', '), newTooltipData].filter(Boolean)),
                             ];
-                    
+
                             const combinedTooltipData = combinedTooltipArray.join(', ');
-                    
+
                             sourceColumn.setAttribute('data-tooltip', combinedTooltipData);
-                    
+
                             addForeignKeyIconToColumn(sourceColumn, combinedTooltipData, tooltipData);
                         }
-                    });                                 
+                    });
                 }
 
                 jsPlumbInstanceRef.current.recalculateOffsets(jsPlumbRef.current);
@@ -622,12 +626,12 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                 savedConnections.forEach(({ sourceId, targetId, relationship, relationship_type }, index) => {
                     connectEndpoints(jsPlumbInstanceRef.current, sourceId, targetId, relationship, relationship_type, false);
                     const { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn } = getRowInfo(sourceId, targetId);
-                
+
                     const sourceColumnName = sourceColumn.querySelector('td')?.innerText || '';
                     const targetColumnName = targetColumn.querySelector('td')?.innerText || '';
                     const sourceColumnClass = sourceColumn.children[0].classList[0];
                     const constraints = getColumnConstraint(sourceColumnClass);
-                
+
                     let tooltipData;
                     if (constraints) {
                         tooltipData = constraints.map((constraint) => {
@@ -635,22 +639,22 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                             return reference ? `${constraint.type}: ${reference}` : `${constraint.type}`;
                         }).join(', ');
                     }
-                
+
                     const newTooltipData = tooltipData
                         ? `${tooltipData}, foreignKey: (${targetColumnName})`
                         : `foreignKey: (${targetColumnName})`;
-                
+
                     if (relationship === 'fk') {
                         const existingTooltipData = sourceColumn.getAttribute('data-tooltip') || '';
-                
+
                         const combinedTooltipArray = [
                             ...new Set([...existingTooltipData.split(', '), newTooltipData].filter(Boolean)),
                         ];
-                
+
                         const combinedTooltipData = combinedTooltipArray.join(', ');
-                
+
                         sourceColumn.setAttribute('data-tooltip', combinedTooltipData);
-                
+
                         addForeignKeyIconToColumn(sourceColumn, combinedTooltipData, tooltipData);
                     }
                 });
@@ -856,14 +860,14 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
 
         if (selectedConnection) {
             const { sourceId, targetId } = selectedConnection;
-        
+
             connectEndpoints(jsPlumbInstanceRef.current, sourceId, targetId, relationship, type, true);
             const { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn } = getRowInfo(sourceId, targetId);
             const sourceColumnName = sourceColumn.querySelector('td')?.innerText || '';
             const targetColumnName = targetColumn.querySelector('td')?.innerText || '';
             const sourceColumnClass = sourceColumn.children[0].classList[0];
             const constraints = getColumnConstraint(sourceColumnClass);
-        
+
             let tooltipData;
             if (constraints) {
                 tooltipData = constraints.map((constraint) => {
@@ -871,25 +875,25 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                     return reference ? `${constraint.type}: ${reference}` : `${constraint.type}`;
                 }).join(', ');
             }
-        
-            const newTooltipData = tooltipData 
-                ? `${tooltipData}, foreignKey: (${targetColumnName})` 
+
+            const newTooltipData = tooltipData
+                ? `${tooltipData}, foreignKey: (${targetColumnName})`
                 : `foreignKey: (${targetColumnName})`;
-        
+
             if (relationship === 'fk') {
                 const existingTooltipData = sourceColumn.getAttribute('data-tooltip') || '';
-        
+
                 const combinedTooltipArray = [
                     ...new Set([...existingTooltipData.split(', '), newTooltipData].filter(Boolean)),
                 ];
-        
+
                 const combinedTooltipData = combinedTooltipArray.join(', ');
-        
+
                 sourceColumn.setAttribute('data-tooltip', combinedTooltipData);
-        
+
                 addForeignKeyIconToColumn(sourceColumn, combinedTooltipData, tooltipData);
             }
-        }            
+        }
 
         setIsModalOpen(false);
     };
@@ -925,6 +929,29 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
         }
     };
 
+    const convertToCSV = (data) => {
+        if (!Array.isArray(data) || data.length === 0) {
+            throw new Error('No data available to export.');
+        }
+    
+        // Extract headers from the keys of the first object
+        const headers = Object.keys(data[0]).join(',');
+    
+        // Map each row to a CSV row
+        const rows = data.map((row) =>
+            Object.values(row)
+                .map((value) =>
+                    typeof value === 'string'
+                        ? `"${value.replace(/"/g, '""')}"` // Escape double quotes
+                        : value
+                )
+                .join(',')
+        );
+    
+        // Join headers and rows with newlines
+        return `${headers}\n${rows.join('\n')}`;
+    };
+
     const normalizeData = (data) => {
         // Find all possible keys from the entire data set
         const allKeys = new Set();
@@ -944,46 +971,93 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
         return normalizedData;
     };
 
-    const RenderTableForApi = ({ data }) => {
+    const RenderTableForApi = ({ data, outputTabInfo }) => {
         if (!data || data.length === 0) {
             return <div>No data available</div>;
         }
 
-        // Normalize data to ensure all rows have the same keys
         const normalizedData = normalizeData(data);
 
-        // Extract table headers dynamically from the first object in the data array
+        const handleExport = () => {
+            if (!outputTabInfo) return;
+        
+            const { name, table, validRecord } = outputTabInfo;
+            edqApi(name, table, validRecord).then((result) => {
+                if (result.error) {
+                    alert(`Error exporting data: ${result.message}`);
+                } else {
+                    try {
+                        // Convert result to CSV
+                        const csvContent = convertToCSV(result);
+        
+                        // Create a Blob for CSV content
+                        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                        const url = URL.createObjectURL(blob);
+        
+                        // Create a temporary link to trigger download
+                        const link = document.createElement('a');
+                        link.href = url;
+                        link.setAttribute('download', `${name}.csv`);
+                        document.body.appendChild(link);
+                        link.click();
+        
+                        // Clean up
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(url);
+        
+                    } catch (error) {
+                        console.error('Error during export:', error);
+                        alert('An error occurred while exporting data.');
+                    }
+                }
+            });
+        };
+
         const columns = Object.keys(normalizedData[0]).map((key) => ({
             accessorKey: key,
             header: key.charAt(0).toUpperCase() + key.slice(1),
             Cell: ({ cell }) => {
                 const value = cell.getValue();
                 if (!isNaN(value) && value !== null && value !== '') {
-                    // Format number with commas and align right
                     return (
                         <div style={{ textAlign: 'right' }}>
                             {Number(value).toLocaleString()}
                         </div>
                     );
                 }
-                // Default rendering for non-numeric values
                 return <div style={{ textAlign: 'left' }}>{value}</div>;
             },
         }));
 
         return (
-            <MaterialReactTable
-                columns={columns}
-                data={normalizedData}
-                enableSorting={true}
-                enableColumnFilters={true}
-                onPaginationChange={setPagination}
-                state={{ pagination }}
-                initialState={{
-                    density: 'compact',
-                    pagination: { pageSize: 30, pageIndex: 0 },
-                }}
-            />
+            <>
+                <div style={{ position: 'relative' }}>
+                    {outputTabInfo && (
+                        <button
+                            className="btn-primary"
+                            style={{
+                                position: 'absolute',
+                                top: '10px',
+                                left: '10px',
+                                zIndex: 100,
+                            }}
+                            onClick={handleExport}
+                        >
+                            Export
+                        </button>
+                    )}
+                    <MaterialReactTable
+                        columns={columns}
+                        data={normalizedData}
+                        enableSorting={true}
+                        enableColumnFilters={true}
+                        initialState={{
+                            density: 'compact',
+                            pagination: { pageSize: 30, pageIndex: 0 },
+                        }}
+                    />
+                </div>
+            </>
         );
     };
 
@@ -1083,26 +1157,50 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
                 )
             },
             {
-                accessorKey: 'Good_record',
-                header: 'Good Records',
-                Cell: ({ cell }) => (
+                accessorKey: 'Valid_record',
+                header: 'Valid record',
+                Cell: ({ cell, row }) => (
                     <div style={{ textAlign: 'right' }}>
-                        {typeof cell.getValue() === 'number'
-                            ? cell.getValue().toLocaleString()
-                            : renderFetchingStatus(cell.getValue())}
+                        {typeof cell.getValue() === 'number' ? (
+                            <a
+                                href="#"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    const { Name, Table } = row.original;
+                                    handleOutputTabWithData(qdqApi, Name, Table, true, 100);
+                                }}
+                                style={{ fontWeight: 'bold', color: 'blue', textDecoration: 'underline' }}
+                            >
+                                {cell.getValue().toLocaleString()}
+                            </a>
+                        ) : (
+                            renderFetchingStatus(cell.getValue())
+                        )}
                     </div>
-                )
+                ),
             },
             {
-                accessorKey: 'Bad_record',
-                header: 'Bad Records',
-                Cell: ({ cell }) => (
+                accessorKey: 'Invalid_record',
+                header: 'Invalid record',
+                Cell: ({ cell, row }) => (
                     <div style={{ textAlign: 'right' }}>
-                        {typeof cell.getValue() === 'number'
-                            ? cell.getValue().toLocaleString()
-                            : renderFetchingStatus(cell.getValue())}
+                        {typeof cell.getValue() === 'number' ? (
+                            <a
+                                href="#"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    const { Name, Table } = row.original;
+                                    handleOutputTabWithData(qdqApi, Name, Table, false, 100);
+                                }}
+                                style={{ fontWeight: 'bold', color: 'red', textDecoration: 'underline' }}
+                            >
+                                {cell.getValue().toLocaleString()}
+                            </a>
+                        ) : (
+                            renderFetchingStatus(cell.getValue())
+                        )}
                     </div>
-                )
+                ),
             },
         ];
 
@@ -1173,6 +1271,43 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick }) {
             </>
         );
     };
+
+    const handleOutputTabWithData = (apiFunction, name, table, validRecord, limit = 100) => {
+        setLoading(true); 
+        setOutputTabInfo({ name, table, validRecord });
+    
+        apiFunction(name, table, validRecord, limit)
+            .then((result) => {
+                if (result.error) {
+                    alert(`Error fetching data: ${result.message}`);
+                } else {
+                    try {
+                        const parsedData = result.map((item) =>
+                            typeof item === 'string' ? JSON.parse(item) : item
+                        );
+    
+                        setQueryResult(
+                            <RenderTableForApi
+                                data={parsedData}
+                                outputTabInfo={{ name, table, validRecord }}
+                            />
+                        );
+                        setViewMode('output');
+                        setCondition('preview');
+                    } catch (parseError) {
+                        console.error('Error parsing data:', parseError);
+                        alert('Failed to parse fetched data.');
+                    }
+                }
+            })
+            .catch((error) => {
+                console.error('Error fetching data:', error);
+                alert(`Failed to fetch data: ${error.message}`);
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    };    
 
     const createDynamicColumns = () => {
         const dynamicColumns = [{

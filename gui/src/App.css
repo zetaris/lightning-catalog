@@ -1,7 +1,7 @@
 .header {
   display: inline-block;
   width: 100%;
-  height: 8vh;
+  height: 6vh;
   border-bottom: 1px solid #ccc;
 }
 
@@ -9,7 +9,7 @@
   display: inline-block;
   overflow-y: auto; /* Enable vertical scrolling */
   width: 15%;
-  height: 92vh;
+  height: 94vh;
   flex-shrink: 0;
 }
 
@@ -23,7 +23,7 @@
 .content {
   display: inline-block;
   width: 85%;
-  height: 92vh;
+  height: 94vh;
   overflow-x: auto;
 }
 

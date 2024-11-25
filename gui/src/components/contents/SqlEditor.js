@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import Resizable from 'react-resizable-layout';
 import { fetchApi, fetchApiForSaveFiles } from '../../utils/common';
 import { MaterialReactTable } from 'material-react-table';
@@ -223,9 +223,25 @@ function SqlEditor({ toggleRefreshNav }) {
     
         if (!queryResult) return <div>No result available</div>;
         if (queryResult.error) return <div>Error: {queryResult.error}</div>;
+
+        console.log(queryResult)
     
         return <RenderTableForApi data={queryResult} />;
     };
+
+    const memoizedRenderTable = useMemo(() => {
+        if (loading) return <div>Fetching data...</div>;
+    
+        if (showHistory) {
+            return renderHistory();
+        }
+    
+        if (!queryResult) return <div>No result available</div>;
+        if (queryResult.error) return <div>Error: {queryResult.error}</div>;
+    
+        return <RenderTableForApi data={queryResult} />;
+    }, [loading, showHistory, queryResult]);
+    
 
     const renderQueryBook = () => {
         const queryBookData = queryBookContents;
@@ -410,7 +426,8 @@ function SqlEditor({ toggleRefreshNav }) {
                             />
                         </div>
                         <div className='result-box' style={{ '--position-offset': `${position - offset}px`, display:'block' }}>
-                            {loading ? <div>Fetching data...</div> : renderTable()}
+                            {/* {loading ? <div>Fetching data...</div> : renderTable()} */}
+                            {memoizedRenderTable}
                         </div>
 
                         {showQueryBook && renderQueryBook()}

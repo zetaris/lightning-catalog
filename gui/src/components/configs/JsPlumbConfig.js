@@ -53,8 +53,8 @@ export const initializeJsPlumb = (container, tables = [], openModal, handlePreVi
 
     jsPlumbInstance.bind('connectionDetached', (info) => {
       const { sourceId, targetId } = info.connection;
-      const targetColumnParent = document.getElementById(targetId).parentElement;
-      removeForeignKeyIconFromColumn(targetColumnParent);
+      const sourceColumnParent = document.getElementById(sourceId).parentElement;
+      removeForeignKeyIconFromColumn(sourceColumnParent, sourceId, targetId);
       removeConnectionFromLocalStorage(sourceId, targetId);
 
       // console.log('Connection detached:', info);
@@ -152,43 +152,66 @@ export function getColumnConstraint(fullPath) {
   return constraints.length > 0 ? constraints : null; // Return all constraints related to the column
 };
 
-const removeForeignKeyIconFromColumn = (columnElement) => {
+const removeForeignKeyIconFromColumn = (columnElement, sourceId, targetId) => {
   if (columnElement) {
     const fkIconContainer = columnElement.querySelector('.icon-container');
-    const fkOnly = columnElement.querySelector('.fk-only');
+    const tooltipContainer = columnElement.querySelector('.tooltip-container');
+    const tooltipTextElement = tooltipContainer?.querySelector('.tooltip-text');
 
-    if (fkOnly) {
-      if (fkIconContainer && fkIconContainer._root) {
-        // Unmount the React root to remove the icon properly
-        fkIconContainer._root.unmount();
-        delete fkIconContainer._root; // Remove the reference to the root so it can be recreated later
+    const targetName = document.getElementById(targetId).innerText.trim();
+
+    const fkToRemove = `foreignKey: (${targetName})`.trim().replace(/\s+/g, ' ').toLowerCase();
+
+    if (tooltipTextElement) {
+      const currentTooltipText = tooltipTextElement.textContent.trim().replace(/\s+/g, ' ').toLowerCase();
+      const updatedTooltipText = currentTooltipText
+        .split(', ')
+        .filter((fk) =>
+          fk !== fkToRemove)
+        .join(', ');
+
+      if (updatedTooltipText) {
+        tooltipTextElement.innerText = updatedTooltipText;
+      } else {
+        tooltipTextElement.remove();
       }
     }
 
-    // Now, check for other constraint icons and generate tooltip text accordingly
+    const fkOnly = columnElement.querySelector('.fk-only');
+    if (fkOnly) {
+      const remainingTooltipText = tooltipTextElement?.textContent.trim() || '';
+      const hasOtherForeignKeys = remainingTooltipText.includes('foreignKey');
+
+      if (!tooltipTextElement || (!remainingTooltipText && !hasOtherForeignKeys)) {
+        if (fkIconContainer && fkIconContainer._root) {
+          fkIconContainer._root.unmount();
+          delete fkIconContainer._root;
+        }
+      }
+    }
+
+
     let tooltipText = '';
 
     // Check for primary key
-    if (fkIconContainer.classList.contains('pk-icon')) {
+    if (fkIconContainer && fkIconContainer.classList.contains('pk-icon')) {
       tooltipText += 'primary key';
     }
 
     // Check for unique constraint
-    if (fkIconContainer.classList.contains('unique-icon')) {
+    if (fkIconContainer && fkIconContainer.classList.contains('unique-icon')) {
       if (tooltipText) tooltipText += ', '; // Add a comma if there is already text
       tooltipText += 'unique';
     }
 
     // Check for index constraint
-    if (fkIconContainer.classList.contains('index-icon')) {
+    if (fkIconContainer && fkIconContainer.classList.contains('index-icon')) {
       if (tooltipText) tooltipText += ', '; // Add a comma if there is already text
       tooltipText += 'index';
     }
 
     // If tooltipText is not empty, update the tooltip
     if (tooltipText) {
-      const tooltipContainer = columnElement.querySelector('.tooltip-container');
-      const tooltipTextElement = tooltipContainer?.querySelector('.tooltip-text');
       if (tooltipTextElement) {
         tooltipTextElement.innerText = tooltipText; // Update tooltip with the new text
       } else if (tooltipContainer) {

@@ -290,15 +290,69 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) =
     }
   };
 
+  const checkActivate = async (node) => {
+    if (!node.children || node.children.length === 0) return;
+  
+    const fullPathParts = node.fullPath.split('.');
+    const namespace = fullPathParts.slice(0, -1).join('.');
+    const uslName = fullPathParts[fullPathParts.length - 1];
+    const query = `LOAD USL ${uslName} NAMESPACE ${namespace}`;
+  
+    try {
+      const result = await fetchApi(query);
+  
+      if (result && Array.isArray(result)) {
+        const parsedResult = result
+          .map((item) => {
+            try {
+              if (item?.json) {
+                const topLevelJson = JSON.parse(item.json);
+  
+                const tables = topLevelJson.tables.map((table) => ({
+                  name: table.name,
+                  activateQuery: table.activateQuery || null,
+                }));
+  
+                return { tables };
+              }
+              return null;
+            } catch (error) {
+              console.error(`Error parsing item.json:`, error, item);
+              return null;
+            }
+          })
+          .filter(Boolean);
+  
+        node.children = node.children.map((child) => {
+          const matchingTable = parsedResult
+            .flatMap((res) => res.tables)
+            .find((table) => table.name === child.name);
+  
+          return {
+            ...child,
+            activate: !!matchingTable?.activateQuery,
+          };
+        });
+        console.log(node)
+      }
+    } catch (error) {
+      console.error(`Error checking activation for ${node.name}:`, error);
+    }
+  };  
+
   const renderTree = (nodes, parentPath = '', isSemanticLayer = false) => {
     return nodes.map((node, index) => {
       const currentPath = node.fullPath || (parentPath ? `${parentPath}.${node.name}` : node.name);
       const uniqueId = `${currentPath}-${index + 1}`;
       const Icon = node.type === 'table' ? TableIcon : FolderIcon;
+      let activateChildren;
       node.uniqueId = uniqueId;
 
-      // Check if this node has children with type 'table' to show ERD button
       const hasTableChild = Array.isArray(node.children) ? node.children.some((child) => child.type === 'table') || false : null;
+
+      if (hasTableChild && node.children) {
+        checkActivate(node);
+      }
 
       return (
         <TreeItem

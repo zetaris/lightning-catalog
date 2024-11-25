@@ -30,6 +30,90 @@ const executeQueryApi = async (query) => {
   }
 };
 
+export const qdqApi = async (name, table, validRecord, limit) => {
+  try {
+    const url = new URL('http://localhost:8080/api/qdq');
+    url.searchParams.append('name', name);
+    url.searchParams.append('table', table);
+    url.searchParams.append('validRecord', validRecord);
+    if (limit !== undefined) {
+      url.searchParams.append('limit', limit);
+    }
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      mode: 'cors',
+    });
+
+    if (response.ok) {
+      const rawText = await response.text();
+
+      const fixedJson = rawText
+        .trim()
+        .replace(/,\]$/, ']');
+
+      const result = JSON.parse(fixedJson).map((item) => JSON.parse(item));
+
+      return result;
+    } else {
+      const error = await response.text();
+      console.error('API Error:', error);
+      return {
+        error: true,
+        message: `API error: ${response.status} ${response.statusText}`,
+      };
+    }
+  } catch (error) {
+    console.error('Request failed:', error);
+    return {
+      error: true,
+      message: error.message || 'Request failed',
+    };
+  }
+};
+
+export const edqApi = async (name, table, validRecord) => {
+  try {
+    const url = new URL('http://localhost:8080/api/edq');
+    url.searchParams.append('name', name);
+    url.searchParams.append('table', table);
+    url.searchParams.append('validRecord', validRecord);
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      mode: 'cors',
+    });
+
+    if (response.ok) {
+      const rawText = await response.text();
+
+      const fixedJson = `[${rawText.trim()}]`;
+
+      const parsedResult = JSON.parse(fixedJson).map((item) => {
+        if (typeof item === "string") {
+          return JSON.parse(item);
+        }
+        return item;
+      });
+
+      return parsedResult;
+    } else {
+      const errorText = await response.text();
+      console.error('API Error:', errorText);
+      return {
+        error: true,
+        message: `API error: ${response.status} ${response.statusText}`,
+      };
+    }
+  } catch (error) {
+    console.error('Request failed:', error);
+    return {
+      error: true,
+      message: error.message || 'Request failed',
+    };
+  }
+};
+
 // Modified functions to use executeQueryApi
 
 // Fetch API with a query parameter
