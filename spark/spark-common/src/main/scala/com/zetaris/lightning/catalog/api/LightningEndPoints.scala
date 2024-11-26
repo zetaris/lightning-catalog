@@ -50,11 +50,12 @@ class LightningResource {
 
       new StreamingOutput() {
         override def write(output: OutputStream): Unit = {
-          val itr = df.toJSON.toLocalIterator()
+          //val itr = df.toJSON.toLocalIterator()
+          val itr = df.toLocalIterator()
           val writer = new BufferedWriter(new OutputStreamWriter(output))
           writer.write("[")
           while(itr.hasNext) {
-            val json = itr.next()
+            val json = itr.next().json
             val jsonStr = mapper.writeValueAsString(json)
             if (itr.hasNext) {
               writer.write(s"$jsonStr,")
@@ -93,17 +94,17 @@ class LightningResource {
               @QueryParam("limit") limit: Int): Response = {
     Try {
       LOGGER.info(s"qdq : $name on $table")
-      val dq = ShowDataQualityResult(name, table.split("\\."), validRecord)
+      val dq = ShowDataQualityResult(name, table.split("\\."), validRecord, limit)
       val df = dq.runQuery(spark())
       var recCount = 0
       new StreamingOutput() {
         override def write(output: OutputStream): Unit = {
-          val itr = df.toJSON.toLocalIterator()
+          val itr = df.toLocalIterator()
           val writer = new BufferedWriter(new OutputStreamWriter(output))
           var keepGoing = true
           writer.write("[")
           while(itr.hasNext && keepGoing) {
-            val json = itr.next()
+            val json = itr.next().json
             recCount += 1
             val jsonStr = mapper.writeValueAsString(json)
             if (itr.hasNext) {
@@ -151,10 +152,10 @@ class LightningResource {
       var recCount = 0
       new StreamingOutput() {
         override def write(output: OutputStream): Unit = {
-          val itr = df.toJSON.toLocalIterator()
+          val itr = df.toLocalIterator()
           val writer = new BufferedWriter(new OutputStreamWriter(output))
           while(itr.hasNext) {
-            val json = itr.next()
+            val json = itr.next().json
             recCount += 1
             val jsonStr = mapper.writeValueAsString(json)
             if (itr.hasNext) {
