@@ -10,7 +10,7 @@ import { queryBookContents, queryBookColumns } from '../configs/editorConfig';
 import { useDispatch, useSelector } from 'react-redux';
 import { setQueryResult, addQueryToHistory } from '../../store/querySlice';
 
-function SqlEditor({ toggleRefreshNav }) {
+function SqlEditor({ toggleRefreshNav, previewTableName }) {
     const dispatch = useDispatch();
     const queryResult = useSelector((state) => state.query.queryResult);
     const queryHistory = useSelector((state) => state.query.queryHistory);
@@ -21,13 +21,30 @@ function SqlEditor({ toggleRefreshNav }) {
     const [loading, setLoading] = useState(false);
     const [showQueryBook, setShowQueryBook] = useState(false);
     const [popupMessage, setPopupMessage] = useState(null);
-    const offset = 115;
+    const offset = 80;
     const resizingRef = useRef(false);
     const [editorInstances, setEditorInstances] = useState({});
-    const [pagination, setPagination] = useState({
-        pageIndex: 0,
-        pageSize: 30,
-    });
+
+    useEffect(() => {
+        const runPreviewQuery = async () => {
+            if (!previewTableName || !previewTableName.startsWith('lightning.datasource')) return;
+    
+            setLoading(true);
+            const query = `SELECT * FROM ${previewTableName} LIMIT 100`;
+            const result = await fetchApi(query);
+    
+            setLoading(false);
+    
+            if (result?.error) {
+                dispatch(setQueryResult({ error: result.message }));
+            } else {
+                const parsedResult = result.map((item) => JSON.parse(item));
+                dispatch(setQueryResult(parsedResult));
+            }
+        };
+    
+        runPreviewQuery();
+    }, [previewTableName, dispatch]);     
 
     useEffect(() => {
         const storedEditors = localStorage.getItem('editors');
@@ -140,30 +157,31 @@ function SqlEditor({ toggleRefreshNav }) {
         }
     };
 
-    // const RenderTableForApi = ({ data }) => {
-    //     const normalizedData = data.map((row) => ({
-    //         ...row,
-    //         allKeys: [...new Set(Object.keys(row))]
-    //     }));
-    //     const columns = Object.keys(normalizedData[0]).map((key) => ({
-    //         accessorKey: key,
-    //         header: key.charAt(0).toUpperCase() + key.slice(1),
-    //     }));
-    //     return <MaterialReactTable columns={columns} data={data} enableSorting enableColumnFilters initialState={{ density: 'compact' }} />;
-    // };
+    useEffect(() => {
+        const handleKeyPress = (event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+                event.preventDefault();
+                runQuery();
+            }
+        };
+    
+        document.addEventListener('keydown', handleKeyPress);
+    
+        return () => {
+            document.removeEventListener('keydown', handleKeyPress);
+        };
+    }, [runQuery]);
 
     const normalizeData = (data) => {
-        // Find all possible keys from the entire data set
         const allKeys = new Set();
         data.forEach((row) => {
             Object.keys(row).forEach((key) => allKeys.add(key));
         });
 
-        // Normalize each row to ensure all keys are present with default value of null
         const normalizedData = data.map((row) => {
             const normalizedRow = {};
             allKeys.forEach((key) => {
-                normalizedRow[key] = row[key] !== undefined ? row[key] : null; // Set missing keys to null
+                normalizedRow[key] = row[key] !== undefined ? row[key] : null;
             });
             return normalizedRow;
         });
@@ -176,24 +194,20 @@ function SqlEditor({ toggleRefreshNav }) {
             return <div>No data available</div>;
         }
     
-        // Normalize data to ensure all rows have the same keys
         const normalizedData = normalizeData(data);
     
-        // Extract table headers dynamically from the first object in the data array
         const columns = Object.keys(normalizedData[0]).map((key) => ({
             accessorKey: key,
             header: key.charAt(0).toUpperCase() + key.slice(1),
             Cell: ({ cell }) => {
                 const value = cell.getValue();
                 if (!isNaN(value) && value !== null && value !== '') {
-                    // Format number with commas and align right
                     return (
                         <div style={{ textAlign: 'right' }}>
                             {Number(value).toLocaleString()}
                         </div>
                     );
                 }
-                // Default rendering for non-numeric values
                 return <div style={{ textAlign: 'left' }}>{value}</div>;
             },
         }));
@@ -204,8 +218,8 @@ function SqlEditor({ toggleRefreshNav }) {
                 data={normalizedData}
                 enableSorting={true}
                 enableColumnFilters={true}
-                onPaginationChange={setPagination}
-                state={{ pagination }}
+                // onPaginationChange={setPagination}
+                // state={{ pagination }}
                 initialState={{
                     density: 'compact',
                     pagination: { pageSize: 30, pageIndex: 0 },
@@ -283,16 +297,16 @@ function SqlEditor({ toggleRefreshNav }) {
         );
     };
 
-    const renderHistory = () => {
+    function renderHistory() {
         if (queryHistory.length === 0) {
             return <div>No query history available.</div>;
         }
-
+    
         const columns = [
             { accessorKey: 'timestamp', header: 'Timestamp' },
             { accessorKey: 'query', header: 'Query' },
         ];
-
+    
         const handleRowClick = (query) => {
             setEditors((prevEditors) =>
                 prevEditors.map((editor) =>
@@ -302,7 +316,7 @@ function SqlEditor({ toggleRefreshNav }) {
                 )
             );
         };
-
+    
         return (
             <MaterialReactTable
                 columns={columns}
@@ -316,7 +330,7 @@ function SqlEditor({ toggleRefreshNav }) {
                 })}
             />
         );
-    };
+    }    
 
     const saveSQL = async () => {
         const activeEditorContent = editors.find(editor => editor.id === activeEditor)?.content;
@@ -343,7 +357,7 @@ function SqlEditor({ toggleRefreshNav }) {
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
             <Resizable
                 axis="y"
-                initial={715}
+                initial={700}
                 min={400}
                 max={900}
                 onResizeStart={() => {
