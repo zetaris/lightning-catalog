@@ -26,8 +26,8 @@ import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
 import com.zetaris.lightning.model.{DataQualityDuplicatedException, DataQualityNotFoundException, LightningModelFactory, TableNotFoundException}
 import org.apache.spark.sql.catalyst.QueryPlanningTracker
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
-import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Not}
-import org.apache.spark.sql.catalyst.plans.logical.Filter
+import org.apache.spark.sql.catalyst.expressions.{AttributeReference, Literal, Not}
+import org.apache.spark.sql.catalyst.plans.logical.{Filter, Limit}
 import org.apache.spark.sql.types.{BooleanType, LongType, StringType}
 import org.apache.spark.sql.{DataFrame, Row, SparkSQLBridge, SparkSession}
 
@@ -78,14 +78,22 @@ object DataQualitySpec extends LightningSource {
    * @param sparkSession
    * @param table
    * @param expression
+   * @param limit
    * @return data frame of valid record and invalid record
    */
-  def getDQRecord(sparkSession: SparkSession, table: Seq[String], expression: String): (DataFrame, DataFrame) = {
+  def getDQRecord(sparkSession: SparkSession,
+                  table: Seq[String],
+                  expression: String,
+                  limit: Int): (DataFrame, DataFrame) = {
     val tracker = new QueryPlanningTracker
 
     val unresolved = UnresolvedRelation(table)
     val exp = tryParse(expression, sparkSession.sessionState.sqlParser.parseExpression)
-    val goodFilter = Filter(exp, unresolved)
+    val goodFilter = if (limit > 0 ) {
+      Limit(Literal(limit), Filter(exp, unresolved))
+    } else {
+      Filter(exp, unresolved)
+    }
 
     val goodRecord = SparkSQLBridge.ofRows(sparkSession,
       sparkSession.sessionState.analyzer.execute(goodFilter), tracker)
@@ -115,16 +123,9 @@ object DataQualitySpec extends LightningSource {
 
   def getPrimaryKeyConstraintsRecords(sparkSession: SparkSession,
                                       table: Seq[String],
-                                      column: Seq[String]): (DataFrame, DataFrame) = {
-    val sqlGoodRecord = if (column.size == 1) {
-      s"""
-         SELECT * FROM ${toFqn(table)}
-         WHERE ${column(0)} IN (
-           SELECT ${column(0)} FROM ${toFqn(table)}
-           GROUP BY ${column(0)} HAVING COUNT(${column(0)}) == 1
-         )
-         """
-    } else {
+                                      column: Seq[String],
+                                      limit: Int): (DataFrame, DataFrame) = {
+    var sqlGoodRecord =
       s"""
          SELECT * FROM ${toFqn(table)}
          WHERE ARRAY(${column.mkString(",")}) IN (
@@ -132,17 +133,8 @@ object DataQualitySpec extends LightningSource {
            GROUP BY ${column.mkString(",")} HAVING COUNT(${column.mkString(",")}) == 1
          )
          """
-    }
 
-    val sqlBadRecord = if (column.size == 1) {
-      s"""
-         SELECT * FROM ${toFqn(table)}
-         WHERE ${column(0)} NOT IN (
-           SELECT ${column(0)} FROM ${toFqn(table)}
-           GROUP BY ${column(0)} HAVING COUNT(${column(0)}) == 1
-         )
-         """
-    } else {
+    var sqlBadRecord =
       s"""
          SELECT * FROM ${toFqn(table)}
          WHERE ARRAY(${column.mkString(",")}) NOT IN (
@@ -150,6 +142,10 @@ object DataQualitySpec extends LightningSource {
            GROUP BY ${column.mkString(",")} HAVING COUNT(${column.mkString(",")}) == 1
          )
          """
+
+    if (limit > 0) {
+      sqlGoodRecord = sqlGoodRecord + s" LIMIT $limit"
+      sqlBadRecord = sqlBadRecord + s" LIMIT $limit"
     }
 
     (sparkSession.sql(sqlGoodRecord), sparkSession.sql(sqlBadRecord))
@@ -162,23 +158,13 @@ object DataQualitySpec extends LightningSource {
                                refColumn: Seq[String]): (Long, Long) = {
     val totRecord = getTotalRecordCount(sparkSession, table)
 
-    val goodRecord = if (column.size == 1) {
-      sparkSession.sql(
-        s"""
-           SELECT COUNT(*) FROM ${toFqn(table)}
-             WHERE ${column(0)} IN (
-               SELECT ${refColumn(0)} FROM ${toFqn(refTable)}
-             )
-           """.stripMargin).collect()(0).getLong(0)
-    } else {
-      sparkSession.sql(
+    val goodRecord = sparkSession.sql(
         s"""
            SELECT COUNT(*) FROM ${toFqn(table)}
              WHERE ARRAY(${column.mkString(",")}) IN (
-               SELECT ARRAY${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
+               SELECT ARRAY(${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
              )
            """.stripMargin).collect()(0).getLong(0)
-    }
 
     (totRecord, goodRecord)
   }
@@ -187,37 +173,25 @@ object DataQualitySpec extends LightningSource {
                                       table: Seq[String],
                                       column: Seq[String],
                                       refTable: Seq[String],
-                                      refColumn: Seq[String]): (DataFrame, DataFrame) = {
-    val sqlGoodRecord = if (column.size == 1) {
-      s"""
-         SELECT * FROM ${toFqn(table)}
-           WHERE ${column(0)} IN (
-             SELECT ${refColumn(0)} FROM ${toFqn(refTable)}
-           )
-         """.stripMargin
-    } else {
-      s"""
+                                      refColumn: Seq[String],
+                                      limit: Int): (DataFrame, DataFrame) = {
+    var sqlGoodRecord = s"""
          SELECT * FROM ${toFqn(table)}
            WHERE ARRAY(${column.mkString(",")}) IN (
-             SELECT ARRAY${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
+             SELECT ARRAY(${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
            )
          """.stripMargin
-    }
 
-    val sqlBadRecord = if (column.size == 1) {
-      s"""
+    var sqlBadRecord = s"""
          SELECT * FROM ${toFqn(table)}
            WHERE ARRAY(${column.mkString(",")}) NOT IN (
              SELECT ARRAY(${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
            )
          """.stripMargin
-    } else {
-      s"""
-         SELECT * FROM ${toFqn(table)}
-           WHERE ARRAY(${column.mkString(",")}) NOT IN (
-             SELECT ARRAY${refColumn.mkString(",")}) FROM ${toFqn(refTable)}
-           )
-         """.stripMargin
+
+    if (limit > 0) {
+      sqlGoodRecord = sqlGoodRecord + s" LIMIT $limit"
+      sqlBadRecord = sqlBadRecord + s" LIMIT $limit"
     }
 
     (sparkSession.sql(sqlGoodRecord), sparkSession.sql(sqlBadRecord))
@@ -520,7 +494,8 @@ case class RemovedDataQualitySpec(name: String, table: Seq[String]) extends Ligh
   }
 }
 
-case class ShowDataQualityResult(name: String, table: Seq[String], validRecord: Boolean) extends LightningCommandBase {
+case class ShowDataQualityResult(name: String, table: Seq[String], validRecord: Boolean, limit: Int = -1)
+  extends LightningCommandBase {
   override val output: Seq[AttributeReference] = Seq(
     AttributeReference("records", StringType, false)()
   )
@@ -566,7 +541,7 @@ case class ShowDataQualityResult(name: String, table: Seq[String], validRecord: 
         cs.foreignKey.isDefined && cs.name.equalsIgnoreCase(constraintOrColumnName)
       ).map { col =>
         val fk = col.foreignKey.get
-        (fk.columns, fk.refTable, fk.refColumns)
+        (Seq(name), fk.refTable, fk.refColumns)
       }
     }
   }
@@ -585,7 +560,7 @@ case class ShowDataQualityResult(name: String, table: Seq[String], validRecord: 
     val dq = createTableSpec.dqAnnotations.find(_.name.equalsIgnoreCase(name))
     if (dq.isDefined) {
       val record = DataQualitySpec.getDQRecord(sparkSession,
-        createTableSpec.namespace :+ createTableSpec.name, dq.get.expression)
+        createTableSpec.namespace :+ createTableSpec.name, dq.get.expression, limit)
       if (validRecord) {
         record._1
       } else {
@@ -593,7 +568,7 @@ case class ShowDataQualityResult(name: String, table: Seq[String], validRecord: 
       }
     } else {
       findPkConstraints(createTableSpec, name).map { pkCols =>
-        val record = DataQualitySpec.getPrimaryKeyConstraintsRecords(sparkSession, table, pkCols)
+        val record = DataQualitySpec.getPrimaryKeyConstraintsRecords(sparkSession, table, pkCols, limit)
         if (validRecord) {
           record._1
         } else {
@@ -601,7 +576,7 @@ case class ShowDataQualityResult(name: String, table: Seq[String], validRecord: 
         }
       }.getOrElse {
         findUniqueConstraints(createTableSpec, name).map { unCols =>
-          val record = DataQualitySpec.getPrimaryKeyConstraintsRecords(sparkSession, table, unCols)
+          val record = DataQualitySpec.getPrimaryKeyConstraintsRecords(sparkSession, table, unCols, limit)
           if (validRecord) {
             record._1
           } else {
@@ -609,7 +584,7 @@ case class ShowDataQualityResult(name: String, table: Seq[String], validRecord: 
           }
         }.getOrElse {
           findFkConstraints(createTableSpec, name).map { fk =>
-            val record = DataQualitySpec.getForeignKeyConstraintsRecords(sparkSession, table, fk._1, fk._2, fk._3)
+            val record = DataQualitySpec.getForeignKeyConstraintsRecords(sparkSession, table, fk._1, fk._2, fk._3, limit)
             if (validRecord) {
               record._1
             } else {
