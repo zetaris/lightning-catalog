@@ -75,12 +75,122 @@ const saveConnectionToLocalStorage = (sourceId, targetId, relationship, relation
   const connections = JSON.parse(localStorage.getItem('connections')) || [];
   connections.push({ sourceId, targetId, relationship, relationship_type });
   localStorage.setItem('connections', JSON.stringify(connections));
+
+  const savedTables = JSON.parse(localStorage.getItem('savedTables')) || [];
+  const sourceTableId = sourceId.split('-col-')[0].replace(/^table-/, '');
+  const targetTableId = targetId.split('-col-')[0].replace(/^table-/, '');
+
+  const sourceTable = savedTables.find((table) => table.uuid === sourceTableId);
+  const targetTable = savedTables.find((table) => table.uuid === targetTableId);
+
+  if (sourceTable && targetTable) {
+    const sourceColumnIndex = sourceId.split('-col-')[1].split('-')[0];
+    const targetColumnIndex = targetId.split('-col-')[1].split('-')[0];
+    const sourceColumnName = sourceTable.desc[sourceColumnIndex - 1].col_name;
+    const targetColumnName = targetTable.desc[targetColumnIndex - 1].col_name;;
+
+    const sourceColumn = sourceTable.desc.find((col) => col.col_name === sourceColumnName);
+    if (sourceColumn) {
+      if (!sourceColumn.foreignKey) {
+        sourceColumn.foreignKey = { columns: [], refTable: [], refColumns: [] };
+      }
+
+      sourceColumn.foreignKey.refTable.push(targetTable.name);
+      sourceColumn.foreignKey.refColumns.push(targetColumnName);
+    }
+
+    const targetColumn = targetTable.desc.find((col) => col.col_name === targetColumnName);
+    if (targetColumn) {
+      if (!targetColumn.references) {
+        targetColumn.references = [];
+      }
+
+      targetColumn.references.push({
+        fromTable: sourceTable.name,
+        fromColumn: sourceColumnName,
+      });
+    }
+
+    localStorage.setItem('savedTables', JSON.stringify(savedTables));
+  }
 };
+
+// const removeConnectionFromLocalStorage = (sourceId, targetId) => {
+//   let connections = JSON.parse(localStorage.getItem('connections')) || [];
+//   connections = connections.filter(conn => !(conn.sourceId === sourceId && conn.targetId === targetId));
+//   localStorage.setItem('connections', JSON.stringify(connections));
+// };
 
 const removeConnectionFromLocalStorage = (sourceId, targetId) => {
   let connections = JSON.parse(localStorage.getItem('connections')) || [];
-  connections = connections.filter(conn => !(conn.sourceId === sourceId && conn.targetId === targetId));
+  connections = connections.filter((conn) => !(conn.sourceId === sourceId && conn.targetId === targetId));
   localStorage.setItem('connections', JSON.stringify(connections));
+
+  const savedTables = JSON.parse(localStorage.getItem('savedTables')) || [];
+  const sourceTableId = sourceId.split('-col-')[0].replace(/^table-/, '');
+  const targetTableId = targetId.split('-col-')[0].replace(/^table-/, '');
+
+  const sourceTable = savedTables.find((table) => table.uuid === sourceTableId);
+  const targetTable = savedTables.find((table) => table.uuid === targetTableId);
+
+  if (sourceTable && targetTable) {
+    const sourceColumnIndex = sourceId.split('-col-')[1].split('-')[0];
+    const targetColumnIndex = targetId.split('-col-')[1].split('-')[0];
+    const sourceColumnName = sourceTable.desc[sourceColumnIndex - 1].col_name;
+    const targetColumnName = targetTable.desc[targetColumnIndex - 1].col_name;
+
+    const sourceColumn = sourceTable.desc.find((col) => col.col_name === sourceColumnName);
+    if (sourceColumn && sourceColumn.foreignKey) {
+      sourceColumn.foreignKey.refTable = sourceColumn.foreignKey.refTable.filter(
+        (table) => table !== targetTable.name
+      );
+      sourceColumn.foreignKey.refColumns = sourceColumn.foreignKey.refColumns.filter(
+        (column) => column !== targetColumnName
+      );
+
+      if (
+        sourceColumn.foreignKey.refTable.length === 0 &&
+        sourceColumn.foreignKey.refColumns.length === 0
+      ) {
+        delete sourceColumn.foreignKey;
+      }
+    }
+
+    const targetColumn = targetTable.desc.find((col) => col.col_name === targetColumnName);
+    if (targetColumn && targetColumn.references) {
+      targetColumn.references = targetColumn.references.filter(
+        (ref) => !(ref.fromTable === sourceTable.name && ref.fromColumn === sourceColumnName)
+      );
+
+      if (targetColumn.references.length === 0) {
+        delete targetColumn.references;
+      }
+    }
+
+    const sourceColumnElement = document.getElementById(`${sourceId}`);
+    if (sourceColumnElement) {
+      const iconContainer = sourceColumnElement.querySelector('.icon-container');
+      if (iconContainer) {
+        const tooltipElement = iconContainer.querySelector('.tooltip-text');
+        if (tooltipElement) {
+          const currentTooltipData = tooltipElement.innerText.split(', ').filter(Boolean);
+
+          const updatedTooltipData = currentTooltipData.filter(
+            (tooltip) => !tooltip.includes(`foreignKey(${targetColumnName})`)
+          );
+
+          if (updatedTooltipData.length > 0) {
+            tooltipElement.innerText = updatedTooltipData.join(', ');
+          } else {
+            tooltipElement.remove();
+            iconContainer.remove();
+          }
+        }
+      }
+    }
+
+    localStorage.setItem('savedTables', JSON.stringify(savedTables));
+  }
 };
 
 export function getRowInfo(sourceId, targetId) {
@@ -104,53 +214,67 @@ export function getColumnConstraint(fullPath) {
   const columnName = fullPath.split('.').pop();
   const savedTables = JSON.parse(localStorage.getItem('savedTables')) || [];
 
-  const table = savedTables.find(table => table.name === tablePath);
+  const table = savedTables.find((table) => table.name === tablePath);
 
   if (!table) {
     console.error(`Table not found for path: ${tablePath}`);
     return null;
   }
 
-  // Find the column within the table (use columnSpecs instead of columns)
-  const column = table.desc.find(col => col.col_name === columnName);
+  const column = table.desc.find((col) => col.col_name === columnName);
 
   if (!column) {
     console.error(`Column not found for name: ${columnName}`);
     return null;
   }
 
-  // Check for constraints inside the column itself (like primaryKey, notNull, etc.)
   const constraints = [];
 
-  // Primary Key constraint
+  // Check for primaryKey constraint at column level
   if (column.primaryKey) {
     constraints.push({
       type: 'primaryKey',
-      details: column.primaryKey
+      details: column.primaryKey,
     });
   }
 
-  // Not Null constraint
+  // Check for notNull constraint at column level
   if (column.notNull) {
     constraints.push({
       type: 'notNull',
-      details: column.notNull
+      details: column.notNull,
     });
   }
 
-  // Foreign Key constraint (from table's foreignKeys array)
+  // Check for foreignKey at table level (legacy handling)
   if (table.foreignKeys && table.foreignKeys.length > 0) {
-    const foreignKey = table.foreignKeys.find(fk => fk.columns.includes(columnName));
+    const foreignKey = table.foreignKeys.find((fk) => fk.columns.includes(columnName));
     if (foreignKey) {
       constraints.push({
         type: 'foreignKey',
-        details: foreignKey
+        details: foreignKey,
       });
     }
   }
 
-  return constraints.length > 0 ? constraints : null; // Return all constraints related to the column
-};
+  // Check for foreignKey at column level
+  if (column.foreignKey) {
+    const { refTable, refColumns } = column.foreignKey;
+
+    refColumns.forEach((targetColumnName, index) => {
+      const targetTable = refTable[index] || refTable[0]; // Handle multiple references
+      constraints.push({
+        type: `foreignKey(${targetColumnName})`, // Add fk(targetColumnName)
+        details: {
+          refTable: targetTable,
+          refColumns: targetColumnName,
+        },
+      });
+    });
+  }
+
+  return constraints.length > 0 ? constraints : null; // Return all applicable constraints
+}
 
 const removeForeignKeyIconFromColumn = (columnElement, sourceId, targetId) => {
   if (columnElement) {
@@ -160,7 +284,7 @@ const removeForeignKeyIconFromColumn = (columnElement, sourceId, targetId) => {
 
     const targetName = document.getElementById(targetId).innerText.trim();
 
-    const fkToRemove = `foreignKey: (${targetName})`.trim().replace(/\s+/g, ' ').toLowerCase();
+    const fkToRemove = `foreignKey(${targetName})`.trim().replace(/\s+/g, ' ').toLowerCase();
 
     if (tooltipTextElement) {
       const currentTooltipText = tooltipTextElement.textContent.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -241,18 +365,35 @@ const addForeignKeyToConnection = (jsPlumbInstance, sourceId, targetId, relation
     }).join(', ');
   }
 
-  const newTooltipData = tooltipData
-    ? `${tooltipData}, foreignKey: (${targetColumnName})`
-    : `foreignKey: (${targetColumnName})`;
+  const newForeignKeyText = `foreignKey(${targetColumnName})`;
+
+  // Get currently active connections
+  const activeConnections = jsPlumbInstance.getConnections({ source: sourceId });
+  const activeTargets = activeConnections.map((conn) => conn.targetId);
+
+  // Only add new tooltip if the connection is still active
+  if (!activeTargets.includes(targetId)) {
+    console.warn(`Connection between ${sourceId} and ${targetId} is no longer active.`);
+    return;
+  }
+
+  // Merge tooltip data and remove duplicates
+  const newTooltipDataArray = tooltipData
+    ? [...new Set([...tooltipData.split(', '), newForeignKeyText])]
+    : [newForeignKeyText];
+
+  const newTooltipData = newTooltipDataArray.join(', ');
 
   if (relationship === 'fk') {
     const existingTooltipData = sourceColumn.getAttribute('data-tooltip') || '';
 
-    const combinedTooltipData = existingTooltipData.includes(newTooltipData)
-      ? existingTooltipData
-      : existingTooltipData
-        ? `${existingTooltipData}, ${newTooltipData}`
-        : newTooltipData;
+    // Split existing tooltip data into an array and remove duplicates
+    const combinedTooltipArray = [
+      ...new Set([...existingTooltipData.split(', '), ...newTooltipData.split(', ')].filter(Boolean)),
+    ];
+
+    // Rejoin the array into a string
+    const combinedTooltipData = combinedTooltipArray.join(', ');
 
     sourceColumn.setAttribute('data-tooltip', combinedTooltipData);
 
@@ -291,9 +432,28 @@ export function addForeignKeyIconToColumn(columnElement, combinedTooltipData, to
         } else {
           const tooltipElement = iconContainer.querySelector('.tooltip-text');
           if (tooltipElement) {
-            console.log(tooltipElement)
-            console.log(combinedTooltipData)
+            // Update the existing tooltip text
             tooltipElement.innerText = combinedTooltipData;
+          } else {
+            // Tooltip text doesn't exist, create and append it to the existing container
+            const tooltipText = document.createElement('span');
+            tooltipText.className = 'tooltip-text';
+            tooltipText.innerText = combinedTooltipData;
+
+            // Append the new tooltip text to the existing iconContainer
+            const tooltipContainer = iconContainer.querySelector('.tooltip-container');
+            if (tooltipContainer) {
+              tooltipContainer.appendChild(tooltipText);
+            } else {
+              // Fallback: Render the full structure if tooltip-container is missing
+              iconContainer._root.render(
+                <div className="tooltip-container">
+                  <LinkIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />
+                  <span className="tooltip-text">{combinedTooltipData}</span>
+                  <div className="fk-only"></div>
+                </div>
+              );
+            }
           }
         }
       });
@@ -461,6 +621,11 @@ const addConstraintIconToColumn = (iconContainer, type, reference = '') => {
         IconComponent = <IndexIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />;
         titleText = 'index';
         iconClass = 'index-icon';
+        break;
+      case 'fk': // New case for foreign keys
+        IconComponent = <LinkIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />;
+        titleText = ``;
+        iconClass = 'fk-icon';
         break;
       default:
         return;
@@ -847,6 +1012,9 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
     }
     if (column.index) {
       addConstraintIconToColumn(iconContainer, 'index'); // Add Index Key icon
+    }
+    if (column.foreignKey) {
+      addConstraintIconToColumn(iconContainer, 'fk'); // Add Index Key icon
     }
 
     // Append the icon container (which may be empty) to the name cell

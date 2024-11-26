@@ -31,6 +31,7 @@ function App() {
   const [semanticLayerInfo, setSemanticLayerInfo] = useState([]);
   const [uslNamebyClick, setUslNamebyClick] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [previewTableName, setPreviewTableName] = useState(null);
 
   const handleSetView = (newView) => {
     setView(newView);
@@ -79,6 +80,7 @@ function App() {
                   onGenerateDDL={onGenerateDDL}
                   setView={handleSetView}
                   setUslNamebyClick={setUslNamebyClick}
+                  setPreviewTableName={setPreviewTableName}
                 />
               </div>
 
@@ -115,6 +117,7 @@ function App() {
                   semanticLayerInfo={semanticLayerInfo}
                   uslNamebyClick={uslNamebyClick}
                   setIsLoading={setIsLoading}
+                  previewTableName={previewTableName}
                 />
               </div>
             </>

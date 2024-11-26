@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { SimpleTreeView, TreeItem } from '@mui/x-tree-view';
 import { fetchApi } from '../utils/common';
 import './Navigation.css';
@@ -11,22 +11,20 @@ import { ReactComponent as MinusIcon } from '../assets/images/square-minus-regul
 import { ReactComponent as PlusIcon } from '../assets/images/square-plus-regular-black.svg';
 import SetSemanticLayerModal from './SetSemanticLayerModal';
 import Resizable from 'react-resizable-layout';
-import PreviewPopup from './PreviewPopup';
 
-const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) => {
+const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, setPreviewTableName }) => {
 
   const reSizingOffset = 115;
   const resizingRef = useRef(false);
   const [showPopup, setShowPopup] = useState(false);
   const [ddlName, setDdlName] = useState('');
   const [ddlCode, setDdlCode] = useState('');
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [columns, setColumns] = useState([]);
-  const [previewData, setPreviewData] = useState([]);
-  const [errorMessage, setErrorMessage] = useState(null);
   const [expandedNodeIds, setExpandedNodeIds] = useState([]);
   const [activeInputNode, setActiveInputNode] = useState(null);
   const [inputValue, setInputValue] = useState('');
+  const [previewableTables, setPreviewableTables] = useState(new Set());
+  const [hasTableChild, setHasTableChild] = useState(false);
+  const [selectedUSL, setSelectedUSL] = useState('');
 
   // State for managing datasource tree structure
   const [dataSources, setDataSources] = useState([
@@ -96,6 +94,19 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) =
     fetchInitialData();
   }, []);
 
+  useEffect(() => {
+    const loadUSLFromStorage = () => {
+      const storedUSL = localStorage.getItem(selectedUSL);
+      if (storedUSL) {
+        const uslData = JSON.parse(storedUSL);
+        const semanticLayerTree = renderTreeFromUSL(uslData);
+        setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, uslData.name, semanticLayerTree));
+      }
+    };
+
+    loadUSLFromStorage();
+  }, []);
+
   // Function to get the depth (level) of the current path
   const getCurrentLevel = (fullPath) => {
     const parts = fullPath.split('.');
@@ -108,7 +119,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) =
     const currentLevel = getCurrentLevel(fullPath);
 
     // Determine query based on level
-    if (fullPath.startsWith("lightning.datasource") || fullPath.startsWith("lightning.metastore")) {
+    if (fullPath.toLowerCase().includes('datasource') || fullPath.toLowerCase().includes('metastore')) {
       query = `SHOW NAMESPACES OR TABLES IN ${fullPath};`;
     }
 
@@ -126,6 +137,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) =
       }));
   };
 
+
   const getTableDesc = async (fullPath) => {
     let query = `DESC ${fullPath}`;
     const result = await fetchApi(query);
@@ -137,10 +149,46 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) =
     }
   };
 
-  const handleTreeItemClick = async (node) => {
-    if (node.type === 'table') {
-      const tableDetails = await getTableDesc(node.fullPath);
+  const renderTreeFromUSL = (uslData) => {
+    const { namespace, name, tables } = uslData;
 
+    const treeItems = tables.map((table) => ({
+      name: table.name,
+      fullPath: `${namespace.join('.')}.${name}.${table.name}`,
+      type: 'table',
+      activateQuery: table.activateQuery,
+      children: table.columnSpecs.map((column) => ({
+        name: column.name,
+        fullPath: `${namespace.join('.')}.${name}.${table.name}.${column.name}`,
+        type: 'column',
+        dataTypeElement: (
+          <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
+            ({column.dataType})
+          </span>
+        ),
+      })),
+    }));
+
+    return treeItems;
+  };
+
+  const handleTreeItemClick = async (node) => {
+    if (node.type === 'column') {
+      // console.log(`Skipping action for USL column: ${node.name}`);
+      return;
+    }
+
+    if (node.type === 'table') {
+      if (node.fullPath.toLowerCase().includes('datasource')) {
+        setPreviewableTables((prev) => new Set(prev).add(node.fullPath));
+      }
+
+      if (node.fullPath.toLowerCase().includes('metastore') && hasTableChild) {
+        // console.log('Skipping getTableDesc');
+        return;
+      }
+
+      const tableDetails = await getTableDesc(node.fullPath);
       const tableChildren = tableDetails.map((column) => ({
         name: column.col_name,
         fullPath: `${node.fullPath}.${column.col_name}`,
@@ -154,12 +202,107 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) =
       }));
 
       node.children = tableChildren;
-      setDataSources((prevData) => updateNodeChildren(prevData, node.name, tableChildren));
+
+      if (node.fullPath.toLowerCase().includes('metastore')) {
+        setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, tableChildren));
+      } else {
+        setDataSources((prevData) => updateNodeChildren(prevData, node.name, tableChildren));
+      }
     } else {
-      await fetchChildNodes(node, node.fullPath?.startsWith("lightning.metastore"));
+      const hasTableChildResult = Array.isArray(node.children)
+        ? node.children.some((child) => child.type === 'table')
+        : false;
+
+      setHasTableChild(hasTableChildResult);
+
+      if (hasTableChildResult && node.fullPath.toLowerCase().includes('metastore')) {
+        const storedData = localStorage.getItem(node.name);
+
+        if (storedData) {
+          // console.log(`Loading ${node.name} data from localStorage.`);
+          const uslData = JSON.parse(storedData);
+
+          const semanticLayerChildren = uslData.tables.map((table) => ({
+            name: table.name,
+            fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${table.name}`,
+            type: 'table',
+            activateQuery: table.activateQuery,
+            children: table.columnSpecs.map((column) => ({
+              name: column.name,
+              fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${table.name}.${column.name}`,
+              type: 'column',
+              dataTypeElement: (
+                <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
+                  ({column.dataType.replace(/"/g, '')})
+                </span>
+              ),
+            })),
+          }));
+
+          setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, semanticLayerChildren));
+
+          uslData.tables.forEach((table) => {
+            if (table.activateQuery) {
+              setPreviewableTables((prev) => {
+                const newSet = new Set(prev);
+                newSet.add(`${uslData.namespace.join('.')}.${uslData.name}.${table.name}`);
+                return newSet;
+              });
+            }
+          });
+        } else {
+          // console.log(`No localStorage data for ${node.name}. Loading via LOAD USL query.`);
+
+          const dbname = node.fullPath.split('.').pop();
+          const path = node.fullPath.split('.').slice(0, -1).join('.');
+
+          try {
+            const query = `LOAD USL ${dbname} NAMESPACE ${path}`;
+            const result = await fetchApi(query);
+            const uslData = JSON.parse(JSON.parse(result).json);
+
+            localStorage.setItem(node.name, JSON.stringify(uslData));
+
+            const semanticLayerChildren = uslData.tables.map((table) => ({
+              name: table.name,
+              fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${table.name}`,
+              type: 'table',
+              children: table.columnSpecs.map((column) => ({
+                name: column.name,
+                fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${table.name}.${column.name}`,
+                type: 'column',
+                dataTypeElement: (
+                  <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
+                    ({column.dataType.replace(/"/g, '')})
+                  </span>
+                ),
+              })),
+            }));
+
+            setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, semanticLayerChildren));
+
+            uslData.tables.forEach((table) => {
+              if (table.activateQuery) {
+                setPreviewableTables((prev) => {
+                  const newSet = new Set(prev);
+                  newSet.add(`${uslData.namespace.join('.')}.${uslData.name}.${table.name}`);
+                  return newSet;
+                });
+              }
+            });
+          } catch (error) {
+            console.error(`Error loading USL for ${node.name}:`, error);
+          }
+        }
+      } else {
+        const childNodes = await fetchChildNodes(node, node.fullPath?.toLowerCase().includes('metastore') || false);
+
+        if (Array.isArray(childNodes) && childNodes.some((child) => child.type === 'table')) {
+          setHasTableChild(true);
+        }
+      }
     }
   };
-
 
   const fetchChildNodes = async (node, isMetastore = false) => {
     const childNodes = await fetchDatasources(node.fullPath || node.name, isMetastore);
@@ -186,40 +329,79 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) =
   }, [refreshNav]);
 
   const drawUSL = async (node) => {
-    setUslNamebyClick(node.fullPath);
-    setView('semanticLayer');
-    sessionStorage.setItem('selectedTab', 'semanticLayer');
-  }
+    const fullPath = node.fullPath;
+    const dbname = fullPath.split('.').pop();
+    const path = fullPath.split('.').slice(0, -1).join('.');
 
-  const handlePreview = async (fullPath) => {
-    const query = `SELECT * FROM ${fullPath} LIMIT 100`;
-    const result = await fetchApi(query);
+    let query = `LOAD USL ${dbname} NAMESPACE ${path}`;
+    try {
+      const result = await fetchApi(query);
+      const uslData = JSON.parse(JSON.parse(result).json);
 
-    if (Array.isArray(result)) {
-      const parsedData = result.map(item => JSON.parse(item));
-      setPreviewData(parsedData);
+      setSelectedUSL(uslData.name)
+      localStorage.setItem(dbname, JSON.stringify(uslData));
+      updateTreeViewAndActivateButtons(uslData);
 
-      if (parsedData.length > 0) {
-        const dynamicColumns = Object.keys(parsedData[0]).map(key => ({
-          accessorKey: key,
-          header: key.charAt(0).toUpperCase() + key.slice(1)
-        }));
-        setColumns(dynamicColumns);
-      }
-      setPreviewOpen(true);
-    } else {
-      setErrorMessage(`Error : ${result.message}`);
-      setPreviewOpen(true);
+      setUslNamebyClick(result);
+      setView('semanticLayer');
+      sessionStorage.setItem('selectedTab', 'semanticLayer');
+
+      setHasTableChild(true);
+    } catch (error) {
+      console.error('Error fetching USL file content:', error);
     }
   };
 
-  const handleClosePreview = () => {
-    setPreviewOpen(false);
-    setErrorMessage(null);
+  const updateTreeViewAndActivateButtons = (uslData) => {
+    const { tables } = uslData;
+
+    const semanticLayerChildren = tables.map((table) => ({
+      name: table.name,
+      fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${table.name}`,
+      type: 'table',
+      children: table.columnSpecs.map((column) => ({
+        name: column.name,
+        fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${table.name}.${column.name}`,
+        type: 'column',
+        isActivate: !!table.activateQuery,
+        dataTypeElement: (
+          <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
+            ({column.dataType.replace(/\"/g, '')})
+          </span>
+        ),
+      })),
+    }));
+
+    setSemanticLayerFiles((prevData) =>
+      updateNodeChildren(prevData, uslData.name, semanticLayerChildren)
+    );
+
+    tables.forEach((table) => {
+      if (table.activateQuery) {
+        setPreviewableTables((prev) => {
+          const newSet = new Set(prev);
+          newSet.add(`${uslData.namespace.join('.')}.${uslData.name}.${table.name}`);
+          return newSet;
+        });
+      }
+    });
+  };
+
+  const handlePreview = async (fullPath) => {
+    if (!fullPath) return;
+    if (fullPath.toLowerCase().includes('datasource')) {
+      setView('sqlEditor');
+      sessionStorage.setItem('selectedTab', 'sqlEditor');
+      setPreviewTableName(fullPath);
+    } else if (fullPath.toLowerCase().includes('metastore')) {
+      setView('semanticLayer');
+      sessionStorage.setItem('selectedTab', 'semanticLayer');
+      setPreviewTableName("lightning." + fullPath);
+    }
   };
 
   const handlePlusClick = async (event, node) => {
-    event.stopPropagation();
+    // event.stopPropagation();
 
     if (!node.children) {
       const childNodes = await fetchDatasources(node.fullPath || node.name);
@@ -290,69 +472,24 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) =
     }
   };
 
-  const checkActivate = async (node) => {
-    if (!node.children || node.children.length === 0) return;
-  
-    const fullPathParts = node.fullPath.split('.');
-    const namespace = fullPathParts.slice(0, -1).join('.');
-    const uslName = fullPathParts[fullPathParts.length - 1];
-    const query = `LOAD USL ${uslName} NAMESPACE ${namespace}`;
-  
-    try {
-      const result = await fetchApi(query);
-  
-      if (result && Array.isArray(result)) {
-        const parsedResult = result
-          .map((item) => {
-            try {
-              if (item?.json) {
-                const topLevelJson = JSON.parse(item.json);
-  
-                const tables = topLevelJson.tables.map((table) => ({
-                  name: table.name,
-                  activateQuery: table.activateQuery || null,
-                }));
-  
-                return { tables };
-              }
-              return null;
-            } catch (error) {
-              console.error(`Error parsing item.json:`, error, item);
-              return null;
-            }
-          })
-          .filter(Boolean);
-  
-        node.children = node.children.map((child) => {
-          const matchingTable = parsedResult
-            .flatMap((res) => res.tables)
-            .find((table) => table.name === child.name);
-  
-          return {
-            ...child,
-            activate: !!matchingTable?.activateQuery,
-          };
-        });
-        console.log(node)
-      }
-    } catch (error) {
-      console.error(`Error checking activation for ${node.name}:`, error);
-    }
-  };  
-
   const renderTree = (nodes, parentPath = '', isSemanticLayer = false) => {
+    const uslDataKey = nodes[0]?.fullPath?.split('.')[1];
+    const uslData = uslDataKey ? JSON.parse(localStorage.getItem(uslDataKey)) : null;
+
+    if (uslData) {
+      return renderTreeFromUSL(uslData, isSemanticLayer);
+    }
+
     return nodes.map((node, index) => {
       const currentPath = node.fullPath || (parentPath ? `${parentPath}.${node.name}` : node.name);
       const uniqueId = `${currentPath}-${index + 1}`;
       const Icon = node.type === 'table' ? TableIcon : FolderIcon;
-      let activateChildren;
+      const hasTableChildResult = Array.isArray(node.children)
+        ? node.children.some((child) => child.type === 'table')
+        : false;
+      setHasTableChild(hasTableChildResult);
+
       node.uniqueId = uniqueId;
-
-      const hasTableChild = Array.isArray(node.children) ? node.children.some((child) => child.type === 'table') || false : null;
-
-      if (hasTableChild && node.children) {
-        checkActivate(node);
-      }
 
       return (
         <TreeItem
@@ -368,6 +505,8 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) =
 
               {node.type === 'table' && (
                 <button
+                  className={`preview-button ${node.fullPath.toLowerCase().includes('metastore') && !previewableTables.has(node.fullPath) ? 'hidden' : ''
+                    }`}
                   onClick={(event) => {
                     event.stopPropagation();
                     handlePreview(node.fullPath);
@@ -385,7 +524,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) =
                 </button>
               )}
 
-              {hasTableChild && isSemanticLayer && (
+              {hasTableChildResult && isSemanticLayer && (
                 <button
                   className="btn-table-add"
                   onClick={(event) => {
@@ -397,29 +536,27 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) =
                 </button>
               )}
 
-              {node.type === 'namespace' && !isSemanticLayer && (
-                hasTableChild === false && (
-                  <div style={{ marginLeft: '10px', display: 'flex', alignItems: 'center' }}>
-                    <PlusIcon
-                      onClick={(event) => handlePlusClick(event, node)}
-                      style={{
-                        width: '25px',
-                        height: '25px',
-                        cursor: 'pointer',
-                        verticalAlign: 'middle',
-                      }}
-                    />
-                    <MinusIcon
-                      onClick={(event) => handleMinusClick(event, node)}
-                      style={{
-                        width: '25px',
-                        height: '25px',
-                        cursor: 'pointer',
-                        verticalAlign: 'middle',
-                      }}
-                    />
-                  </div>
-                )
+              {node.type === 'namespace' && !isSemanticLayer && !hasTableChild && (
+                <div style={{ marginLeft: '10px', display: 'flex', alignItems: 'center' }}>
+                  <PlusIcon
+                    onClick={(event) => handlePlusClick(event, node)}
+                    style={{
+                      width: '25px',
+                      height: '25px',
+                      cursor: 'pointer',
+                      verticalAlign: 'middle',
+                    }}
+                  />
+                  <MinusIcon
+                    onClick={(event) => handleMinusClick(event, node)}
+                    style={{
+                      width: '25px',
+                      height: '25px',
+                      cursor: 'pointer',
+                      verticalAlign: 'middle',
+                    }}
+                  />
+                </div>
               )}
             </span>
           }
@@ -433,8 +570,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) =
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => {
                   e.stopPropagation();
-                  handleInputKeyDown(e, node);
-                }}
+                  handleInputKeyDown(e, node);}}
                 style={{
                   padding: '6px',
                   border: '2px solid #27A7D2',
@@ -453,6 +589,14 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) =
       );
     });
   };
+
+  // const memoizedTreeData = useMemo(() => renderTree(dataSources, '', false), [dataSources]);
+  const memoizedTreeData = useMemo(
+    () => renderTree(dataSources, '', false),
+    [dataSources, activeInputNode, inputValue]
+  );
+  
+  const memoizedSemanticLayerTree = useMemo(() => renderTree(semanticLayerFiles, '', true), [semanticLayerFiles]);
 
   return (
     <>
@@ -479,7 +623,8 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) =
                   setExpandedNodeIds(newExpanded);
                 }}
               >
-                {renderTree(dataSources, '', false)}
+                {memoizedTreeData}
+                {/* {renderTree(dataSources, '', false)} */}
               </SimpleTreeView>
             </div>
 
@@ -522,7 +667,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) =
                   setExpandedNodeIds(newExpanded);
                 }}
               >
-                {renderTree(semanticLayerFiles, '', true)}
+                {memoizedSemanticLayerTree}
               </SimpleTreeView>
               <SetSemanticLayerModal
                 showPopup={showPopup}
@@ -538,13 +683,6 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick }) =
         )}
       </Resizable>
 
-      <PreviewPopup
-        open={previewOpen}
-        onClose={handleClosePreview}
-        columns={columns}
-        data={previewData}
-        errorMessage={errorMessage}
-      />
     </>
   );
 };

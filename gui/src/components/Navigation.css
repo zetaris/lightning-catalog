@@ -1,20 +1,21 @@
-.guideline{
+.guideline {
     /* padding : 0 30px; */
 }
 
-.separator{
+.separator {
     width: 100%;
     height: 1px;
     background-color: #ccc;
-    margin: 20px 0; /* Space around the divider */
+    margin: 20px 0;
+    /* Space around the divider */
 }
 
-.nav-tab{
+.nav-tab {
     margin-bottom: 10px;
     user-select: none;
 }
 
-.MuiTreeItem-label{
+.MuiTreeItem-label {
     font-family: 'PlusJakartaSans', sans-serif !important;
     font-weight: 500 !important;
     user-select: none !important;
@@ -29,13 +30,17 @@
     border: none;
     border-radius: 5px;
     cursor: pointer;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .btn-table-add:hover {
-    background-color: #1e8fb5; /* Hover effect */
+    background-color: #1e8fb5;
 }
 
 div.navigation::after {
     content: none;
+}
+
+.preview-button.hidden {
+    display: none;
 }
