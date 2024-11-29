@@ -28,7 +28,7 @@ import com.zetaris.lightning.datasources.v2.pdf.{PdfFileFormat, PdfTable}
 import com.zetaris.lightning.datasources.v2.text.TextTable
 import com.zetaris.lightning.datasources.v2.video.VideoTable
 import com.zetaris.lightning.execution.command.DataSourceType._
-import com.zetaris.lightning.model.LightningModel
+import com.zetaris.lightning.model.{HdfsFileSystem, LightningModel}
 import com.zetaris.lightning.model.serde.DataSource.DataSource
 import com.zetaris.lightning.util.FileSystemUtils
 import org.apache.spark.sql.connector.catalog.{Identifier, Table}
@@ -100,7 +100,9 @@ case class FileCatalogUnit(dataSource: DataSource,
   override def listTables(namespace: Array[String]): Array[Identifier] = {
     val namespace = dataSource.namespace
     val path = ciMap.get("path")
-    FileSystemUtils.listDirectories(path).filter(!_.startsWith(".")).map(Identifier.of(namespace, _))
+    val parentAndChild = HdfsFileSystem.toFolderUrl(path)
+    val fs = new HdfsFileSystem(opts, parentAndChild._1)
+    fs.listDirectories(parentAndChild._2).filter(!_.startsWith(".")).map(Identifier.of(namespace, _))
       .toArray
   }
 

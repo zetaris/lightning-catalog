@@ -49,6 +49,7 @@ class RegisterCatalogTestSuite extends SparkExtensionsTestBase with H2TestBase {
   }
 
   test("should register all tables from a schema in rdbms") {
+    sparkSession.sql(s"CREATE NAMESPACE lightning.metastore.h2")
     sparkSession.sql(
       s"""
          |REGISTER CATALOG $schema1
@@ -68,6 +69,7 @@ class RegisterCatalogTestSuite extends SparkExtensionsTestBase with H2TestBase {
   }
 
   test("should register tables matching pattern from a schema in rdbms") {
+    sparkSession.sql(s"CREATE NAMESPACE lightning.metastore.h2")
     sparkSession.sql(
       s"""
          |REGISTER CATALOG $schema1
@@ -86,6 +88,7 @@ class RegisterCatalogTestSuite extends SparkExtensionsTestBase with H2TestBase {
 
   test("should register tables in all schema from database level in rdbms") {
     val singleSchema = "singleSchema"
+    sparkSession.sql(s"CREATE NAMESPACE lightning.metastore.h2")
     sparkSession.sql(
       s"""
          |REGISTER CATALOG $singleSchema

@@ -21,7 +21,7 @@
 
 package com.zetaris.lightning.catalog
 
-import com.zetaris.lightning.util.FileSystemUtils
+import com.zetaris.lightning.model.HdfsFileSystem
 import org.apache.spark.sql.connector.catalog.{Identifier, Table}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.types.StructType
@@ -48,8 +48,10 @@ abstract class AbstractDeltaCatalogUnit(properties: Map[String, String]) extends
 
   override def listTables(namespace: Array[String]): Array[Identifier] = {
     val path = properties("path")
-    FileSystemUtils.listDirectories(path).filter(!_.startsWith(".")).map(Identifier.of(namespace, _))
-      .toArray
+    val parentAndChild = HdfsFileSystem.toFolderUrl(path)
+    val fs = new HdfsFileSystem(properties, parentAndChild._1)
+    val dirs = fs.listDirectories(parentAndChild._2)
+    dirs.filter(!_.startsWith(".")).map(Identifier.of(namespace, _)).toArray
   }
 
   override def namespaceExists(namespace: Array[String]): Boolean = {
@@ -65,7 +67,11 @@ abstract class AbstractDeltaCatalogUnit(properties: Map[String, String]) extends
 
   override def dropTable(ident: Identifier): Boolean = {
     val fullPath = tablePath(ident.name())
-    FileSystemUtils.deleteDirectory(fullPath)
+
+    val fs = new HdfsFileSystem(properties, fullPath)
+    fs.deleteDirectory(fullPath)
+
+    //FileSystemUtils.deleteDirectory(fullPath)
     true
   }
 

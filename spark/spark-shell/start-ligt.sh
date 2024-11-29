@@ -21,31 +21,29 @@
 
 #!/bin/bash
 
-SPARK_VERSION="3.5"  # Spark version if needed to set any paths or environment variables
+#SPARK_VERSION="3.5"  # Spark version if needed to set any paths or environment variables
+
 
 # Set ports for API and GUI
 export LIGHTNING_SERVER_PORT=8080
-export LIGHTNING_GUI_PORT=3001
+export LIGHTNING_GUI_PORT=8081
 
 # Set paths
 BIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB_DIR="$BIN_DIR/../lib"
+export LIGHTNING_HOME="$BIN_DIR/.."
 
 # Set the main class and application parameters
 MAIN_CLASS="com.zetaris.lightning.catalog.api.LightningAPIServer"
-APP_NAME="LightningAPI Server"
+APP_NAME="Lightning Server"
 
 # Start Spark with necessary JARs and configuration
-echo "Starting Lightning API Server..."
+echo "Starting Lightning Server..."
 
 exec "${SPARK_HOME}/bin/spark-submit" --class $MAIN_CLASS --name "$APP_NAME" \
     --conf "spark.sql.extensions=io.delta.sql.DeltaSparkSessionExtension,com.zetaris.lightning.spark.LightningSparkSessionExtension" \
     --conf "spark.sql.catalog.lightning=com.zetaris.lightning.catalog.LightningCatalog" \
     --conf "spark.sql.catalog.lightning.type=hadoop" \
-    --conf "spark.sql.catalog.lightning.warehouse=/tmp/ligt-model" \
+    --conf "spark.sql.catalog.lightning.warehouse=$LIGHTNING_HOME/model" \
     --conf "spark.sql.catalog.lightning.accessControlProvider=com.zetaris.lightning.analysis.NotAppliedAccessControlProvider" \
     --conf "spark.sql.catalog.spark_catalog=org.apache.spark.sql.delta.catalog.DeltaCatalog" \
-    --conf "spark.executor.extraClassPath=$LIB_DIR/*:$SPARK_HOME/jdbc-libs/*" \
-    --conf "spark.driver.extraClassPath=$LIB_DIR/*:$SPARK_HOME/jdbc-libs/*" \
-    --jars "$LIB_DIR/lightning-spark-extensions-${SPARK_VERSION}_2.12-0.2.jar,$LIB_DIR/*" \
-    "$LIB_DIR/lightning-spark-common_2.12-0.2.jar"
+    --jars "$LIGHTNING_HOME/lib/*,$LIGHTNING_HOME/3rd-party-lib/*" spark-internal "$@" &

@@ -31,12 +31,14 @@ import com.zetaris.lightning.util.FileSystemUtils
 import org.apache.spark.sql.connector.catalog.{Identifier, Table}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap
+import scala.collection.JavaConverters._
 
-// TODO : Convert FileSystem API to HDFS API
 class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel {
   if (!prop.containsKey(LightningModelFactory.LIGHTNING_MODEL_WAREHOUSE_KEY)) {
     throw new RuntimeException(s"${LightningModelFactory.LIGHTNING_MODEL_WAREHOUSE_KEY} is not set in spark conf")
   }
+
+  private val scalaMap = prop.asScala.toMap
 
   private val modelDir = prop.get(LightningModelFactory.LIGHTNING_MODEL_WAREHOUSE_KEY)
   val DATASOURCE_DIR = "datasource"
@@ -47,13 +49,16 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
   private def nameSpaceToDir(namespace: Seq[String]) = namespace.mkString("/")
 
   private def createModelDirIfNotExist(): Unit = {
-    FileSystemUtils.createFolderIfNotExist(modelDir)
 
-    // datasource
-    FileSystemUtils.createFolderIfNotExist(s"$modelDir/$DATASOURCE_DIR")
+    val parentAndChild = HdfsFileSystem.toFolderUrl(modelDir)
+    var fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+    fs.createFolderIfNotExist(parentAndChild._2)
 
-    // metastore definition
-    FileSystemUtils.createFolderIfNotExist(s"$modelDir/$METASTORE_DIR")
+    fs = new HdfsFileSystem(scalaMap, modelDir)
+    fs.createFolderIfNotExist(DATASOURCE_DIR)
+
+    fs = new HdfsFileSystem(scalaMap, modelDir)
+    fs.createFolderIfNotExist(METASTORE_DIR)
   }
 
   /**
@@ -73,7 +78,10 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
         s"$modelDir/$dir/${dataSource.name}_ds.json"
     }
 
-    FileSystemUtils.saveFile(filePath, json, replace)
+    val parentAndChild = HdfsFileSystem.toFolderUrl(filePath)
+    val fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+    fs.saveFile(parentAndChild._2, json, replace)
+
     filePath
   }
 
@@ -87,25 +95,38 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
    */
   override def loadDataSources(namespace: Array[String], name: String = null): List[DataSource] = {
     val subDir = nameSpaceToDir(namespace)
+
     if (name == null) {
-      FileSystemUtils.listFiles(s"$modelDir/$subDir").filter { file =>
+      val parentAndChild = HdfsFileSystem.toFolderUrl(s"$modelDir/$subDir")
+      val fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+      fs.listFiles(parentAndChild._2).filter { file =>
         file.endsWith("_fs.json") || file.endsWith("_ds.json")
       }.map { file =>
-        val json = FileSystemUtils.readFile(file)
+        val parentAndChild = HdfsFileSystem.toFolderUrl(file)
+        val fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+        val json = fs.readFile(parentAndChild._2)
         serde.DataSource(json)
       }.toList
     } else {
       val dataSourcePath = s"$modelDir/$subDir/${name}_ds.json"
       val fileSourcePath = s"$modelDir/$subDir/${name}_fs.json"
 
-      if (FileSystemUtils.fileExists(dataSourcePath)) {
-        val json = FileSystemUtils.readFile(dataSourcePath)
-        List(serde.DataSource(json))
-      } else if (FileSystemUtils.fileExists(fileSourcePath)) {
-        val json = FileSystemUtils.readFile(fileSourcePath)
+      var parentAndChild = HdfsFileSystem.toFolderUrl(dataSourcePath)
+      var fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+
+      if (fs.fileExists(parentAndChild._2)) {
+        val json = fs.readFile(parentAndChild._2)
         List(serde.DataSource(json))
       } else {
-        List.empty
+        parentAndChild = HdfsFileSystem.toFolderUrl(fileSourcePath)
+        fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+
+        if (fs.fileExists(parentAndChild._2)) {
+          val json = fs.readFile(parentAndChild._2)
+          List(serde.DataSource(json))
+        } else {
+          List.empty
+        }
       }
     }
   }
@@ -119,7 +140,9 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
     val subDir = nameSpaceToDir(namespace)
     val fullPath = s"$modelDir/$subDir/${name}_ds.json"
 
-    FileSystemUtils.deleteFile(fullPath)
+    val parentAndChild = HdfsFileSystem.toFolderUrl(fullPath)
+    val fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+    fs.deleteFile(parentAndChild._2)
   }
 
   /**
@@ -133,14 +156,15 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
   override def listNamespaces(namespace: Seq[String]): Seq[String] = {
     val subDir = nameSpaceToDir(namespace)
     val fullPath = s"$modelDir/$subDir"
-    FileSystemUtils.listDirectories(fullPath).filterNot(_.startsWith(".")) ++
-      FileSystemUtils.listFiles(fullPath).filter { file =>
+    val parentAndChild = HdfsFileSystem.toFolderUrl(fullPath)
+    val fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+    fs.listDirectories(parentAndChild._2).filterNot(_.startsWith(".")) ++
+      fs.listFiles(parentAndChild._2).filter { file =>
         file.endsWith("_ds.json")
       }.map(_.dropRight(8)) ++
-      FileSystemUtils.listFiles(fullPath).filter { file =>
+      fs.listFiles(parentAndChild._2).filter { file =>
         file.endsWith("_usl.json")
       }.map(_.dropRight(9))
-
   }
 
   /**
@@ -153,7 +177,10 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
   override def listTables(namespace: Array[String]): Seq[String] = {
     val subDir = nameSpaceToDir(namespace)
     val fullPath = s"$modelDir/$subDir"
-    val dsTables = FileSystemUtils.listFiles(fullPath).filter(file =>
+    var parentAndChild = HdfsFileSystem.toFolderUrl(fullPath)
+    var fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+
+    val dsTables = fs.listFiles(parentAndChild._2).filter(file =>
       file.endsWith("_table.json") || file.endsWith("_fs.json"))
       .map { file =>
         if (file.endsWith("_table.json")) {
@@ -165,8 +192,11 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
 
     val uslTables = if (namespace.length > 2) {
       val uslFullPath = s"$modelDir/${nameSpaceToDir(namespace.dropRight(1))}/${namespace.last}_usl.json"
-      if (FileSystemUtils.fileExists(uslFullPath)) {
-        val json = FileSystemUtils.readFile(uslFullPath)
+      parentAndChild = HdfsFileSystem.toFolderUrl(uslFullPath)
+      fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+
+      if (fs.fileExists(parentAndChild._2)) {
+        val json = fs.readFile(parentAndChild._2)
         UnifiedSemanticLayer(json).tables.map(_.name)
       } else {
         Seq.empty
@@ -187,10 +217,16 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
   override def createNamespace(namespace: Array[String], metadata: Map[String, String]): Unit = {
     val subDir = nameSpaceToDir(namespace)
     val fullPath = s"$modelDir/$subDir"
-    FileSystemUtils.createFolderIfNotExist(fullPath)
+
+    var parentAndChild = HdfsFileSystem.toFolderUrl(fullPath)
+    var fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+    fs.createFolderIfNotExist(parentAndChild._2)
 
     val json = mapToJson(metadata)
-    FileSystemUtils.saveFile(s"$fullPath/.properties", json)
+    parentAndChild = HdfsFileSystem.toFolderUrl(s"$fullPath/.properties")
+    fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+
+    fs.saveFile(parentAndChild._2, json)
   }
 
   /**
@@ -200,12 +236,18 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
    */
   override def loadNamespaceMeta(namespace: Array[String]): Map[String, String] = {
     val subDir = nameSpaceToDir(namespace)
-    if (!FileSystemUtils.folderExist(s"$modelDir/$subDir")) {
+    var parentAndChild = HdfsFileSystem.toFolderUrl(s"$modelDir/$subDir")
+    var fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+
+    if (!fs.folderExist(parentAndChild._2)) {
       throw NamespaceNotFoundException(s"$modelDir/$subDir")
     }
     val fullPath = s"$modelDir/$subDir/.properties"
-    val json = FileSystemUtils.readFile(fullPath)
 
+    parentAndChild = HdfsFileSystem.toFolderUrl(fullPath)
+    fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+
+    val json = fs.readFile(parentAndChild._2)
     jsonToMap(json)
   }
 
@@ -218,12 +260,15 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
   def dropNamespace(namespace: Array[String], cascade: Boolean): Unit = {
     val subDir = nameSpaceToDir(namespace)
     val fullPath = s"$modelDir/$subDir"
-    val subNamespaces = FileSystemUtils.listDirectories(fullPath).filterNot(_.startsWith("."))
+    val parentAndChild = HdfsFileSystem.toFolderUrl(fullPath)
+    val fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+
+    val subNamespaces = fs.listDirectories(parentAndChild._2).filterNot(_.startsWith("."))
     if (!cascade && subNamespaces.nonEmpty) {
       throw new RuntimeException(s"${LightningModelFactory.toFqn(namespace)} has sub namespaces")
     }
 
-    FileSystemUtils.deleteDirectory(fullPath)
+    fs.deleteDirectory(parentAndChild._2)
   }
 
   /**
@@ -238,13 +283,18 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
                          name: String,
                          schema: StructType): Unit = {
     val subDir = nameSpaceToDir(destNamespace)
-    FileSystemUtils.createFolderIfNotExist(s"$modelDir/$subDir")
+    var parentAndChild = HdfsFileSystem.toFolderUrl(s"$modelDir/$subDir")
+    var fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+
+    fs.createFolderIfNotExist(parentAndChild._2)
 
     val table = serde.Table.Table(LightningModelFactory.toFqn(srcNamespace), schema)
     val json = serde.Table.toJson(table)
 
     val fullPath = s"$modelDir/$subDir/${name}_table.json"
-    FileSystemUtils.saveFile(fullPath, json)
+    parentAndChild = HdfsFileSystem.toFolderUrl(fullPath)
+    fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+    fs.saveFile(parentAndChild._2, json)
   }
 
   /**
@@ -259,16 +309,21 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
     val subDir = nameSpaceToDir(uslNameSpace)
 
     val uslFullPath = s"$modelDir/$subDir/${uslName}_usl.json"
-    if (FileSystemUtils.fileExists(uslFullPath)) {
+    var parentAndChild = HdfsFileSystem.toFolderUrl(uslFullPath)
+    var fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+
+    if (fs.fileExists(parentAndChild._2)) {
       val usl = loadUnifiedSemanticLayer(uslNameSpace, uslName)
       val createTableSpec = usl.tables.find(_.name.equalsIgnoreCase(ident.name())).getOrElse(
         throw TableNotFoundException(s"${ident.namespace().mkString(".")}.${ident.name()}")
       )
 
       val tableFullPath = s"$modelDir/$subDir/.$uslName/${ident.name()}_activation_query.json"
+      parentAndChild = HdfsFileSystem.toFolderUrl(tableFullPath)
+      fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
 
-      if (FileSystemUtils.fileExists(tableFullPath)) {
-        val tableJson = FileSystemUtils.readFile(tableFullPath)
+      if (fs.fileExists(parentAndChild._2)) {
+        val tableJson = fs.readFile(parentAndChild._2)
         val uslTable = UnifiedSemanticLayerTable(tableJson)
 
         USLTable(createTableSpec, Some(uslTable.query))
@@ -278,11 +333,14 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
 
     } else {
       val fullPath = s"$modelDir/${nameSpaceToDir(ident.namespace())}/${ident.name()}_table.json"
-      if (!FileSystemUtils.fileExists(fullPath)) {
+      parentAndChild = HdfsFileSystem.toFolderUrl(fullPath)
+      fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+
+      if (!fs.fileExists(parentAndChild._2)) {
         throw TableNotFoundException(s"${ident.namespace().mkString(".")}.${ident.name()}")
       }
 
-      val json = FileSystemUtils.readFile(fullPath)
+      val json = fs.readFile(parentAndChild._2)
       val table = serde.Table(json)
       val targetNamespace = LightningModelFactory.toMultiPartIdentifier(table.dsNamespace).toArray
       LightningCatalogCache.catalog.loadTable(table.schema, Identifier.of(targetNamespace, ident.name()))
@@ -297,9 +355,11 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
    */
   def canLoadUnifiedSemanticLayer(namespace: Seq[String], name: String): Boolean = {
     val subDir = nameSpaceToDir(namespace)
-
     val fullPath = s"$modelDir/$subDir/${name}_usl.json"
-    FileSystemUtils.fileExists(fullPath)
+    val parentAndChild = HdfsFileSystem.toFolderUrl(fullPath)
+    val fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+
+    fs.fileExists(parentAndChild._2)
   }
 
   /**
@@ -311,10 +371,15 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
   override def saveUnifiedSemanticLayer(namespace: Seq[String], name: String, tables: Seq[CreateTableSpec]): Unit = {
     val json = UnifiedSemanticLayer.toJson(namespace, name, tables)
     val subDir = nameSpaceToDir(namespace)
-    FileSystemUtils.createFolderIfNotExist(s"$modelDir/$subDir")
+
+    var parentAndChild = HdfsFileSystem.toFolderUrl(s"$modelDir/$subDir")
+    var fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+    fs.createFolderIfNotExist(parentAndChild._2)
 
     val fullPath = s"$modelDir/$subDir/${name}_usl.json"
-    FileSystemUtils.saveFile(fullPath, json)
+    parentAndChild = HdfsFileSystem.toFolderUrl(fullPath)
+    fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+    fs.saveFile(parentAndChild._2, json)
   }
 
   /**
@@ -325,16 +390,27 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
   override def loadUnifiedSemanticLayer(namespace: Seq[String],
                                         name: String): UnifiedSemanticLayer.UnifiedSemanticLayer = {
     val subDir = nameSpaceToDir(namespace)
-    if (!FileSystemUtils.folderExist(s"$modelDir/$subDir")) {
+    var parentAndChild = HdfsFileSystem.toFolderUrl(s"$modelDir/$subDir")
+    var fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+
+    if (!fs.folderExist(parentAndChild._2)) {
       throw NamespaceNotFoundException(s"$modelDir/$subDir")
     }
+
     val fullPath = s"$modelDir/$subDir/${name}_usl.json"
-    val json = FileSystemUtils.readFile(fullPath)
+    parentAndChild = HdfsFileSystem.toFolderUrl(fullPath)
+    fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+
+    val json = fs.readFile(parentAndChild._2)
     val usl = UnifiedSemanticLayer(json)
     val tableSpecWithActivatedQuery = usl.tables.map { tableSpec =>
       val queryPath = s"$modelDir/$subDir/.${name}/${tableSpec.name}_activation_query.json"
-      if (FileSystemUtils.folderExist(queryPath)) {
-        val json = FileSystemUtils.readFile(queryPath)
+
+      parentAndChild = HdfsFileSystem.toFolderUrl(queryPath)
+      fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+
+      if (fs.folderExist(parentAndChild._2)) {
+        val json = fs.readFile(parentAndChild._2)
         tableSpec.copy(activateQuery = Some(json))
       } else {
         tableSpec
@@ -353,11 +429,19 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
   override def saveUnifiedSemanticLayerTableQuery(namespace: Seq[String], name: String, query: String): Unit = {
     val json = UnifiedSemanticLayerTable.toJson(name, query)
     val subDir = nameSpaceToDir(namespace.dropRight(1))
-    FileSystemUtils.createFolderIfNotExist(s"$modelDir/$subDir")
-    FileSystemUtils.createFolderIfNotExist(s"$modelDir/$subDir/.${namespace.last}")
+
+    var parentAndChild = HdfsFileSystem.toFolderUrl(s"$modelDir/$subDir")
+    var fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+    fs.createFolderIfNotExist(parentAndChild._2)
+
+    parentAndChild = HdfsFileSystem.toFolderUrl(s"$modelDir/$subDir/.${namespace.last}")
+    fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+    fs.createFolderIfNotExist(parentAndChild._2)
 
     val fullPath = s"$modelDir/$subDir/.${namespace.last}/${name}_activation_query.json"
-    FileSystemUtils.saveFile(fullPath, json)
+    parentAndChild = HdfsFileSystem.toFolderUrl(fullPath)
+    fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+    fs.saveFile(parentAndChild._2, json)
   }
 
   /**
@@ -370,12 +454,15 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
     val subDir = nameSpaceToDir(namespace.dropRight(1))
     val fullPath = s"$modelDir/$subDir/.${namespace.last}/${name}_activation_query.json"
 
+    val parentAndChild = HdfsFileSystem.toFolderUrl(fullPath)
+    val fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
 
-    if (!FileSystemUtils.fileExists(fullPath)) {
+
+    if (!fs.fileExists(parentAndChild._2)) {
       throw TableNotActivatedException(s"${namespace.mkString(".")}.${name}")
     }
 
-    val json = FileSystemUtils.readFile(fullPath)
+    val json = fs.readFile(parentAndChild._2)
     UnifiedSemanticLayerTable(json)
   }
 

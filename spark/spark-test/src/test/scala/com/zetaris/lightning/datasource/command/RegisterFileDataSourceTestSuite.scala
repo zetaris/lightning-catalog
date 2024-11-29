@@ -21,6 +21,7 @@
 
 package com.zetaris.lightning.datasource.command
 
+import com.zetaris.lightning.model.HdfsFileSystem
 import com.zetaris.lightning.spark.SparkExtensionsTestBase
 import com.zetaris.lightning.util.FileSystemUtils
 import org.apache.spark.sql.Row
@@ -49,7 +50,10 @@ class RegisterFileDataSourceTestSuite extends SparkExtensionsTestBase with TestD
   }
 
   private def dropFileDbNamespaces() = {
-    FileSystemUtils.deleteDirectory(fileDbPath)
+    val parentAndChild = HdfsFileSystem.toFolderUrl(fileDbPath)
+    val fs = new HdfsFileSystem(Map.empty[String, String], parentAndChild._1)
+
+    fs.deleteDirectory(parentAndChild._2)
   }
 
   private def registerFileDataSource(tableName: String, format: String) = {
