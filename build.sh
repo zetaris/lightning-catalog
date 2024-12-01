@@ -2,11 +2,12 @@
 
 # Set Spark version information
 SPARK_VERSION="3.5" # Replace with actual SPARK_VERSION
-OUTPUT_ZIP="lightning-metastore-$SPARK_VERSION-0.2.zip"
+LIGT_VERSION="0.2"
+OUTPUT_ZIP="lightning-metastore-$SPARK_VERSION-$LIGT_VERSION.zip"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Set the target folder inside the zip
-TARGET_FOLDER="lightning-metastore-$SPARK_VERSION-0.2"
+TARGET_FOLDER="lightning-metastore-$SPARK_VERSION-$LIGT_VERSION"
 
 # Step 1: Build front-end (React)
 echo "Building front-end..."
@@ -15,9 +16,15 @@ npm install || { echo "Dependency installation failed"; exit 1; }
 npm run build || { echo "React build failed"; exit 1; }
 
 # Prepare target directory structure inside /tmp/tar_build
+rm -rf "/tmp/tar_build"
+mkdir -p "/tmp/tar_build"
+
 mkdir -p "/tmp/tar_build/$TARGET_FOLDER/web"
 mkdir -p "/tmp/tar_build/$TARGET_FOLDER/lib"
 mkdir -p "/tmp/tar_build/$TARGET_FOLDER/bin"
+mkdir -p "/tmp/tar_build/$TARGET_FOLDER/model"
+mkdir -p "/tmp/tar_build/$TARGET_FOLDER/3rd-party-lib"
+mkdir -p "/tmp/tar_build/$TARGET_FOLDER/history"
 
 # Copy built front-end files
 cp -r build/* "/tmp/tar_build/$TARGET_FOLDER/web" || { echo "Failed to copy front-end files"; exit 1; }

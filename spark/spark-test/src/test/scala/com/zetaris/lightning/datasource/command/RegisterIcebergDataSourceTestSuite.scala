@@ -21,6 +21,7 @@
 
 package com.zetaris.lightning.datasource.command
 
+import com.zetaris.lightning.model.HdfsFileSystem
 import com.zetaris.lightning.spark.SparkExtensionsTestBase
 import com.zetaris.lightning.util.FileSystemUtils
 import org.apache.spark.sql.Row
@@ -68,7 +69,10 @@ class RegisterIcebergDataSourceTestSuite extends SparkExtensionsTestBase {
   }
 
   private def dropIcebergNamespaces() = {
-    FileSystemUtils.deleteDirectory(lakehousePath)
+    val parentAndChild = HdfsFileSystem.toFolderUrl(lakehousePath)
+    val fs = new HdfsFileSystem(Map.empty[String, String], parentAndChild._1)
+
+    fs.deleteDirectory(parentAndChild._2)
 //    sparkSession.sql(s"SHOW NAMESPACES IN lightning.datasource.iceberg.$dbName").collect().foreach { row1 =>
 //      val ns = row1.getString(0)
 //      sparkSession.sql(s"SHOW TABLES IN lightning.datasource.iceberg.$dbName.$ns").collect().foreach { row2 =>

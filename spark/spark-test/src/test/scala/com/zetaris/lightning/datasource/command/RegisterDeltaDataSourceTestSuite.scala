@@ -21,6 +21,7 @@
 
 package com.zetaris.lightning.datasource.command
 
+import com.zetaris.lightning.model.HdfsFileSystem
 import com.zetaris.lightning.spark.{H2TestBase, SparkExtensionsTestBase}
 import com.zetaris.lightning.util.FileSystemUtils
 import org.apache.spark.sql.Row
@@ -68,7 +69,10 @@ class RegisterDeltaDataSourceTestSuite extends SparkExtensionsTestBase with H2Te
   }
 
   private def dropDeltaRootDir() = {
-    FileSystemUtils.deleteDirectory(lakehousePath)
+    val parentAndChild = HdfsFileSystem.toFolderUrl(lakehousePath)
+    val fs = new HdfsFileSystem(Map.empty[String, String], parentAndChild._1)
+
+    fs.deleteDirectory(parentAndChild._2)
   }
 
   private def registerDataSource(database: String) = {
@@ -137,7 +141,7 @@ class RegisterDeltaDataSourceTestSuite extends SparkExtensionsTestBase with H2Te
     createTable(dbName, table)
 
     checkAnswer(sparkSession.sql(s"show tables in lightning.datasource.delta.$dbName"),
-      Seq(Row(s"$dbName", table, false)))
+      Seq(Row("", table, false)))
 
     insertDeltaFromH2(dbName, table, table)
 
@@ -155,7 +159,7 @@ class RegisterDeltaDataSourceTestSuite extends SparkExtensionsTestBase with H2Te
     createTable(dbName, table1)
 
     checkAnswer(sparkSession.sql(s"show tables in lightning.datasource.delta.$dbName"),
-      Seq(Row(dbName, table1, false)))
+      Seq(Row("", table1, false)))
 
     insertDeltaFromH2(dbName, table, table1)
     checkRecords(dbName, table1)
@@ -163,7 +167,7 @@ class RegisterDeltaDataSourceTestSuite extends SparkExtensionsTestBase with H2Te
     createTable(dbName, table2)
 
     checkAnswer(sparkSession.sql(s"show tables in lightning.datasource.delta.$dbName"),
-      Seq(Row(dbName, table1, false), Row(dbName, table2, false)))
+      Seq(Row("", table1, false), Row("", table2, false)))
 
     insertDeltaFromH2(dbName, table, table2)
     checkRecords(dbName, table2)
@@ -190,7 +194,7 @@ class RegisterDeltaDataSourceTestSuite extends SparkExtensionsTestBase with H2Te
 
 
     checkAnswer(sparkSession.sql(s"show tables in lightning.datasource.delta.$anotherDb"),
-      Seq(Row(anotherDb, table1, false), Row(anotherDb, table2, false)))
+      Seq(Row("", table1, false), Row("", table2, false)))
 
     checkRecords(anotherDb, table1)
     checkRecords(anotherDb, table2)

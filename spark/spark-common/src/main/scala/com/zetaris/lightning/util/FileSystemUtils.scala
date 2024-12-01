@@ -25,100 +25,99 @@ import java.io.{File, FileFilter}
 import java.nio.charset.Charset
 
 object FileSystemUtils {
-
-  def folderExist(folderPath: String): Boolean = new File(folderPath).exists()
-
-  def fileExists(filePath: String): Boolean = folderExist(filePath)
-
-  /**
-   * create folder if not exist
-   * @param folderPath folderPath
-   */
-  def createFolderIfNotExist(folderPath: String): Unit = {
-    val directory = new File(folderPath)
-    if (!directory.exists()) {
-      directory.mkdir()
-    }
-  }
-
-  /**
-   * list sub directories for the given parent
-   * @param parent parent directory
-   * @return Seq[String] subdirectories
-   */
-  def listDirectories(parent: String): Seq[String] = {
-    listFiles(parent, new FileFilter() {
-      override def accept(pathname: File): Boolean = pathname.isDirectory
-    })
-  }
-
-  /**
-   * list files for the given parent
-   * @param parent parent directory
-   * @return Seq[String] files
-   */
-  def listFiles(parent: String): Seq[String] = {
-    listFiles(parent, new FileFilter() {
-      override def accept(pathname: File): Boolean = pathname.isFile
-    })
-  }
-
-  /**
-   * list files with the given parent and file filter
-   * @param parent
-   * @param fileFilter
-   * @return
-   */
-  private def listFiles(parent: String, fileFilter: FileFilter): Seq[String] = {
-    val directory = new File(parent)
-    if (directory.exists()) {
-      directory.listFiles(fileFilter).map(_.getName)
-    } else {
-      Seq()
-    }
-  }
-
-  /**
-   * save the given content to file
-   * @param filePath file path
-   * @param content content to save
-   * @param ifNotExist create file it not exist
-   */
-  def saveFile(filePath: String, content: String, ifNotExist: Boolean = true): Unit = {
-    val file = new File(filePath)
-    if (file.exists() && !ifNotExist) {
-      throw new RuntimeException(s"file : $filePath is existing")
-    }
-
-    FileUtils.write(file, content, Charset.defaultCharset)
-  }
-
-  /**
-   * read file
-   * @param filePath file path
-   * @return String
-   */
-  def readFile(filePath: String): String = {
-    val file = new File(filePath)
-    FileUtils.readFileToString(file, Charset.defaultCharset)
-  }
-
-  /**
-   * delete directory
-   * @param dir
-   */
-  def deleteDirectory(dir: String): Unit = {
-    val file = new File(dir)
-    FileUtils.deleteDirectory(file)
-  }
-
-  /**
-   * delete file
-   * @param path
-   */
-  def deleteFile(path: String): Unit = {
-    val file = new File(path)
-    FileUtils.delete(file)
-  }
-
+//  def folderExist(folderPath: String): Boolean = new File(folderPath).exists()
+//
+//  def fileExists(filePath: String): Boolean = folderExist(filePath)
+//
+//  /**
+//   * create folder if not exist
+//   * @param folderPath folderPath
+//   */
+//  def createFolderIfNotExist(folderPath: String): Unit = {
+//    val directory = new File(folderPath)
+//    if (!directory.exists()) {
+//      directory.mkdir()
+//    }
+//  }
+//
+//  /**
+//   * list sub directories for the given parent
+//   * @param parent parent directory
+//   * @return Seq[String] subdirectories
+//   */
+//  def listDirectories(parent: String): Seq[String] = {
+//    listFiles(parent, new FileFilter() {
+//      override def accept(pathname: File): Boolean = pathname.isDirectory
+//    })
+//  }
+//
+//  /**
+//   * list files for the given parent
+//   * @param parent parent directory
+//   * @return Seq[String] files
+//   */
+//  def listFiles(parent: String): Seq[String] = {
+//    listFiles(parent, new FileFilter() {
+//      override def accept(pathname: File): Boolean = pathname.isFile
+//    })
+//  }
+//
+//  /**
+//   * list files with the given parent and file filter
+//   * @param parent
+//   * @param fileFilter
+//   * @return
+//   */
+//  private def listFiles(parent: String, fileFilter: FileFilter): Seq[String] = {
+//    val directory = new File(parent)
+//    if (directory.exists()) {
+//      directory.listFiles(fileFilter).map(_.getName)
+//    } else {
+//      Seq()
+//    }
+//  }
+//
+//  /**
+//   * save the given content to file
+//   * @param filePath file path
+//   * @param content content to save
+//   * @param ifNotExist create file it not exist
+//   */
+//  def saveFile(filePath: String, content: String, ifNotExist: Boolean = true): Unit = {
+//    val file = new File(filePath)
+//    if (file.exists() && !ifNotExist) {
+//      throw new RuntimeException(s"file : $filePath is existing")
+//    }
+//
+//    FileUtils.write(file, content, Charset.defaultCharset)
+//  }
+//
+//  /**
+//   * read file
+//   * @param filePath file path
+//   * @return String
+//   */
+//  def readFile(filePath: String): String = {
+//    val file = new File(filePath)
+//    FileUtils.readFileToString(file, Charset.defaultCharset)
+//  }
+//
+//  /**
+//   * delete directory
+//   * @param dir
+//   */
+//  def deleteDirectory(dir: String): Unit = {
+//    val file = new File(dir)
+//    FileUtils.deleteDirectory(file)
+//  }
+//
+//  /**
+//   * delete file
+//   * @param path
+//   */
+//  def deleteFile(path: String): Unit = {
+//    val file = new File(path)
+//    FileUtils.delete(file)
+//  }
+//
 }

@@ -22,6 +22,7 @@
 package com.zetaris.lightning.datasource.command
 
 import com.zetaris.lightning.datasources.v2.UnstructuredData
+import com.zetaris.lightning.model.HdfsFileSystem
 import com.zetaris.lightning.util.FileSystemUtils
 import org.apache.spark.sql.{DataFrame, Row}
 import org.junit.runner.RunWith
@@ -41,7 +42,10 @@ class RegisterImageDataSourceTestSuite extends FileDataSourceTestBase {
   }
 
   private def initSaveDir(createPart: Boolean = false): Unit = {
-    FileSystemUtils.deleteDirectory(saveDir)
+    val parentAndChild = HdfsFileSystem.toFolderUrl(saveDir)
+    val fs = new HdfsFileSystem(Map.empty[String, String], parentAndChild._1)
+    fs.deleteDirectory(parentAndChild._2)
+
     val directory = new File(saveDir)
     if (!directory.exists()) {
       directory.mkdir()
@@ -267,6 +271,7 @@ class RegisterImageDataSourceTestSuite extends FileDataSourceTestBase {
     assert(rec(1).getString(8) == "")
     assert(rec(1).getString(9) == "")
 
+    // TODO : implement update tagging column later
     //sparkSession.sql("update lightning.datasource.file.spark_images set age = 10")
   }
 

@@ -36,10 +36,23 @@ object LightningCatalogCache {
   var catalog: AbstractLightningCatalog = null;
 }
 
+/**
+ * Basically, Lightning catalog should use different version of each data source along with spark version.
+ * For example, Spark v3.5.x, 3.4.x will use iceberg ver 1.4.3 and Spark v3.3.x will use iceberg ver 1.4.2, which incurs
+ * different catalog implementation along with multiple spark version.
+ *
+ * This abstract super class will provide all the common behaviour for the concrete catalog implementation.
+ * It instantiates Lightning Model instance for which incomming catalog call is delegating to
+ */
 abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamespaces with MetaDataCatalog {
   override val name = LightningModelFactory.LIGHTNING_CATALOG_NAME
   protected var model: LightningModel = null
 
+  /**
+   * instantiate lightning model and do extra intialization.
+   * @param name
+   * @param options
+   */
   override def initialize(name: String, options: CaseInsensitiveStringMap): Unit = {
     model = LightningModelFactory(options)
     LightningCatalogCache.catalog = this
@@ -78,8 +91,21 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
     found
   }
 
+  /**
+   * Load catalog unit for each data source
+   * @param dataSource
+   * @return
+   */
   def loadCatalogUnit(dataSource: DataSource): CatalogUnit
 
+  /**
+   * Delegate create table by loading data source definition.
+   * @param ident
+   * @param schema
+   * @param partitions
+   * @param properties
+   * @return
+   */
   override def createTable(ident: Identifier,
                            schema: StructType,
                            partitions: Array[Transform],
@@ -98,6 +124,11 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
     throw new RuntimeException("alter table is not supported")
   }
 
+  /**
+   * delegate drop table by loading data source definition.
+   * @param ident
+   * @return
+   */
   override def dropTable(ident: Identifier): Boolean = {
     val namespace = ident.namespace()
     findParentDataSource(namespace) match {
@@ -114,6 +145,10 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
     throw new RuntimeException("rename table is not supported")
   }
 
+  /**
+   * only to sub namespaces(datasource, metastore) under the root.
+   * @return
+   */
   override def listNamespaces(): Array[Array[String]] = {
     val nameSpacesBuilder = ArrayBuilder.make[Array[String]]
 
@@ -123,6 +158,11 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
     nameSpacesBuilder.result()
   }
 
+  /**
+   * List sub namespaces under the given parent
+   * @param namespace
+   * @return
+   */
   override def listNamespaces(namespace: Array[String]): Array[Array[String]] = {
     findParentDataSource(namespace) match {
       case Some(datasource) =>
@@ -138,6 +178,11 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
     }
   }
 
+  /**
+   * empty implementation
+   * @param namespace
+   * @return
+   */
   override def loadNamespaceMetadata(namespace: Array[String]): java.util.Map[String, String] = {
     import scala.collection.JavaConverters.mapAsJavaMap
     mapAsJavaMap(Map.empty[String, String])
@@ -320,15 +365,16 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
         val catalog = loadCatalogUnit(datasource)
 
         val sourceNamespace = namespace.drop(datasource.namespace.length + 1)
-        if (datasource.dataSourceType == DataSourceType.DELTA || datasource.dataSourceType == DataSourceType.ICEBERG) {
-          if (sourceNamespace.isEmpty) {
-            Array.empty[Identifier]
-          } else {
-            catalog.listTables(sourceNamespace)
-          }
-        } else {
-          catalog.listTables(sourceNamespace)
-        }
+        catalog.listTables(sourceNamespace)
+//        if (datasource.dataSourceType == DataSourceType.DELTA || datasource.dataSourceType == DataSourceType.ICEBERG) {
+//          if (sourceNamespace.isEmpty) {
+//            Array.empty[Identifier]
+//          } else {
+//            catalog.listTables(sourceNamespace)
+//          }
+//        } else {
+//          catalog.listTables(sourceNamespace)
+//        }
 
       case None =>
         model.listTables(namespace).map { table =>
