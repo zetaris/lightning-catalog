@@ -1,13 +1,43 @@
 #!/bin/bash
 
 # Set Spark version information
-SPARK_VERSION="3.5" # Replace with actual SPARK_VERSION
+DEFAULT_SPARK_MAJOR_VERSION="3.5"
+DEFAULT_SPARK_VERSION="3.5.0"
 LIGT_VERSION="0.2"
-OUTPUT_ZIP="lightning-metastore-$SPARK_VERSION-$LIGT_VERSION.zip"
+
+USER_SPARK_MAJOR_VERSION=""
+USER_SPARK_VERSION=""
+
+# Parse command-line arguments
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    -DdefaultSparkMajorVersion=*)
+      USER_SPARK_MAJOR_VERSION="${1#*=}"
+      shift
+      ;;
+    -DdefaultSparkVersion=*)
+      USER_SPARK_VERSION="${1#*=}"
+      shift
+      ;;
+    *)
+      echo "Unknown option: $1"
+      exit 1
+      ;;
+  esac
+done
+
+# Assign default values if user input is missing
+SPARK_MAJOR_VERSION="${USER_SPARK_MAJOR_VERSION:-$DEFAULT_SPARK_MAJOR_VERSION}"
+SPARK_VERSION="${USER_SPARK_VERSION:-$DEFAULT_SPARK_VERSION}"
+
+# echo "SPARK_MAJOR_VERSION: $SPARK_MAJOR_VERSION"
+# echo "SPARK_VERSION: $SPARK_VERSION"
+
+OUTPUT_ZIP="lightning-metastore-$SPARK_MAJOR_VERSION-$LIGT_VERSION.zip"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Set the target folder inside the zip
-TARGET_FOLDER="lightning-metastore-$SPARK_VERSION-$LIGT_VERSION"
+TARGET_FOLDER="lightning-metastore-$SPARK_MAJOR_VERSION-$LIGT_VERSION"
 
 # Step 1: Build front-end (React)
 echo "Building front-end..."
@@ -32,19 +62,19 @@ cp -r build/* "/tmp/tar_build/$TARGET_FOLDER/web" || { echo "Failed to copy fron
 # Step 2: Build back-end (Gradle, Scala, Spark)
 echo "Building back-end..."
 cd "$SCRIPT_DIR" || { echo "Failed to navigate to project root"; exit 1; }
-./gradlew clean build -DdefaultSparkMajorVersion=$SPARK_VERSION -x test || { echo "Gradle build failed"; exit 1; }
+./gradlew clean build -DdefaultSparkMajorVersion="$SPARK_MAJOR_VERSION" -DdefaultSparkVersion="$SPARK_VERSION" || { echo "Gradle build failed"; exit 1; }
 
 # Step 3: Extract JAR files from distribution package
 echo "Extracting JAR files from distribution..."
-DIST_DIR="$SCRIPT_DIR/spark/v${SPARK_VERSION}/spark-runtime/build/distributions"
+DIST_DIR="$SCRIPT_DIR/spark/v${SPARK_MAJOR_VERSION}/spark-runtime/build/distributions"
 
 # Find tar or zip file in the directory and extract JARs
-if ls "$DIST_DIR/lightning-metastore-${SPARK_VERSION}"*.tar 1> /dev/null 2>&1; then
+if ls "$DIST_DIR/lightning-metastore-${SPARK_MAJOR_VERSION}"*.tar 1> /dev/null 2>&1; then
     echo "Found tar distribution"
-    tar -xvf "$DIST_DIR/lightning-metastore-${SPARK_VERSION}"*.tar -C "/tmp/tar_build/$TARGET_FOLDER/lib" --strip-components=2 '*.jar' || { echo "Failed to extract JARs from tar"; exit 1; }
-elif ls "$DIST_DIR/lightning-metastore-${SPARK_VERSION}"*.zip 1> /dev/null 2>&1; then
+    tar -xvf "$DIST_DIR/lightning-metastore-${SPARK_MAJOR_VERSION}"*.tar -C "/tmp/tar_build/$TARGET_FOLDER/lib" --strip-components=2 '*.jar' || { echo "Failed to extract JARs from tar"; exit 1; }
+elif ls "$DIST_DIR/lightning-metastore-${SPARK_MAJOR_VERSION}"*.zip 1> /dev/null 2>&1; then
     echo "Found zip distribution"
-    unzip "$DIST_DIR/lightning-metastore-${SPARK_VERSION}"*.zip '*.jar' -d "/tmp/tar_build/$TARGET_FOLDER/lib" || { echo "Failed to extract JARs from zip"; exit 1; }
+    unzip "$DIST_DIR/lightning-metastore-${SPARK_MAJOR_VERSION}"*.zip '*.jar' -d "/tmp/tar_build/$TARGET_FOLDER/lib" || { echo "Failed to extract JARs from zip"; exit 1; }
 else
     echo "Distribution package not found"; exit 1;
 fi

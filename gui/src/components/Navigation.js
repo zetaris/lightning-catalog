@@ -3,12 +3,18 @@ import { SimpleTreeView, TreeItem } from '@mui/x-tree-view';
 import { fetchApi } from '../utils/common';
 import './Navigation.css';
 import '../styleguides/styleguides.css';
+import { setPathKeywords } from '../components/configs/editorConfig';
 import { ReactComponent as CirclePlus } from '../assets/images/circle-plus-solid.svg';
 import { ReactComponent as TableIcon } from '../assets/images/table-solid.svg';
 import { ReactComponent as FolderIcon } from '../assets/images/folder-regular.svg';
 import { ReactComponent as PreviewIcon } from '../assets/images/circle-play-regular.svg';
 import { ReactComponent as MinusIcon } from '../assets/images/square-minus-regular-black.svg';
 import { ReactComponent as PlusIcon } from '../assets/images/square-plus-regular-black.svg';
+import { ReactComponent as PkIcon } from '../assets/images/key-outline.svg';
+import { ReactComponent as UniqueIcon } from '../assets/images/fingerprint-solid.svg';
+import { ReactComponent as IndexIcon } from '../assets/images/book-solid.svg';
+import { ReactComponent as NNIcon } from '../assets/images/notnull-icon.svg';
+import { ReactComponent as LinkIcon } from '../assets/images/link-solid.svg';
 import SetSemanticLayerModal from './SetSemanticLayerModal';
 import Resizable from 'react-resizable-layout';
 
@@ -25,6 +31,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   const [previewableTables, setPreviewableTables] = useState(new Set());
   const [hasTableChild, setHasTableChild] = useState(false);
   const [selectedUSL, setSelectedUSL] = useState('');
+  const [currentFullPaths, setCurrentFullPaths] = useState([]);
 
   // State for managing datasource tree structure
   const [dataSources, setDataSources] = useState([
@@ -95,6 +102,12 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   }, []);
 
   useEffect(() => {
+    if (currentFullPaths.length > 0) {
+      setPathKeywords(currentFullPaths);
+    }
+  }, [currentFullPaths]);
+
+  useEffect(() => {
     const loadUSLFromStorage = () => {
       const storedUSL = localStorage.getItem(selectedUSL);
       if (storedUSL) {
@@ -126,7 +139,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     const result = await fetchApi(query);
     if (!Array.isArray(result) || result.length === 0) return [];
 
-    return result
+    const fetchedData = result
       .map((item) => JSON.parse(item))
       .filter((parsedItem) => !excludedNamespaces.includes(parsedItem.name))
       .map((parsedItem) => ({
@@ -135,6 +148,14 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
         type: parsedItem.type,
         children: null,
       }));
+
+    // **Update currentFullPaths**
+    setCurrentFullPaths((prevPaths) => [
+      ...prevPaths,
+      ...fetchedData.map((item) => item.fullPath),
+    ]);
+
+    return fetchedData;
   };
 
 
@@ -183,12 +204,78 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
         setPreviewableTables((prev) => new Set(prev).add(node.fullPath));
       }
 
+      let uslName;
+      let storedData;
+
+      if(node.fullPath.toLowerCase().includes('metastore')){
+        uslName = node.fullPath.match(/usldb\.([^.]+)/)[1];
+      }
+
+      if (uslName) {
+        storedData = JSON.parse(localStorage.getItem(uslName));
+      }
+
+      if (storedData?.name === uslName && uslName) {
+        const table = storedData.tables.find((tbl) => tbl.name === node.name);
+        if (table) {
+          const tableChildren = table.columnSpecs.map((column) => {
+            const icons = [];
+            if (column.primaryKey) {
+              icons.push(
+                <PkIcon key={`pk-${column.name}`} style={{ width: '16px', height: '16px', marginLeft: '4px' }} />
+              );
+            }
+            if (column.foreignKey) {
+              icons.push(
+                <LinkIcon key={`fk-${column.name}`} style={{ width: '16px', height: '16px', marginLeft: '4px' }} />
+              );
+            }
+            if (column.notNull) {
+              icons.push(
+                <NNIcon key={`nn-${column.name}`} style={{ width: '16px', height: '16px', marginLeft: '4px' }} />
+              );
+            }
+      
+            return {
+              // name: column.name,
+              name: (
+                <span style={{ display: 'flex', alignItems: 'center' }}>
+                  <span style={{ marginRight: '8px', fill: '#888', display: 'flex', alignItems: 'center' }}>{icons}</span>
+                  <span>{column.name}</span>
+                </span>
+              ),
+              fullPath: `${node.fullPath}.${column.name}`,
+              type: 'column',
+              dataTypeElement: (
+                <span style={{ display: 'flex', alignItems: 'center', marginLeft: '10px' }}>
+                  <span style={{ fontSize: '0.8em', color: '#888' }}>
+                    ({column.dataType.replace(/"/g, '')})
+                  </span>
+                </span>
+              ),
+            };
+          });
+      
+          node.children = tableChildren;
+      
+          setSemanticLayerFiles((prevData) =>
+            updateNodeChildren(prevData, node.name, tableChildren)
+          );
+      
+          return;
+        }
+      }      
+
       if (node.fullPath.toLowerCase().includes('metastore') && hasTableChild) {
         // console.log('Skipping getTableDesc');
         return;
       }
 
       const tableDetails = await getTableDesc(node.fullPath);
+
+      const columnFullPath = tableDetails.map((column) => `${node.fullPath}.${column.col_name}`);
+      setCurrentFullPaths((prevPaths) => [...prevPaths, ...columnFullPath]);
+
       const tableChildren = tableDetails.map((column) => ({
         name: column.col_name,
         fullPath: `${node.fullPath}.${column.col_name}`,
@@ -251,8 +338,6 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
             }
           });
         } else {
-          // console.log(`No localStorage data for ${node.name}. Loading via LOAD USL query.`);
-
           const dbname = node.fullPath.split('.').pop();
           const path = node.fullPath.split('.').slice(0, -1).join('.');
 
@@ -536,7 +621,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 </button>
               )}
 
-              {node.type === 'namespace' && !isSemanticLayer && !hasTableChild && (
+              {node.type === 'namespace' && !hasTableChild && (
                 <div style={{ marginLeft: '10px', display: 'flex', alignItems: 'center' }}>
                   <PlusIcon
                     onClick={(event) => handlePlusClick(event, node)}
@@ -570,7 +655,8 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyDown={(e) => {
                   e.stopPropagation();
-                  handleInputKeyDown(e, node);}}
+                  handleInputKeyDown(e, node);
+                }}
                 style={{
                   padding: '6px',
                   border: '2px solid #27A7D2',
@@ -595,8 +681,8 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     () => renderTree(dataSources, '', false),
     [dataSources, activeInputNode, inputValue]
   );
-  
-  const memoizedSemanticLayerTree = useMemo(() => renderTree(semanticLayerFiles, '', true), [semanticLayerFiles]);
+
+  const memoizedSemanticLayerTree = useMemo(() => renderTree(semanticLayerFiles, '', true), [semanticLayerFiles, activeInputNode, inputValue]);
 
   return (
     <>

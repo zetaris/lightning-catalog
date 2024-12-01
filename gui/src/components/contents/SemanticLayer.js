@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import Resizable from 'react-resizable-layout';
-import { initializeJsPlumb, setupTableForSelectedTable, connectEndpoints, handleOptimizeView, handleZoomIn, handleZoomOut, getColumnConstraint, getRowInfo, addForeignKeyIconToColumn } from '../configs/JsPlumbConfig';
+import { initializeJsPlumb, setupTableForSelectedTable, connectEndpoints, handleOptimizeView, handleZoomIn, handleZoomOut, getColumnConstraint, getRowInfo, addForeignKeyIconToColumn, getOptimalEndpointPosition } from '../configs/JsPlumbConfig';
 import { v4 as uuidv4 } from 'uuid';
 import { fetchApi, fetchActivateTableApi, qdqApi, edqApi } from '../../utils/common';
 import './Contents.css';
@@ -531,8 +531,8 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 // Add tooltips to referenced columns
                 table.desc.forEach((col) => {
                     if (col.foreignKey) {
-                        const refTableNames = col.foreignKey.refTable; // Array of referenced table names
-                        const refColumnNames = col.foreignKey.refColumns; // Array of referenced column names
+                        const refTableNames = col.foreignKey.refTable;
+                        const refColumnNames = col.foreignKey.refColumns;
 
                         // Ensure both refTableNames and refColumnNames have the same length
                         if (Array.isArray(refTableNames) && Array.isArray(refColumnNames) && refTableNames.length === refColumnNames.length) {
@@ -541,8 +541,6 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
 
                                 // Find the target table and column
                                 const targetTable = savedTables.find(t => t.name === refTableName);
-                                // console.log(targetTable)
-                                // console.log(refColumnName)
                                 if (targetTable) {
                                     const targetColumn = targetTable.desc.find(c => c.col_name === refColumnName);
                                     if (targetColumn) {
@@ -567,8 +565,11 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             requestAnimationFrame(() => {
                 if (savedConnections.length > 0) {
                     savedConnections.forEach(({ sourceId, targetId, relationship, relationship_type }, index) => {
-                        connectEndpoints(jsPlumbInstanceRef.current, sourceId, targetId, relationship, relationship_type, false);
-                        const { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn } = getRowInfo(sourceId, targetId);
+                        const optimalEndpoints = getOptimalEndpointPosition(sourceId, targetId);
+                        connectEndpoints(jsPlumbInstanceRef.current, optimalEndpoints.sourceId, optimalEndpoints.targetId, relationship, relationship_type, false);
+                        const { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn } = getRowInfo(optimalEndpoints.sourceId, optimalEndpoints.targetId);
+                        // connectEndpoints(jsPlumbInstanceRef.current, sourceId, targetId, relationship, relationship_type, false);
+                        // const { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn } = getRowInfo(sourceId, targetId);
 
                         const sourceColumnName = sourceColumn.querySelector('td')?.innerText || '';
                         const targetColumnName = targetColumn.querySelector('td')?.innerText || '';
@@ -660,8 +661,9 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
 
             requestAnimationFrame(() => {
                 savedConnections.forEach(({ sourceId, targetId, relationship, relationship_type }, index) => {
-                    connectEndpoints(jsPlumbInstanceRef.current, sourceId, targetId, relationship, relationship_type, false);
-                    const { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn } = getRowInfo(sourceId, targetId);
+                    const optimalEndpoints = getOptimalEndpointPosition(sourceId, targetId);
+                    connectEndpoints(jsPlumbInstanceRef.current, optimalEndpoints.sourceId, optimalEndpoints.targetId, relationship, relationship_type, false);
+                    const { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn } = getRowInfo(optimalEndpoints.sourceId, optimalEndpoints.targetId);
 
                     const sourceColumnName = sourceColumn.querySelector('td')?.innerText || '';
                     const targetColumnName = targetColumn.querySelector('td')?.innerText || '';
@@ -791,33 +793,16 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             setPopupMessage(`Invalid DDL JSON format: ${e}`);
             return null;
         }
-
+    
         localStorage.removeItem('savedTables');
         localStorage.removeItem('connections');
-
+    
         const activatedTableNames = [];
-
+    
         const newTables = ddlJson.tables.map((table) => {
             const foreignKeyConstraints = [];
-
+    
             const columns = table.columnSpecs.map((col) => {
-                if (col.foreignKey) {
-                    const refTableName = col.foreignKey.refTable.join('.');
-                    const refColumnName = col.foreignKey.refColumns[0];
-                    const targetTable = ddlJson.tables.find(t => `lightning.${t.namespace.join('.')}.${t.name}` === refTableName);
-
-                    if (targetTable) {
-                        const targetColumn = targetTable.columnSpecs.find(c => c.name === refColumnName);
-                        if (targetColumn) {
-                            targetColumn.foreignKey = {
-                                columns: targetColumn.foreignKey?.columns || [],
-                                refTable: [table.name],
-                                refColumns: [col.name],
-                            };
-                        }
-                    }
-                }
-
                 return {
                     col_name: col.name,
                     data_type: col.dataType,
@@ -827,16 +812,57 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                     ...(col.foreignKey ? { foreignKey: col.foreignKey } : {})
                 };
             });
-
+    
+            // Handle table-level primary key
+            if (table.primaryKey && table.primaryKey.columns) {
+                table.primaryKey.columns.forEach((pkColumnName) => {
+                    const column = columns.find((col) => col.col_name === pkColumnName);
+                    if (column) {
+                        column.primaryKey = {
+                            columns: table.primaryKey.columns,
+                            name: table.primaryKey.name
+                        };
+                    } else {
+                        console.warn(`Primary key column '${pkColumnName}' not found in table '${table.name}'.`);
+                    }
+                });
+            }
+    
+            // Handle table-level foreign keys
+            if (table.foreignKeys && table.foreignKeys.length > 0) {
+                table.foreignKeys.forEach((fk) => {
+                    fk.columns.forEach((fkColumnName, index) => {
+                        const column = columns.find((col) => col.col_name === fkColumnName);
+                        if (column) {
+                            column.foreignKey = {
+                                refTable: fk.refTable,
+                                refColumns: [fk.refColumns[index]],
+                                name: fk.name
+                            };
+                        } else {
+                            console.warn(`Foreign key column '${fkColumnName}' not found in table '${table.name}'.`);
+                        }
+                    });
+    
+                    // Add to foreignKeyConstraints array
+                    foreignKeyConstraints.push({
+                        columns: fk.columns,
+                        refTable: fk.refTable,
+                        refColumns: fk.refColumns,
+                        name: fk.name
+                    });
+                });
+            }
+    
             const position = table.position || { left: 100 + Math.random() * 100, top: 100 + Math.random() * 100 };
-
+    
             const isActivated = table.hasOwnProperty('activateQuery');
             const tableName = `lightning.${ddlJson.namespace.join('.')}.${ddlJson.name}.${table.name}`;
-
+    
             if (isActivated) {
                 activatedTableNames.push(tableName);
             }
-
+    
             return {
                 name: tableName,
                 desc: columns,
@@ -848,22 +874,22 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 ...(isActivated ? { activateQuery: table.activateQuery } : {})
             };
         });
-
+    
         const savedConnections = [];
         newTables.forEach((table) => {
             table.desc.forEach((col) => {
                 if (col.foreignKey) {
                     const sourceTable = table.name;
-                    const sourceTableUuid = newTables.find(t => t.name === sourceTable)?.uuid;
-
+                    const sourceTableUuid = newTables.find((t) => t.name === sourceTable)?.uuid;
+    
                     const targetTableName = col.foreignKey.refTable.join('.');
-                    const targetTableObj = newTables.find(t => t.name === targetTableName);
-
+                    const targetTableObj = newTables.find((t) => t.name === targetTableName);
+    
                     if (sourceTableUuid && targetTableObj) {
-                        const sourceId = `table-${sourceTableUuid}-col-${table.desc.findIndex(c => c.col_name === col.col_name) + 1}-left`;
+                        const sourceId = `table-${sourceTableUuid}-col-${table.desc.findIndex((c) => c.col_name === col.col_name) + 1}-left`;
                         const targetColumn = col.foreignKey.refColumns[0];
-                        const targetId = `table-${targetTableObj.uuid}-col-${targetTableObj.desc.findIndex(c => c.col_name === targetColumn) + 1}-right`;
-
+                        const targetId = `table-${targetTableObj.uuid}-col-${targetTableObj.desc.findIndex((c) => c.col_name === targetColumn) + 1}-right`;
+    
                         savedConnections.push({
                             sourceId,
                             targetId,
@@ -875,13 +901,13 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 }
             });
         });
-
+    
         setActivateTables(activatedTableNames);
         localStorage.setItem('savedTables', JSON.stringify(newTables));
         localStorage.setItem('connections', JSON.stringify(savedConnections));
-
+    
         return { savedTables: newTables, savedConnections, rulesData: {} };
-    };
+    };    
 
     const handlePreViewButtonClick = async (tableName) => {
         await runQuery(`SELECT * FROM ${tableName} LIMIT 100`);
@@ -980,7 +1006,6 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
 
         const headers = Object.keys(data[0]).join(',');
 
-        // Map each row to a CSV row
         const rows = data.map((row) =>
             Object.values(row)
                 .map((value) =>
@@ -1052,6 +1077,10 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         const columns = Object.keys(normalizedData[0]).map((key) => ({
             accessorKey: key,
             header: key.charAt(0).toUpperCase() + key.slice(1),
+            muiTableHeadCellProps: { align: 'center', style: key === outputTabInfo.name ? { backgroundColor: '#E9EFEC' } : {}, },
+            muiTableBodyCellProps: {
+                style: key === outputTabInfo.name ? { backgroundColor: '#E9EFEC' } : {},
+            },
             Cell: ({ cell }) => {
                 const value = cell.getValue();
                 if (!isNaN(value) && value !== null && value !== '') {
@@ -1169,32 +1198,34 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                         id={`checkbox-${row.original.Name}`}
                         name={`checkbox-${row.original.Name}`}
                     />
-                )
+                ),
             },
             {
                 accessorKey: 'Status',
                 header: 'Status',
                 size: 80,
-                Cell: ({ cell, row }) => renderStatus(cell.getValue(), row.original.errorMessage)
+                Cell: ({ cell, row }) => renderStatus(cell.getValue(), row.original.errorMessage),
             },
-            { accessorKey: 'Name', header: 'Name' },
-            { accessorKey: 'Table', header: 'Table' },
-            { accessorKey: 'Type', header: 'Type' },
-            { accessorKey: 'Expression', header: 'Expression' },
+            { accessorKey: 'Name', header: 'Name', muiTableHeadCellProps: { align: 'center' } },
+            { accessorKey: 'Table', header: 'Table', muiTableHeadCellProps: { align: 'center' } },
+            { accessorKey: 'Type', header: 'Type', muiTableHeadCellProps: { align: 'center' } },
+            { accessorKey: 'Expression', header: 'Expression', muiTableHeadCellProps: { align: 'center' } },
             {
                 accessorKey: 'Total_record',
                 header: 'Total Records',
+                muiTableHeadCellProps: { align: 'center' },
                 Cell: ({ cell }) => (
                     <div style={{ textAlign: 'right' }}>
                         {typeof cell.getValue() === 'number'
                             ? cell.getValue().toLocaleString()
                             : renderFetchingStatus(cell.getValue())}
                     </div>
-                )
+                ),
             },
             {
                 accessorKey: 'Valid_record',
                 header: 'Valid record',
+                muiTableHeadCellProps: { align: 'center' },
                 Cell: ({ cell, row }) => (
                     <div style={{ textAlign: 'right' }}>
                         {typeof cell.getValue() === 'number' ? (
@@ -1218,6 +1249,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             {
                 accessorKey: 'Invalid_record',
                 header: 'Invalid record',
+                muiTableHeadCellProps: { align: 'center' },
                 Cell: ({ cell, row }) => (
                     <div style={{ textAlign: 'right' }}>
                         {typeof cell.getValue() === 'number' ? (
@@ -1349,6 +1381,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         const dynamicColumns = [{
             accessorKey: 'title',
             header: 'original Column Name',
+            muiTableHeadCellProps: { align: 'center' },
             Cell: ({ cell }) => <strong>{cell.getValue()}</strong>
         }];
 
@@ -1360,6 +1393,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             dynamicColumns.push({
                 accessorKey: `column_${index}`,
                 header: `${headerName} (${headerPrefix})` || `Column ${index + 1}`,
+                muiTableHeadCellProps: { align: 'center' },
                 Cell: ({ row }) => (
                     row.index === 1 ? (
                         <select
@@ -1554,9 +1588,6 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                                 `USL : ${uslName}`
                             )}
                         </div>
-                        {/* <div className="button-group2">
-                            <button className="btn-primary" onClick={(loadDQ)}>Load Data Quality</button>
-                        </div> */}
                     </div>
                     <div
                         style={{

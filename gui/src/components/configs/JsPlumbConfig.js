@@ -2,6 +2,7 @@ import { jsPlumb } from 'jsplumb';
 import './JsPlumbTables.css';
 import { createRoot } from 'react-dom/client';
 import React from 'react';
+import { flushSync } from 'react-dom';
 import { ReactComponent as EllipsisIcon } from '../../assets/images/ellipsis-vertical-solid.svg';
 import { ReactComponent as PkIcon } from '../../assets/images/key-outline.svg';
 import { ReactComponent as UniqueIcon } from '../../assets/images/fingerprint-solid.svg';
@@ -39,15 +40,22 @@ export const initializeJsPlumb = (container, tables = [], openModal, handlePreVi
     // });
 
     jsPlumbInstance.bind('beforeDrop', (info) => {
+      const sourceId = typeof info.sourceId === 'string' ? info.sourceId : info.sourceId.toString();
+      const targetId = typeof info.targetId === 'string' ? info.targetId : info.targetId.toString();
+      const optimalEndpoints = getOptimalEndpointPosition(sourceId, targetId);
+
       connectEndpoints(
         jsPlumbInstance,
-        info.sourceId,
-        info.targetId,
+        // info.sourceId,
+        // info.targetId,
+        optimalEndpoints.sourceId,
+        optimalEndpoints.targetId,
         'fk',
         'many_to_many',
         true
       );
-      addForeignKeyToConnection(jsPlumbInstance, info.sourceId, info.targetId, 'fk');
+      // addForeignKeyToConnection(jsPlumbInstance, info.sourceId, info.targetId, 'fk');
+      addForeignKeyToConnection(jsPlumbInstance, optimalEndpoints.sourceId, optimalEndpoints.targetId, 'fk');
       return false;
     });
 
@@ -173,7 +181,7 @@ const removeConnectionFromLocalStorage = (sourceId, targetId) => {
       if (iconContainer) {
         const tooltipElement = iconContainer.querySelector('.tooltip-text');
         if (tooltipElement) {
-          const currentTooltipData = tooltipElement.innerText.split(', ').filter(Boolean);
+          const currentTooltipData = tooltipElement.textContent.split(', ').filter(Boolean);
 
           const updatedTooltipData = currentTooltipData.filter(
             (tooltip) => !tooltip.includes(`foreignKey(${targetColumnName})`)
@@ -241,7 +249,7 @@ export function getColumnConstraint(fullPath) {
   // Check for notNull constraint at column level
   if (column.notNull) {
     constraints.push({
-      type: 'notNull',
+      type: 'not null',
       details: column.notNull,
     });
   }
@@ -284,11 +292,13 @@ const removeForeignKeyIconFromColumn = (columnElement, sourceId, targetId) => {
 
     const targetName = document.getElementById(targetId).innerText.trim();
 
-    const fkToRemove = `foreignKey(${targetName})`.trim().replace(/\s+/g, ' ').toLowerCase();
+    const fkToRemove = `foreignKey(${targetName})`.trim().replace(/\s+/g, ' ');
+
+    let updatedTooltipText = '';
 
     if (tooltipTextElement) {
-      const currentTooltipText = tooltipTextElement.textContent.trim().replace(/\s+/g, ' ').toLowerCase();
-      const updatedTooltipText = currentTooltipText
+      const currentTooltipText = tooltipTextElement.textContent.trim().replace(/\s+/g, ' ');
+      updatedTooltipText = currentTooltipText
         .split(', ')
         .filter((fk) =>
           fk !== fkToRemove)
@@ -297,14 +307,16 @@ const removeForeignKeyIconFromColumn = (columnElement, sourceId, targetId) => {
       if (updatedTooltipText) {
         tooltipTextElement.innerText = updatedTooltipText;
       } else {
-        tooltipTextElement.remove();
+        tooltipTextElement.innerText = '';
       }
     }
+
+    columnElement.setAttribute('data-tooltip', updatedTooltipText);
 
     const fkOnly = columnElement.querySelector('.fk-only');
     if (fkOnly) {
       const remainingTooltipText = tooltipTextElement?.textContent.trim() || '';
-      const hasOtherForeignKeys = remainingTooltipText.includes('foreignKey');
+      const hasOtherForeignKeys = remainingTooltipText.toLowerCase().includes('foreignkey');
 
       if (!tooltipTextElement || (!remainingTooltipText && !hasOtherForeignKeys)) {
         if (fkIconContainer && fkIconContainer._root) {
@@ -313,7 +325,6 @@ const removeForeignKeyIconFromColumn = (columnElement, sourceId, targetId) => {
         }
       }
     }
-
 
     let tooltipText = '';
 
@@ -365,24 +376,11 @@ const addForeignKeyToConnection = (jsPlumbInstance, sourceId, targetId, relation
     }).join(', ');
   }
 
-  const newForeignKeyText = `foreignKey(${targetColumnName})`;
+  const targetForeignKeyText = `foreignKey(${targetColumnName})`;
 
-  // Get currently active connections
-  const activeConnections = jsPlumbInstance.getConnections({ source: sourceId });
-  const activeTargets = activeConnections.map((conn) => conn.targetId);
-
-  // Only add new tooltip if the connection is still active
-  if (!activeTargets.includes(targetId)) {
-    console.warn(`Connection between ${sourceId} and ${targetId} is no longer active.`);
-    return;
-  }
-
-  // Merge tooltip data and remove duplicates
-  const newTooltipDataArray = tooltipData
-    ? [...new Set([...tooltipData.split(', '), newForeignKeyText])]
-    : [newForeignKeyText];
-
-  const newTooltipData = newTooltipDataArray.join(', ');
+  const newTooltipData = tooltipData
+    ? `${tooltipData}, ${targetForeignKeyText}`
+    : targetForeignKeyText;
 
   if (relationship === 'fk') {
     const existingTooltipData = sourceColumn.getAttribute('data-tooltip') || '';
@@ -403,7 +401,17 @@ const addForeignKeyToConnection = (jsPlumbInstance, sourceId, targetId, relation
 
 export function addForeignKeyIconToColumn(columnElement, combinedTooltipData, tooltipData) {
   if (columnElement) {
-    const iconContainer = columnElement.querySelector('.icon-container');
+    let iconContainer = columnElement.querySelector('.icon-container');
+    const td = columnElement.querySelector('td');
+
+    if (!iconContainer) {
+      iconContainer = document.createElement('span');
+      iconContainer.className = 'icon-container fk-icon';
+      iconContainer.style.display = 'inline-block';
+      iconContainer.style.position = 'absolute';
+      iconContainer.style.left = '20px';
+      td.appendChild(iconContainer);
+    }
 
     if (iconContainer) {
       requestAnimationFrame(() => {
@@ -412,7 +420,7 @@ export function addForeignKeyIconToColumn(columnElement, combinedTooltipData, to
           iconContainer._root = createRoot(iconContainer);
         }
 
-        if (!tooltipData) {
+        if (!combinedTooltipData) {
           // Initial render of the icon and tooltip (only done once)
           iconContainer._root.render(
             <div className="tooltip-container">
@@ -421,10 +429,10 @@ export function addForeignKeyIconToColumn(columnElement, combinedTooltipData, to
               <div className="fk-only"></div>
             </div>
           );
-        } else if (tooltipData === 'notNull') {
+        } else if (combinedTooltipData.includes('not null')) {
           iconContainer._root.render(
             <div className="tooltip-container">
-              <LinkIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />
+              <NNIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />
               <span className="tooltip-text">{combinedTooltipData}</span>
               <div className="fk-only"></div>
             </div>
@@ -460,7 +468,6 @@ export function addForeignKeyIconToColumn(columnElement, combinedTooltipData, to
     }
   }
 };
-
 
 export const connectEndpoints = (jsPlumbInstance, sourceId, targetId, relationship, relationship_type = 'many_to_many', isSaveConnection = true) => {
   const { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn } = getRowInfo(sourceId, targetId);
@@ -1105,7 +1112,7 @@ const getDistance = (point1, point2) => {
   return Math.sqrt(Math.pow(point1.x - point2.x, 2) + Math.pow(point1.y - point2.y, 2));
 };
 
-const getOptimalEndpointPosition = (sourceId, targetId) => {
+export const getOptimalEndpointPosition = (sourceId, targetId) => {
   if (typeof sourceId !== 'string' || typeof targetId !== 'string') {
     console.error("Invalid sourceId or targetId. Expected strings but got:", { sourceId, targetId });
     return { sourceId, targetId };

@@ -1,6 +1,7 @@
 import ace from 'ace-builds';
+import Fuse from 'fuse.js';
+import sqlKeywords from '../../utils/sql_keywords.json';
 
-// Define custom theme
 export const defineCustomTheme = () => {
   ace.define('ace/theme/myCustomTheme', ['require', 'exports', 'module', 'ace/lib/dom'], function (require, exports) {
     exports.isDark = false;
@@ -47,12 +48,12 @@ export const defineCustomTheme = () => {
         color: #27A7D2; /* Project main color for functions */
         font-weight: bold;
       }
-      .ace-myCustomTheme .ace_data-type {
+      .ace-myCustomTheme .ace_dataType {
         color: #15B392; /* Data types in project color, italicized */
         font-style: italic;
         font-weight: bold;
       }
-      .ace-myCustomTheme .ace_constraints {
+      .ace-myCustomTheme .ace_builtIn {
         color: #D28445; /* Data types in project color, italicized */
         font-style: italic;
         font-weight: bold;
@@ -82,46 +83,48 @@ export const defineCustomTheme = () => {
   });
 };
 
+const updateHighlightRulesFromJSON = (sqlKeywords) => {
+  const { keywords, lightning, dataTypes, builtIn } = sqlKeywords;
+
+  return [
+    {
+      token: "keyword",
+      regex: `\\b(?:${keywords.join('|')})\\b`
+    },
+    {
+      token: "lightning",
+      regex: `\\b(?:${lightning.join('|')})\\b`
+    },
+    {
+      token: "dataType",
+      regex: `\\b(?:${dataTypes.join('|')})\\b`
+    },
+    {
+      token: "builtIn",
+      regex: `\\b(?:${builtIn.join('|')})\\b`
+    },
+    {
+      token: "identifier",
+      regex: "\\w+"
+    },
+    {
+      token: "comment",
+      regex: "--.*$"
+    },
+    {
+      token: "comment",
+      start: "/\\*",
+      end: "\\*/"
+    }
+  ];
+};
+
 ace.define("ace/mode/custom_sql_highlight_rules", ["require", "exports", "ace/mode/text_highlight_rules"], function (require, exports) {
   const TextHighlightRules = require("ace/mode/text_highlight_rules").TextHighlightRules;
 
   const CustomSqlHighlightRules = function () {
     this.$rules = {
-      "start": [
-        {
-          token: "keyword",
-          regex: "\\b(?:SELECT|FROM|WHERE|JOIN|CREATE|TABLE|SHOW|INSERT|DROP|IF|EXISTS|REPLACE|QUERY|REGISTER|DESCRIBE|describe|TABLES|tables|IN|VALUES|INTO|PARTITIONED|BY|WITH|NAMESPACE)\\b",
-        },
-        {
-          token: "lightning",
-          regex: "\\b(?:lightning|datasource|metastore|NAMESPACES|OPTIONS|USL|usl|ACTIVATE|DEACTIVATE|CATALOG)\\b"
-        },
-        {
-          token: "data-type",
-          regex: "\\b(?:H2|AVRO|CSV|ORC|PARQUET|JSON|JDBC|int|char|varchar|real|foreign key|primary key|FOREIGN KEY|PRIMARY KEY|not null|NOT NULL|null|NULL|unique|UNIQUE|index|INDEX)\\b"
-        },
-        {
-          token: "constraints",
-          regex: "\\b(?:foreign key|primary key|FOREIGN KEY|PRIMARY KEY|not null|NOT NULL|null|NULL|unique|UNIQUE|index|INDEX)\\b"
-        },
-        {
-          token: "identifier",
-          regex: "\\w+"
-        },
-        {
-          token: "suggestion",
-          regex: "\\w+"
-        },
-        {
-          token: "comment",
-          regex: "--.*$"
-        },
-        {
-          token: "comment",
-          start: "/\\*",
-          end: "\\*/"
-        }
-      ]
+      "start": updateHighlightRulesFromJSON(sqlKeywords)
     };
 
     this.normalizeRules();
@@ -151,42 +154,72 @@ ace.define("ace/mode/custom_sql", ["require", "exports", "ace/mode/sql", "ace/mo
   exports.Mode = CustomSqlMode;
 });
 
+let fuse;
 let pathKeywords = {};
 let currentSuggestions = [];
 
-export const setPathKeywords = (paths) => {
-  paths.forEach((path) => {
-    pathKeywords[path] = [path];
-  });
+const initializeFuse = (paths) => {
+  const options = {
+    includeScore: true,
+    threshold: 0.7,
+    keys: ['path'],
+  };
+
+  fuse = new Fuse(paths.map((path) => ({ path })), options);
 };
 
-const onDotTyped = (editorInstance) => {
+export const setPathKeywords = (paths) => {
+  pathKeywords = {};
+  paths.forEach((path) => {
+    pathKeywords[path] = path;
+  });
+
+  initializeFuse(Object.keys(pathKeywords));
+};
+
+const onDotTyped = (editorInstance, tableName = '') => {
   let currentLine = editorInstance.getSession().getLine(editorInstance.getCursorPosition().row);
   currentSuggestions = [];
 
-  const lastLightningIndex = currentLine.lastIndexOf("lightning");
-  if (lastLightningIndex !== -1) {
-    currentLine = currentLine.slice(lastLightningIndex);
+  let resolvedPath = tableName;
+
+  if (!tableName) {
+    const pathSegments = currentLine.trim().split(/[\s.]+/);
+    const aliasOrPath = pathSegments.slice(-2, -1).join('.');
+
+    resolvedPath = pathKeywords[aliasOrPath] || aliasOrPath;
+
+    if (resolvedPath.includes('.')) {
+      const segments = resolvedPath.split('.');
+      resolvedPath = segments[segments.length - 1];
+    }
   }
 
-  const pathSegments = currentLine.split('.');
-  const currentPath = pathSegments.slice(0, -1).join('.');
+  const results = fuse.search(resolvedPath) || [];
 
-  const matchingPaths = Object.keys(pathKeywords).filter((path) => path.startsWith(currentPath + "."));
-  currentSuggestions = matchingPaths.map((path) => {
-    const segments = path.split('.');
-    return segments[pathSegments.length - 1];
-  }).filter((suggestion, index, self) => suggestion && self.indexOf(suggestion) === index);
+  currentSuggestions = results
+    .map(({ item }) => {
+      const segments = item.path.split('.');
+      const currentIndex = segments.indexOf(resolvedPath);
 
-  if (currentSuggestions.length > 0) {
-    setTimeout(() => {
-      editorInstance.execCommand('startAutocomplete');
-    }, 0);
-  }
+      if (currentIndex !== -1 && currentIndex < segments.length - 1) {
+        return segments.slice(currentIndex + 1).join('.');
+      }
+      return null;
+    })
+    .filter((suggestion, index, self) => suggestion && self.indexOf(suggestion) === index);
+
+    if (currentSuggestions.length > 0) {
+      setTimeout(() => {
+        editorInstance.execCommand('startAutocomplete');
+      }, 10);
+    }    
 };
 
 export const customSQLCompleter = {
   getCompletions: (editor, session, pos, prefix, callback) => {
+    const { keywords, lightning, dataTypes, builtIn } = sqlKeywords;
+
     const suggestions = currentSuggestions.length > 0
       ? currentSuggestions.map((suggestion) => ({
         caption: suggestion,
@@ -194,65 +227,23 @@ export const customSQLCompleter = {
         meta: 'suggestion',
         score: 1000
       }))
-      :
-      [
-        { name: 'SELECT', value: 'SELECT', score: 1000, meta: 'keyword' },
-        { name: 'FROM', value: 'FROM', score: 1000, meta: 'keyword' },
-        { name: 'WHERE', value: 'WHERE', score: 1000, meta: 'keyword' },
-        { name: 'JOIN', value: 'JOIN', score: 1000, meta: 'keyword' },
-        { name: 'IN', value: 'IN', score: 1000, meta: 'keyword' },
-        { name: 'REGISTER', value: 'REGISTER', score: 1000, meta: 'keyword' },
-        { name: 'CREATE', value: 'CREATE', score: 1000, meta: 'keyword' },
-        { name: 'TABLE', value: 'TABLE', score: 1000, meta: 'keyword' },
-        { name: 'SHOW', value: 'SHOW', score: 1000, meta: 'keyword' },
-        { name: 'DESCRIBE', value: 'DESCRIBE', score: 1000, meta: 'keyword' },
-        { name: 'INSERT', value: 'INSERT', score: 1000, meta: 'keyword' },
-        { name: 'INTO', value: 'INTO', score: 1000, meta: 'keyword' },
-        { name: 'VALUES', value: 'VALUES', score: 1000, meta: 'keyword' },
-        { name: 'DROP', value: 'DROP', score: 1000, meta: 'keyword' },
-        { name: 'IF', value: 'IF', score: 1000, meta: 'keyword' },
-        { name: 'EXISTS', value: 'EXISTS', score: 1000, meta: 'keyword' },
-        { name: 'REPLACE', value: 'REPLACE', score: 1000, meta: 'keyword' },
-        { name: 'PARTITIONED', value: 'PARTITIONED', score: 1000, meta: 'keyword' },
-        { name: 'BY', value: 'BY', score: 1000, meta: 'keyword' },
-        { name: 'WITH', value: 'WITH', score: 1000, meta: 'keyword' },
-        { name: 'QUERY', value: 'QUERY', score: 1000, meta: 'keyword' },
-        { name: 'REGISTER', value: 'REGISTER', score: 1000, meta: 'keyword' },
-        { name: 'TABLES', value: 'TABLES', score: 1000, meta: 'keyword' },
-
-        // Functions
-        { name: 'lightning', value: 'lightning', score: 1000, meta: 'lightning' },
-        { name: 'datasource', value: 'datasource', score: 1000, meta: 'lightning' },
-        { name: 'metastore', value: 'metastore', score: 1000, meta: 'lightning' },
-        { name: 'NAMESPACES', value: 'NAMESPACES', score: 1000, meta: 'lightning' },
-        { name: 'NAMESPACE', value: 'NAMESPACE', score: 1000, meta: 'lightning' },
-        { name: 'OPTIONS', value: 'OPTIONS', score: 1000, meta: 'lightning' },
-        { name: 'CATALOG', value: 'CATALOG', score: 1000, meta: 'lightning' },
-        { name: 'USL', value: 'USL', score: 1000, meta: 'lightning' },
-        { name: 'ACTIVATE', value: 'ACTIVATE', score: 1000, meta: 'lightning' },
-        { name: 'DEACTIVATE', value: 'DEACTIVATE', score: 1000, meta: 'lightning' },
-
-        // Data types
-        { name: 'H2', value: 'H2', score: 1000, meta: 'data-type' },
-        { name: 'AVRO', value: 'AVRO', score: 1000, meta: 'data-type' },
-        { name: 'CSV', value: 'CSV', score: 1000, meta: 'data-type' },
-        { name: 'ORC', value: 'ORC', score: 1000, meta: 'data-type' },
-        { name: 'PARQUET', value: 'PARQUET', score: 1000, meta: 'data-type' },
-        { name: 'JSON', value: 'JSON', score: 1000, meta: 'data-type' },
-        { name: 'JDBC', value: 'JDBC', score: 1000, meta: 'data-type' },
-        { name: 'int', value: 'int', score: 1000, meta: 'data-type' },
-        { name: 'char', value: 'char', score: 1000, meta: 'data-type' },
-        { name: 'varchar', value: 'varchar', score: 1000, meta: 'data-type' },
-        { name: 'real', value: 'real', score: 1000, meta: 'data-type' },
-        { name: 'foreign key', value: 'foreign key', score: 1000, meta: 'data-type' },
-        { name: 'primary key', value: 'primary key', score: 1000, meta: 'data-type' },
+      : [
+        ...currentSuggestions.map((suggestion) => ({
+          caption: suggestion,
+          value: suggestion,
+          meta: 'suggestion',
+          score: 1000,
+        })),
+        ...keywords.map((kw) => ({ caption: kw, value: kw, meta: "keyword" })),
+        ...lightning.map((lt) => ({ caption: lt, value: lt, meta: "lightning" })),
+        ...dataTypes.map((dt) => ({ caption: dt, value: dt, meta: "dataType" })),
+        ...builtIn.map((ct) => ({ caption: ct, value: ct, meta: "builtIn" })),
       ];
 
     callback(null, suggestions);
-  }
+  },
 };
 
-// Add completer to Ace editor
 export const setupAceEditor = (editor) => {
   if (!editor) return;
 
@@ -266,23 +257,111 @@ export const setupAceEditor = (editor) => {
     enableLiveAutocompletion: true,
   });
 
-  editor.getSession().on('change', (delta) => {
+  editor.getSession().on("change", (delta) => {
     const { action, lines } = delta;
+    const cursorPosition = editor.getCursorPosition();
+    const cursorRow = cursorPosition.row;
+    const session = editor.getSession();
+    let fromToWhere;
 
-    if (action === 'insert' && lines.join('').includes('.')) {
+    if (action === "insert") {
+      const content = editor.getValue();
+      const upperContent = content.toUpperCase();
+
+      if (upperContent.includes("WHERE")) {
+        fromToWhere = extractFromToWhere(content, cursorRow, session);
+        if (fromToWhere) {
+          analyzingFrom(fromToWhere);
+        }
+      }
+    }
+
+    if (action === 'insert') {
+      const currentLine = lines.join("");
       onDotTyped(editor);
-    } else if (action === 'remove' && lines.join('').includes('.')) {
+      if (fromToWhere && !currentLine.endsWith(".")) {
+        onDotTyped(editor, fromToWhere.split('.').pop());
+      }
+    } else if (action === 'remove') {
       resetSuggestions();
     }
   });
+};
+
+const analyzingFrom = (fromToWhere) => {
+  const tableAliases = {};
+  const tables = fromToWhere.split(',').map((table) => table.trim());
+
+  tables.forEach((table) => {
+    const aliasMatch = table.match(/(\S+)\s+(AS\s+)?(\w+)$/i);
+
+    if (aliasMatch) {
+      const tablePath = aliasMatch[1];
+      const alias = aliasMatch[3];
+      tableAliases[alias] = tablePath;
+
+      addColumnsToSuggestions(tablePath, alias);
+    } else {
+      const segments = table.split('.');
+      const tableName = segments[segments.length - 1];
+      tableAliases[tableName] = table;
+
+      addColumnsToSuggestions(table, tableName);
+    }
+  });
+
+  return tableAliases;
+};
+
+const addColumnsToSuggestions = (tablePath, alias) => {
+  const columns = pathKeywords[tablePath];
+
+  if (alias) {
+    pathKeywords[alias] = tablePath;
+  }
+
+  if (Array.isArray(columns)) {
+    columns.forEach((column) => {
+      const suggestion = alias ? `${alias}.${column}` : `${tablePath}.${column}`;
+      currentSuggestions.push({
+        caption: column,
+        value: suggestion,
+        meta: "column",
+        score: 1000,
+      });
+    });
+  }
+};
+
+const extractFromToWhere = (content, cursorRow, session) => {
+  const allLines = session.getLines(0, cursorRow);
+  const upperLines = allLines.map((line) => line.toUpperCase());
+
+  let fromLine = null;
+  let whereLine = null;
+
+  for (let i = upperLines.length - 1; i >= 0; i--) {
+    if (!whereLine && upperLines[i].includes("WHERE")) {
+      whereLine = i;
+    }
+    if (!fromLine && upperLines[i].includes("FROM")) {
+      fromLine = i;
+    }
+    if (fromLine !== null && whereLine !== null) break;
+  }
+
+  if (fromLine !== null && (whereLine === null || fromLine < whereLine)) {
+    const fromToWhereText = allLines.slice(fromLine, whereLine === null ? cursorRow + 1 : whereLine).join(" ");
+    return fromToWhereText.trim();
+  }
+
+  return null;
 };
 
 const resetSuggestions = () => {
   currentSuggestions = [];
 };
 
-
-// Editor default options
 export const editorOptions = {
   enableBasicAutocompletion: true,
   enableLiveAutocompletion: true,
