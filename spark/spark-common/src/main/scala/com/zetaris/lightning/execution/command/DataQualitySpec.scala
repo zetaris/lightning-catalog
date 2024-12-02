@@ -298,11 +298,16 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
                                constraintOrColumnName: String): Option[Row] = {
     if (createTableSpec.primaryKey.isDefined) {
       val pkConstraints = createTableSpec.primaryKey.get
-      val constraintName = pkConstraints.name.get
+      val constraintName = if (pkConstraints.name.isDefined) {
+        pkConstraints.name.get
+      } else {
+        stripCompositeKeys(constraintOrColumnName)
+      }
+
       if (constraintName.equalsIgnoreCase(constraintOrColumnName) ||
-        equalToMultiPartIdentifier(constraintOrColumnName, pkConstraints.columns)) {
+        equalToMultiPartIdentifier(constraintName, pkConstraints.columns)) {
         val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, pkConstraints.columns)
-        Some(Row(constraintOrColumnName, createTableSpec.name, "Primary Key Constraint",
+        Some(Row(constraintName, createTableSpec.name, "Primary Key Constraint",
           pkCheck._1, pkCheck._2, pkCheck._1 - pkCheck._2))
       } else {
         None
@@ -342,8 +347,14 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
     createTableSpec.unique.flatMap { uc =>
       if ((uc.name.isDefined && uc.name.get.equalsIgnoreCase(constraintOrColumnName)) ||
         equalToMultiPartIdentifier(constraintOrColumnName, uc.columns)) {
+        val constraintName = if (uc.name.isDefined) {
+          uc.name.get
+        } else {
+          stripCompositeKeys(constraintOrColumnName)
+        }
         val pkCheck = DataQualitySpec.runPrimaryKeyConstraints(sparkSession, table, uc.columns)
-        Some(Row(createTableSpec.primaryKey.get.name.get, createTableSpec.name, "Unique Constraint",
+
+        Some(Row(constraintName, createTableSpec.name, "Unique Constraint",
           pkCheck._1, pkCheck._2, pkCheck._1 - pkCheck._2))
       } else {
         None
