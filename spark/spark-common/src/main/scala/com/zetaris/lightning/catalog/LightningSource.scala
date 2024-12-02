@@ -81,7 +81,16 @@ trait LightningSource {
     }
   }
 
-  def equalToMultiPartIdentifier(name: String, names: Seq[String], connector: String = "_"): Boolean = {
-    name.equalsIgnoreCase(names.mkString(connector))
+  def stripCompositeKeys(key: String): String = {
+    if (key.startsWith("`") && key.endsWith("`")) {
+      key.substring(1, key.length - 1)
+    } else {
+      key
+    }
+  }
+
+  def equalToMultiPartIdentifier(name: String, names: Seq[String], connector: String = ","): Boolean = {
+    val stripped = stripCompositeKeys(name)
+    stripped.equalsIgnoreCase(names.mkString(connector))
   }
 }

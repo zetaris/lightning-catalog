@@ -49,9 +49,16 @@ class RegisterDataQualityTestSuite extends SparkExtensionsTestBase with H2TestBa
       """
         |COMPILE USL IF NOT EXISTS ordermart DEPLOY NAMESPACE lightning.metastore.crm DDL
         |-- create table customer
-        |create table customer (id BIGINT primary key, name varchar(30), address varchar(50));
+        |create table customer (id BIGINT primary key,
+        |name varchar(30),
+        |address varchar(50),
+        |UNIQUE (id),
+        |UNIQUE (id, name));
         |
-        |create table lineitem (id BIGINT primary key, name varchar(30), price decimal);
+        |create table lineitem (id BIGINT,
+        |name varchar(30),
+        |price decimal,
+        |PRIMARY KEY (id, name));
         |
         |create table order (id BIGINT primary key,
         |cid BIGINT,
@@ -140,7 +147,9 @@ class RegisterDataQualityTestSuite extends SparkExtensionsTestBase with H2TestBa
     checkAnswer(df,
       Seq(
         Row("id", "customer", "Primary key constraints", ""),
-        Row("id", "lineitem", "Primary key constraints", ""),
+        Row("id", "customer", "Unique constraints", ""),
+        Row("id,name", "customer", "Unique constraints", ""),
+        Row("id,name", "lineitem", "Primary key constraints", ""),
         Row("id", "order", "Primary key constraints", ""),
         Row("cid", "order", "Foreign key constraints", ""),
         Row("iid", "order", "Foreign key constraints", ""),
@@ -234,6 +243,11 @@ class RegisterDataQualityTestSuite extends SparkExtensionsTestBase with H2TestBa
     checkAnswer(sparkSession.sql("RUN DQ iid TABLE lightning.metastore.crm.ordermart.order"),
       Seq(Row("iid", "order", "Foreign Key Constraint", 5, 5, 0)))
 
+    checkAnswer(sparkSession.sql("RUN DQ `id,name` TABLE lightning.metastore.crm.ordermart.customer"),
+      Seq(Row("id,name", "customer", "Unique Constraint", 3, 3, 0)))
+    checkAnswer(sparkSession.sql("RUN DQ `id,name` TABLE lightning.metastore.crm.ordermart.lineitem"),
+      Seq(Row("id,name", "lineitem", "Primary Key Constraint", 5, 5, 0)))
+
   }
 
   test("should remove dq expressions") {
@@ -264,7 +278,9 @@ class RegisterDataQualityTestSuite extends SparkExtensionsTestBase with H2TestBa
     checkAnswer(sparkSession.sql(s"LIST DQ USL lightning.metastore.crm.ordermart"),
       Seq(
         Row("id", "customer", "Primary key constraints", ""),
-        Row("id", "lineitem", "Primary key constraints", ""),
+        Row("id", "customer", "Unique constraints", ""),
+        Row("id,name", "customer", "Unique constraints", ""),
+        Row("id,name", "lineitem", "Primary key constraints", ""),
         Row("id", "order", "Primary key constraints", ""),
         Row("cid", "order", "Foreign key constraints", ""),
         Row("iid", "order", "Foreign key constraints", ""),
@@ -277,7 +293,9 @@ class RegisterDataQualityTestSuite extends SparkExtensionsTestBase with H2TestBa
     checkAnswer(sparkSession.sql(s"LIST DQ USL lightning.metastore.crm.ordermart"),
       Seq(
         Row("id", "customer", "Primary key constraints", ""),
-        Row("id", "lineitem", "Primary key constraints", ""),
+        Row("id", "customer", "Unique constraints", ""),
+        Row("id,name", "customer", "Unique constraints", ""),
+        Row("id,name", "lineitem", "Primary key constraints", ""),
         Row("id", "order", "Primary key constraints", ""),
         Row("cid", "order", "Foreign key constraints", ""),
         Row("iid", "order", "Foreign key constraints", ""),
