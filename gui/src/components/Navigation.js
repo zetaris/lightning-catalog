@@ -32,6 +32,9 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   const [hasTableChild, setHasTableChild] = useState(false);
   const [selectedUSL, setSelectedUSL] = useState('');
   const [currentFullPaths, setCurrentFullPaths] = useState([]);
+  const [popupMessage, setPopupMessage] = useState(null);
+
+  const closePopup = () => setPopupMessage(null);
 
   // State for managing datasource tree structure
   const [dataSources, setDataSources] = useState([
@@ -49,8 +52,12 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     }
   ]);
 
-  // Update handleGenerateClick to pass the DDL to onGenerateDDL
   const handleGenerateClick = () => {
+    if (!ddlName.trim()) {
+      setPopupMessage('Semantic Layer Name cannot be empty. Please enter a valid name.');
+      return;
+    }
+
     onGenerateDDL(ddlName, ddlCode);
     setShowPopup(false);
     setView('semanticLayer');
@@ -207,7 +214,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       let uslName;
       let storedData;
 
-      if(node.fullPath.toLowerCase().includes('metastore')){
+      if (node.fullPath.toLowerCase().includes('metastore')) {
         uslName = node.fullPath.match(/usldb\.([^.]+)/)[1];
       }
 
@@ -235,7 +242,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 <NNIcon key={`nn-${column.name}`} style={{ width: '16px', height: '16px', marginLeft: '4px' }} />
               );
             }
-      
+
             return {
               // name: column.name,
               name: (
@@ -255,16 +262,16 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
               ),
             };
           });
-      
+
           node.children = tableChildren;
-      
+
           setSemanticLayerFiles((prevData) =>
             updateNodeChildren(prevData, node.name, tableChildren)
           );
-      
+
           return;
         }
-      }      
+      }
 
       if (node.fullPath.toLowerCase().includes('metastore') && hasTableChild) {
         // console.log('Skipping getTableDesc');
@@ -765,6 +772,16 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 handleGenerateClick={handleGenerateClick}
               />
             </div>
+            {popupMessage && (
+                <div className="popup-overlay" onClick={closePopup}>
+                  <div className="popup-message" onClick={(e) => e.stopPropagation()}>
+                    <p>{popupMessage}</p>
+                    <div className="popup-buttons">
+                      <button className="btn-primary" onClick={closePopup}>Close</button>
+                    </div>
+                  </div>
+                </div>
+              )}
           </div>
         )}
       </Resizable>

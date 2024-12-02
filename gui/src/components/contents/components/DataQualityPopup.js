@@ -8,7 +8,13 @@ const DataQualityPopup = ({ onClose, table, setPopupMessage }) => {
     const [ruleExpression, setRuleExpression] = useState('');  // State for rule expression
 
     const handleSubmit = async () => {
-        const query = `REGISTER DQ ${ruleName} TABLE ${table.name} AS ${ruleExpression};`;
+        if (!ruleName.trim()) {
+            setPopupMessage('Rule Name cannot be empty. Please enter a valid name.');
+            return;
+        }
+
+        const formattedRuleName = `\`${ruleName}\``;
+        const query = `REGISTER DQ ${formattedRuleName} TABLE ${table.name} AS ${ruleExpression};`;
 
         try {
             const response = await fetchApi(query);

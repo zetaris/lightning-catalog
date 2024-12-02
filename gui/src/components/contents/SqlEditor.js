@@ -199,6 +199,7 @@ function SqlEditor({ toggleRefreshNav, previewTableName }) {
         const columns = Object.keys(normalizedData[0]).map((key) => ({
             accessorKey: key,
             header: key.charAt(0).toUpperCase() + key.slice(1),
+            muiTableHeadCellProps: { align: 'center' },
             Cell: ({ cell }) => {
                 const value = cell.getValue();
                 if (!isNaN(value) && value !== null && value !== '') {
@@ -303,8 +304,8 @@ function SqlEditor({ toggleRefreshNav, previewTableName }) {
         }
     
         const columns = [
-            { accessorKey: 'timestamp', header: 'Timestamp' },
-            { accessorKey: 'query', header: 'Query' },
+            { accessorKey: 'timestamp', header: 'Timestamp', muiTableHeadCellProps: { align: 'center' } },
+            { accessorKey: 'query', header: 'Query', muiTableHeadCellProps: { align: 'center' } },
         ];
     
         const handleRowClick = (query) => {
