@@ -40,7 +40,11 @@ abstract class AbstractIcebergCatalogUnit  extends CatalogUnit {
   override def dropNamespace(namespace: Array[String], cascade: Boolean): Boolean =
     namespaces.dropNamespace(namespace, cascade)
 
-  override def listTables(namespace: Array[String]): Array[Identifier] = tableCatalog.listTables(namespace)
+  override def listTables(namespace: Array[String]): Array[Identifier] = if (namespace.isEmpty) {
+    Array.empty
+  } else {
+    tableCatalog.listTables(namespace)
+  }
 
   override def loadTable(ident: Identifier, tagSchema: StructType): Table = tableCatalog.loadTable(ident)
 
