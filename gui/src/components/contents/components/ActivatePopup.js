@@ -15,7 +15,6 @@ const ActivatePopup = ({ onClose, onSubmit, table }) => {
 
     const handleSubmit = () => {
         const expression = `ACTIVATE USL TABLE ${table.name} AS ${dataSource};`;
-        console.log(expression);
 
         onSubmit({ expression });
         onClose();

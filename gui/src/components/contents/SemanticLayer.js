@@ -99,8 +99,10 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             const dqRules = listDQResult.map(rule => JSON.parse(rule));
 
             for (const dq of dqRules) {
+                const cleanDqName = dq.name.startsWith('`') && dq.name.endsWith('`')? dq.name.slice(1, -1): dq.name;
+
                 const dqEntry = {
-                    Name: dq.name,
+                    Name: cleanDqName,
                     Table: `${namespace}.${dq.table}`,
                     Type: dq.type,
                     Expression: dq.expression,
@@ -147,8 +149,8 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 entry.Name === dqEntry.Name ? dqEntry : entry
             );
             setDQResults([...updatedDQResults]);
-
-            const runDQQuery = `RUN DQ ${dqEntry.Name} TABLE ${dqEntry.Table}`;
+            const formattedDqName = `\`${dqEntry.Name}\``;
+            const runDQQuery = `RUN DQ ${formattedDqName} TABLE ${dqEntry.Table}`;
 
             try {
                 const runDQResult = await fetchApi(runDQQuery);
@@ -514,6 +516,10 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
     const reFreshScreen = () => {
         const savedTables = JSON.parse(localStorage.getItem('savedTables')) || [];
         let savedConnections = JSON.parse(localStorage.getItem('connections')) || [];
+
+        if (savedTables && savedTables.length > 0) {
+            setUslName(savedTables[0].name.split('.').slice(0, -1).join('.'));
+        }
 
         if (!jsPlumbInstanceRef.current && jsPlumbRef.current) {
             jsPlumbInstanceRef.current = initializeJsPlumb(jsPlumbRef.current, [], openModal, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleListDQClick);
@@ -1077,9 +1083,12 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         const columns = Object.keys(normalizedData[0]).map((key) => ({
             accessorKey: key,
             header: key.charAt(0).toUpperCase() + key.slice(1),
-            muiTableHeadCellProps: { align: 'center', style: key === outputTabInfo.name ? { backgroundColor: '#E9EFEC' } : {}, },
+            muiTableHeadCellProps: { 
+                align: 'center', 
+                style: key === (outputTabInfo?.name || '') ? { backgroundColor: '#E9EFEC' } : {}, 
+            },
             muiTableBodyCellProps: {
-                style: key === outputTabInfo.name ? { backgroundColor: '#E9EFEC' } : {},
+                style: key === (outputTabInfo?.name || '') ? { backgroundColor: '#E9EFEC' } : {},
             },
             Cell: ({ cell }) => {
                 const value = cell.getValue();
