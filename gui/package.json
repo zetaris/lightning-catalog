@@ -15,6 +15,7 @@
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "ace-builds": "^1.36.0",
+    "fuse.js": "^7.0.0",
     "jsplumb": "^2.15.6",
     "material-react-table": "^3.0.1",
     "react": "^18.3.1",
