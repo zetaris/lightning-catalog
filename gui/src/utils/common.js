@@ -14,11 +14,12 @@ const executeQueryApi = async (query) => {
       const result = await response.json();
       return result;
     } else {
-      const error = await response.json();
-      // console.error(`API Error: ${error.message}`);
+      const errorText = await response.text();
+      const cleanedText = errorText.replace(/[\u0000-\u001F\u007F-\u009F]/g, '').trim();
+      const errorTextJson = JSON.parse(cleanedText)
       return {
-        error: true,
-        message: error.message || 'An unknown error occurred',
+        error: errorTextJson.error,
+        message: errorTextJson.message || 'An unknown error occurred',
       };
     }
   } catch (error) {

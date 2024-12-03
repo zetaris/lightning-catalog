@@ -25,7 +25,6 @@ function Header({ setView, view, setIsLoading }) {
     await new Promise((resolve) => setTimeout(resolve, 10));
     setView(viewName);
     sessionStorage.setItem('selectedTab', viewName);
-    setIsLoading(false);
   };
 
   return (

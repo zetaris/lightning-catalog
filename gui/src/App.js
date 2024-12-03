@@ -81,6 +81,7 @@ function App() {
                   setView={handleSetView}
                   setUslNamebyClick={setUslNamebyClick}
                   setPreviewTableName={setPreviewTableName}
+                  setIsLoading={setIsLoading}
                 />
               </div>
 

@@ -18,7 +18,7 @@ import { ReactComponent as LinkIcon } from '../assets/images/link-solid.svg';
 import SetSemanticLayerModal from './SetSemanticLayerModal';
 import Resizable from 'react-resizable-layout';
 
-const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, setPreviewTableName }) => {
+const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, setPreviewTableName, setIsLoading }) => {
 
   const reSizingOffset = 115;
   const resizingRef = useRef(false);
@@ -110,7 +110,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
   useEffect(() => {
     if (currentFullPaths.length > 0) {
-      setPathKeywords(currentFullPaths);
+      // setPathKeywords(currentFullPaths);
     }
   }, [currentFullPaths]);
 
@@ -134,7 +134,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   };
 
   const fetchDatasources = async (fullPath, isMetastore = false) => {
-    const excludedNamespaces = ["information_schema", "pg_catalog", "public"];
+    const excludedNamespaces = [];
     let query;
     const currentLevel = getCurrentLevel(fullPath);
 
@@ -157,10 +157,10 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       }));
 
     // **Update currentFullPaths**
-    setCurrentFullPaths((prevPaths) => [
-      ...prevPaths,
-      ...fetchedData.map((item) => item.fullPath),
-    ]);
+    // setCurrentFullPaths((prevPaths) => [
+    //   ...prevPaths,
+    //   ...fetchedData.map((item) => item.fullPath),
+    // ]);
 
     return fetchedData;
   };
@@ -280,8 +280,8 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
       const tableDetails = await getTableDesc(node.fullPath);
 
-      const columnFullPath = tableDetails.map((column) => `${node.fullPath}.${column.col_name}`);
-      setCurrentFullPaths((prevPaths) => [...prevPaths, ...columnFullPath]);
+      // const columnFullPath = tableDetails.map((column) => `${node.fullPath}.${column.col_name}`);
+      // setCurrentFullPaths((prevPaths) => [...prevPaths, ...columnFullPath]);
 
       const tableChildren = tableDetails.map((column) => ({
         name: column.col_name,
@@ -306,7 +306,6 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       const hasTableChildResult = Array.isArray(node.children)
         ? node.children.some((child) => child.type === 'table')
         : false;
-
       setHasTableChild(hasTableChildResult);
 
       if (hasTableChildResult && node.fullPath.toLowerCase().includes('metastore')) {
@@ -408,7 +407,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   const updateNodeChildren = (nodes, nodeName, children) => {
     return nodes.map((node) => {
       if (node.name === nodeName) {
-        return { ...node, children };
+        return { ...node, children, hasTableChild: children.some((child) => child.type === 'table') };
       }
       if (node.children) {
         return { ...node, children: updateNodeChildren(node.children, nodeName, children) };
@@ -421,12 +420,14 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   }, [refreshNav]);
 
   const drawUSL = async (node) => {
+    setIsLoading(true);
     const fullPath = node.fullPath;
     const dbname = fullPath.split('.').pop();
     const path = fullPath.split('.').slice(0, -1).join('.');
 
     let query = `LOAD USL ${dbname} NAMESPACE ${path}`;
     try {
+      setIsLoading(true);
       const result = await fetchApi(query);
       const uslData = JSON.parse(JSON.parse(result).json);
 
@@ -493,7 +494,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   };
 
   const handlePlusClick = async (event, node) => {
-    // event.stopPropagation();
+    event.stopPropagation();
 
     if (!node.children) {
       const childNodes = await fetchDatasources(node.fullPath || node.name);
@@ -628,7 +629,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 </button>
               )}
 
-              {node.type === 'namespace' && !hasTableChild && (
+              {node.type === 'namespace' && !node.hasTableChild && (
                 <div style={{ marginLeft: '10px', display: 'flex', alignItems: 'center' }}>
                   <PlusIcon
                     onClick={(event) => handlePlusClick(event, node)}
@@ -773,15 +774,15 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
               />
             </div>
             {popupMessage && (
-                <div className="popup-overlay" onClick={closePopup}>
-                  <div className="popup-message" onClick={(e) => e.stopPropagation()}>
-                    <p>{popupMessage}</p>
-                    <div className="popup-buttons">
-                      <button className="btn-primary" onClick={closePopup}>Close</button>
-                    </div>
+              <div className="popup-overlay" onClick={closePopup}>
+                <div className="popup-message" onClick={(e) => e.stopPropagation()}>
+                  <p>{popupMessage}</p>
+                  <div className="popup-buttons">
+                    <button className="btn-primary" onClick={closePopup}>Close</button>
                   </div>
                 </div>
-              )}
+              </div>
+            )}
           </div>
         )}
       </Resizable>

@@ -1,6 +1,7 @@
 import ace from 'ace-builds';
 import Fuse from 'fuse.js';
 import sqlKeywords from '../../utils/sql_keywords.json';
+import { fetchApi } from '../../utils/common';
 
 export const defineCustomTheme = () => {
   ace.define('ace/theme/myCustomTheme', ['require', 'exports', 'module', 'ace/lib/dom'], function (require, exports) {
@@ -177,43 +178,215 @@ export const setPathKeywords = (paths) => {
   initializeFuse(Object.keys(pathKeywords));
 };
 
-const onDotTyped = (editorInstance, tableName = '') => {
-  let currentLine = editorInstance.getSession().getLine(editorInstance.getCursorPosition().row);
+// const onDotTyped = async (editorInstance) => {
+//   const editorPosition = editorInstance.getCursorPosition();
+//   const currentLine = editorInstance.getSession().getLine(editorPosition.row);
+//   currentSuggestions = [];
+
+//   const exportPath = (() => {
+//     const match = currentLine.trim().match(/.*lightning\..+/);
+//     if (match) {
+//       const lastLightningIndex = match[0].lastIndexOf('lightning.');
+//       const lastLightningSegment = match[0].slice(lastLightningIndex);
+//       return lastLightningSegment.split('.').slice(0, -1).join('.');
+//     }
+//     return '';
+//   })();  
+
+//   let queryPath = exportPath;
+
+//   const beforeCursor = currentLine.slice(0, editorPosition.column);
+//   const lastSegment = beforeCursor.split('.').slice(-1)[0].trim().split(/[\s]+/).pop();
+
+//   if (tableAliases[lastSegment]) {
+//     queryPath = tableAliases[lastSegment];
+//   }
+
+//   if (queryPath === '') {
+//     currentSuggestions = ['datasource', 'metastore']
+//   } else if (queryPath) {
+//     try {
+//       const query = `SHOW NAMESPACES OR TABLES IN ${queryPath};`;
+//       const response = await fetchApi(query);
+
+//       if (response.message && response.message.startsWith("[SCHEMA_NOT_FOUND]")) {
+
+//         const descQuery = `DESC ${queryPath};`;
+//         const descResponse = await fetchApi(descQuery);
+
+//         if (descResponse) {
+//           const descResults = descResponse.map((item) => JSON.parse(item));
+
+//           currentSuggestions = descResults.map((result) => result.col_name || '');
+//         }
+//       } else {
+//         const results = response.map((item) => JSON.parse(item));
+
+//         currentSuggestions = results.map((result) => result.name || '');
+//       }
+//     } catch (error) {
+//       console.error('Error fetching namespaces or tables:', error);
+//     }
+//   }
+
+//   if (currentSuggestions.length > 0) {
+//     setTimeout(() => {
+//       editorInstance.execCommand('startAutocomplete');
+//     }, 0);
+//   }
+// };
+
+const onDotTyped = async (editorInstance) => {
+  const editorPosition = editorInstance.getCursorPosition();
+  const currentLine = editorInstance.getSession().getLine(editorPosition.row).trim();
+  const beforeCursor = currentLine.slice(0, editorPosition.column).trim();
+
   currentSuggestions = [];
+  let queryPath = '';
+  let context = getContext(beforeCursor);
 
-  let resolvedPath = tableName;
+  if (context.type === "SELECT") {
+    queryPath = context.tableAlias || context.tablePath;
 
-  if (!tableName) {
-    const pathSegments = currentLine.trim().split(/[\s.]+/);
-    const aliasOrPath = pathSegments.slice(-2, -1).join('.');
+    if (queryPath) {
+      await fetchColumns(queryPath);
+    }
+  } else if (context.type === "FROM") {
+    queryPath = context.path;
 
-    resolvedPath = pathKeywords[aliasOrPath] || aliasOrPath;
+    if (queryPath) {
+      await fetchTablesOrNamespaces(queryPath);
+    }
+  } else if (context.type === "WHERE") {
+    queryPath = context.tableAlias || context.tablePath;
 
-    if (resolvedPath.includes('.')) {
-      const segments = resolvedPath.split('.');
-      resolvedPath = segments[segments.length - 1];
+    if (queryPath) {
+      await fetchColumns(queryPath);
     }
   }
 
-  const results = fuse.search(resolvedPath) || [];
+  if (currentSuggestions.length > 0) {
+    setTimeout(() => {
+      editorInstance.execCommand('startAutocomplete');
+    }, 0);
+  }
+};
 
-  currentSuggestions = results
-    .map(({ item }) => {
-      const segments = item.path.split('.');
-      const currentIndex = segments.indexOf(resolvedPath);
+const getContext = (beforeCursor) => {
+  const context = { type: null, path: null, tableAlias: null, tablePath: null };
 
-      if (currentIndex !== -1 && currentIndex < segments.length - 1) {
-        return segments.slice(currentIndex + 1).join('.');
+  const upperCaseCursor = beforeCursor.toUpperCase();
+
+  if (upperCaseCursor.includes("WHERE")) {
+    context.type = "WHERE";
+
+    const lastSegment = beforeCursor.split(/[\s.]+/).pop();
+    context.tableAlias = tableAliases[lastSegment] || null;
+  }else if (upperCaseCursor.includes("FROM")) {
+    context.type = "FROM";
+
+    const match = beforeCursor.match(/FROM\s+([\w.]+)$/i);
+    if (match) {
+      context.path = match[1];
+    }
+  }else if (upperCaseCursor.includes("SELECT")) {
+    context.type = "SELECT";
+
+    const lastSegment = beforeCursor.split(/[\s.]+/).pop();
+    context.tableAlias = tableAliases[lastSegment] || null;
+  }
+
+  return context;
+};
+
+const fetchTablesOrNamespaces = async (queryPath) => {
+  try {
+    const query = `SHOW NAMESPACES OR TABLES IN ${queryPath};`;
+    const response = await fetchApi(query);
+
+    if (response.message?.startsWith("[SCHEMA_NOT_FOUND]")) {
+      console.error("Schema not found:", response.message);
+    } else {
+      const results = response.map((item) => JSON.parse(item));
+      currentSuggestions = results.map((result) => result.name || '');
+    }
+  } catch (error) {
+    console.error("Error fetching tables or namespaces:", error);
+  }
+};
+
+const fetchColumns = async (tablePath) => {
+  try {
+    const query = `DESC ${tablePath};`;
+    const response = await fetchApi(query);
+
+    if (response) {
+      const results = response.map((item) => JSON.parse(item));
+      currentSuggestions = results.map((result) => result.col_name || '');
+    }
+  } catch (error) {
+    console.error("Error fetching columns:", error);
+  }
+};
+
+const nonDotTyped = async (editorInstance, tableName = '') => {
+  let currentLine = editorInstance.getSession().getLine(editorInstance.getCursorPosition().row);
+  currentSuggestions = [];
+
+  if (tableName) {
+    // const pathSegments = currentLine.trim().split(/[\s.]+/);
+    // const aliasOrPath = pathSegments.slice(-2, -1).join('.');
+
+    // resolvedPath = pathKeywords[aliasOrPath] || aliasOrPath;
+
+    // if (resolvedPath.includes('.')) {
+    //   const segments = resolvedPath.split('.');
+    //   resolvedPath = segments[segments.length - 1];
+    // }
+
+    const descQuery = `DESC ${queryPath};`;
+    const descResponse = await fetchApi(descQuery);
+
+    if (descResponse) {
+      const descResults = descResponse.map((item) => JSON.parse(item));
+
+      currentSuggestions = descResults.map((result) => result.col_name || '');
+    }
+  }
+
+  // Extract the path to query
+  const queryPath = currentLine.trim().split('.').slice(0, -1).join('.');
+
+  if (queryPath) {
+    try {
+      const query = `SHOW NAMESPACES OR TABLES IN ${queryPath};`;
+      const response = await fetchApi(query);
+
+      if (response.message && response.message.startsWith("[SCHEMA_NOT_FOUND]")) {
+
+        const descQuery = `DESC ${queryPath};`;
+        const descResponse = await fetchApi(descQuery);
+
+        if (descResponse) {
+          const descResults = descResponse.map((item) => JSON.parse(item));
+
+          currentSuggestions = descResults.map((result) => result.col_name || '');
+        }
+      } else {
+        const results = response.map((item) => JSON.parse(item));
+
+        currentSuggestions = results.map((result) => result.name || '');
       }
-      return null;
-    })
-    .filter((suggestion, index, self) => suggestion && self.indexOf(suggestion) === index);
 
-    if (currentSuggestions.length > 0) {
-      setTimeout(() => {
-        editorInstance.execCommand('startAutocomplete');
-      }, 10);
-    }    
+      if (currentSuggestions.length > 0) {
+        setTimeout(() => {
+          editorInstance.execCommand('startAutocomplete');
+        }, 5);
+      }
+    } catch (error) {
+      console.error('Error fetching namespaces or tables:', error);
+    }
+  }
 };
 
 export const customSQLCompleter = {
@@ -279,17 +452,17 @@ export const setupAceEditor = (editor) => {
     if (action === 'insert') {
       const currentLine = lines.join("");
       onDotTyped(editor);
-      if (fromToWhere && !currentLine.endsWith(".")) {
-        onDotTyped(editor, fromToWhere.split('.').pop());
-      }
+      // if (fromToWhere && !currentLine.endsWith(".")) {
+      //   onDotTyped(editor);
+      // }
     } else if (action === 'remove') {
       resetSuggestions();
     }
   });
 };
 
+const tableAliases = {};
 const analyzingFrom = (fromToWhere) => {
-  const tableAliases = {};
   const tables = fromToWhere.split(',').map((table) => table.trim());
 
   tables.forEach((table) => {

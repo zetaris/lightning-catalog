@@ -80,6 +80,21 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
     const handlePopupSubmit = (data) => {
     };
 
+    const updateUSLInfo = async () => {
+        const dbname = uslName.split('.').pop()
+        const path = uslName.split('.').slice(0, -1).join('.');
+
+        try {
+            const query = `LOAD USL ${dbname} NAMESPACE ${path}`;
+            const result = await fetchApi(query);
+            const uslData = JSON.parse(JSON.parse(result).json);
+
+            localStorage.setItem(dbname, JSON.stringify(uslData));
+        } catch {
+
+        }
+    }
+
     const loadDQ = async () => {
         setCondition('');
         const savedTables = JSON.parse(localStorage.getItem("savedTables"));
@@ -99,7 +114,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             const dqRules = listDQResult.map(rule => JSON.parse(rule));
 
             for (const dq of dqRules) {
-                const cleanDqName = dq.name.startsWith('`') && dq.name.endsWith('`')? dq.name.slice(1, -1): dq.name;
+                const cleanDqName = dq.name.startsWith('`') && dq.name.endsWith('`') ? dq.name.slice(1, -1) : dq.name;
 
                 const dqEntry = {
                     Name: cleanDqName,
@@ -190,6 +205,17 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
     }
 
     const handleListDQClick = (table) => {
+        const uslInfo = JSON.parse(localStorage.getItem(table.name.split('.').slice(-2, -1)))
+        console.log(uslInfo)
+        if (uslInfo && Array.isArray(uslInfo.tables)) {
+            const matchedTable = uslInfo.tables.find((t) => t.name === table.name.split('.').pop());
+            if (matchedTable) {
+                table = matchedTable;
+                console.log(table)
+            } else {
+                console.error(`Table with name "${table.name}" not found in uslInfo.`);
+            }
+        }
         setActivateTargetTable(table);
         setShowDQListPopup(true);
     }
@@ -322,6 +348,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
     }, []);
 
     useEffect(() => {
+        setIsLoading(true);
         if (semanticLayerInfo && semanticLayerInfo.length > 0) {
             clearJsPlumbAndLocalStorage();
 
@@ -331,9 +358,11 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                     const ddl = semanticLayerInfo[0].ddl;
                     const parsedDDLResult = await compileUSL(name, ddl, true);
                     if (parsedDDLResult) {
-                        const { savedTables, savedConnections, rulesData } = getSettingDataFromJson(parsedDDLResult);
-                        restoreFromTablesAndConnections(savedTables, savedConnections);
                         window.location.reload();
+                        const { savedTables, savedConnections, rulesData } = getSettingDataFromJson(parsedDDLResult);
+                        reFreshScreen()
+                        // restoreFromTablesAndConnections(savedTables, savedConnections);
+                        // window.location.reload();
                     }
                 } catch (error) {
                     console.error("Error while parsing DDL:", error);
@@ -341,7 +370,19 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             };
 
             fetchAndParseDDL();
+            const savedZoomLevel = localStorage.getItem('zoomLevel');
+            const savedOffsetX = localStorage.getItem('offsetX');
+            const savedOffsetY = localStorage.getItem('offsetY');
+
+            if (savedZoomLevel) {
+                setZoomLevel(parseFloat(savedZoomLevel));
+            }
+
+            if (savedOffsetX && savedOffsetY) {
+                setOffset({ x: parseFloat(savedOffsetX), y: parseFloat(savedOffsetY) });
+            }
         }
+        setIsLoading(false);
     }, [semanticLayerInfo]);
 
     useEffect(() => {
@@ -349,8 +390,8 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             if (!previewTableName || !previewTableName.startsWith('lightning.metastore')) return;
 
             try {
-                setCondition('preview');
                 setViewMode('output');
+                setCondition('preview');
                 setLoading(true);
                 const query = `SELECT * FROM ${previewTableName} LIMIT 100`;
                 const result = await fetchApi(query);
@@ -382,21 +423,32 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
 
     useEffect(() => {
         const fetchUSLContent = async () => {
-            clearJsPlumbAndLocalStorage();
+            // clearJsPlumbAndLocalStorage();
+            window.location.reload();
             const { savedTables, savedConnections, rulesData } = getSettingDataFromJson(uslNamebyClick);
-            restoreFromTablesAndConnections(savedTables, savedConnections);
-        }
-
-        if (uslNamebyClick) {
-            fetchUSLContent();
-
-            const savedTables = JSON.parse(localStorage.getItem('savedTables'));
+            reFreshScreen()
+            // restoreFromTablesAndConnections(savedTables, savedConnections);
 
             if (savedTables && savedTables.length > 0) {
                 setUslName(savedTables[0].name.split('.').slice(0, -1).join('.'));
             }
+        }
 
-            handleOptimizeView(jsPlumbRef.current, zoomLevel, setZoomLevel, setOffset);
+        if (uslNamebyClick) {
+            setIsLoading(true);
+            fetchUSLContent();
+            setIsLoading(false);
+            const savedZoomLevel = localStorage.getItem('zoomLevel');
+            const savedOffsetX = localStorage.getItem('offsetX');
+            const savedOffsetY = localStorage.getItem('offsetY');
+
+            if (savedZoomLevel) {
+                setZoomLevel(parseFloat(savedZoomLevel));
+            }
+
+            if (savedOffsetX && savedOffsetY) {
+                setOffset({ x: parseFloat(savedOffsetX), y: parseFloat(savedOffsetY) });
+            }
         }
     }, [uslNamebyClick]);
 
@@ -452,6 +504,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
     }, [activateTables]);
 
     useEffect(() => {
+        setIsLoading(true);
         const savedTables = JSON.parse(localStorage.getItem('savedTables')) || [];
 
         if (selectedTable && jsPlumbInstanceRef.current) {
@@ -475,6 +528,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 });
             }
         }
+        setIsLoading(false);
 
     }, [selectedTable]);
 
@@ -648,64 +702,68 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         }
 
         if (jsPlumbInstanceRef.current) {
-            savedTables.forEach((table) => {
-                setupTableForSelectedTable(
-                    jsPlumbRef.current,
-                    table,
-                    jsPlumbInstanceRef.current,
-                    table.uuid,
-                    false,
-                    handlePreViewButtonClick,
-                    handleTableInfoClick,
-                    handleActivateTableClick,
-                    handleActivateQueryClick,
-                    handleDataQualityButtonClick,
-                    handleTableDoubleClick,
-                    handleListDQClick,
-                );
+            // console.log(jsPlumbInstanceRef.current)
+            requestAnimationFrame(() => {
+                savedTables.forEach((table) => {
+                    setupTableForSelectedTable(
+                        jsPlumbRef.current,
+                        table,
+                        jsPlumbInstanceRef.current,
+                        table.uuid,
+                        false,
+                        handlePreViewButtonClick,
+                        handleTableInfoClick,
+                        handleActivateTableClick,
+                        handleActivateQueryClick,
+                        handleDataQualityButtonClick,
+                        handleTableDoubleClick,
+                        handleListDQClick,
+                    );
+                });
             });
 
             requestAnimationFrame(() => {
-                savedConnections.forEach(({ sourceId, targetId, relationship, relationship_type }, index) => {
-                    const optimalEndpoints = getOptimalEndpointPosition(sourceId, targetId);
-                    connectEndpoints(jsPlumbInstanceRef.current, optimalEndpoints.sourceId, optimalEndpoints.targetId, relationship, relationship_type, false);
-                    const { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn } = getRowInfo(optimalEndpoints.sourceId, optimalEndpoints.targetId);
+                if (savedConnections.length > 0) {
+                    savedConnections.forEach(({ sourceId, targetId, relationship, relationship_type }, index) => {
+                        connectEndpoints(jsPlumbInstanceRef.current, sourceId, targetId, relationship, relationship_type, false);
+                        const { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn } = getRowInfo(sourceId, targetId);
 
-                    const sourceColumnName = sourceColumn.querySelector('td')?.innerText || '';
-                    const targetColumnName = targetColumn.querySelector('td')?.innerText || '';
-                    const sourceColumnClass = sourceColumn.children[0].classList[0];
-                    const constraints = getColumnConstraint(sourceColumnClass);
+                        const sourceColumnName = sourceColumn.querySelector('td')?.innerText || '';
+                        const targetColumnName = targetColumn.querySelector('td')?.innerText || '';
+                        const sourceColumnClass = sourceColumn.children[0].classList[0];
+                        const constraints = getColumnConstraint(sourceColumnClass);
 
-                    let tooltipData;
-                    if (constraints) {
-                        tooltipData = constraints.map((constraint) => {
-                            const reference = constraint.references ? `(${constraint.references})` : '';
-                            return reference ? `${constraint.type}: ${reference}` : `${constraint.type}`;
-                        }).join(', ');
-                    }
+                        let tooltipData;
+                        if (constraints) {
+                            tooltipData = constraints.map((constraint) => {
+                                const reference = constraint.references ? `(${constraint.references})` : '';
+                                return reference ? `${constraint.type}: ${reference}` : `${constraint.type}`;
+                            }).join(', ');
+                        }
 
-                    const targetForeignKeyText = `foreignKey(${targetColumnName})`;
+                        const targetForeignKeyText = `foreignKey(${targetColumnName})`;
 
-                    const newTooltipData = tooltipData
-                        ? `${tooltipData}, ${targetForeignKeyText}`
-                        : targetForeignKeyText;
+                        const newTooltipData = tooltipData
+                            ? `${tooltipData}, ${targetForeignKeyText}`
+                            : targetForeignKeyText;
 
-                    if (relationship === 'fk') {
-                        const existingTooltipData = sourceColumn.getAttribute('data-tooltip') || '';
+                        if (relationship === 'fk') {
+                            const existingTooltipData = sourceColumn.getAttribute('data-tooltip') || '';
 
-                        // Split existing tooltip data into an array and remove duplicates
-                        const combinedTooltipArray = [
-                            ...new Set([...existingTooltipData.split(', '), ...newTooltipData.split(', ')].filter(Boolean)),
-                        ];
+                            // Split existing tooltip data into an array and remove duplicates
+                            const combinedTooltipArray = [
+                                ...new Set([...existingTooltipData.split(', '), ...newTooltipData.split(', ')].filter(Boolean)),
+                            ];
 
-                        // Rejoin the array into a string
-                        const combinedTooltipData = combinedTooltipArray.join(', ');
+                            // Rejoin the array into a string
+                            const combinedTooltipData = combinedTooltipArray.join(', ');
 
-                        sourceColumn.setAttribute('data-tooltip', combinedTooltipData);
+                            sourceColumn.setAttribute('data-tooltip', combinedTooltipData);
 
-                        addForeignKeyIconToColumn(sourceColumn, combinedTooltipData, tooltipData);
-                    }
-                });
+                            addForeignKeyIconToColumn(sourceColumn, combinedTooltipData, tooltipData);
+                        }
+                    });
+                }
 
                 jsPlumbInstanceRef.current.recalculateOffsets(jsPlumbRef.current);
                 jsPlumbInstanceRef.current.repaint();
@@ -799,15 +857,15 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             setPopupMessage(`Invalid DDL JSON format: ${e}`);
             return null;
         }
-    
+
         localStorage.removeItem('savedTables');
         localStorage.removeItem('connections');
-    
+
         const activatedTableNames = [];
-    
+
         const newTables = ddlJson.tables.map((table) => {
             const foreignKeyConstraints = [];
-    
+
             const columns = table.columnSpecs.map((col) => {
                 return {
                     col_name: col.name,
@@ -818,7 +876,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                     ...(col.foreignKey ? { foreignKey: col.foreignKey } : {})
                 };
             });
-    
+
             // Handle table-level primary key
             if (table.primaryKey && table.primaryKey.columns) {
                 table.primaryKey.columns.forEach((pkColumnName) => {
@@ -833,7 +891,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                     }
                 });
             }
-    
+
             // Handle table-level foreign keys
             if (table.foreignKeys && table.foreignKeys.length > 0) {
                 table.foreignKeys.forEach((fk) => {
@@ -849,7 +907,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                             console.warn(`Foreign key column '${fkColumnName}' not found in table '${table.name}'.`);
                         }
                     });
-    
+
                     // Add to foreignKeyConstraints array
                     foreignKeyConstraints.push({
                         columns: fk.columns,
@@ -859,16 +917,16 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                     });
                 });
             }
-    
+
             const position = table.position || { left: 100 + Math.random() * 100, top: 100 + Math.random() * 100 };
-    
+
             const isActivated = table.hasOwnProperty('activateQuery');
             const tableName = `lightning.${ddlJson.namespace.join('.')}.${ddlJson.name}.${table.name}`;
-    
+
             if (isActivated) {
                 activatedTableNames.push(tableName);
             }
-    
+
             return {
                 name: tableName,
                 desc: columns,
@@ -880,22 +938,22 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 ...(isActivated ? { activateQuery: table.activateQuery } : {})
             };
         });
-    
+
         const savedConnections = [];
         newTables.forEach((table) => {
             table.desc.forEach((col) => {
                 if (col.foreignKey) {
                     const sourceTable = table.name;
                     const sourceTableUuid = newTables.find((t) => t.name === sourceTable)?.uuid;
-    
+
                     const targetTableName = col.foreignKey.refTable.join('.');
                     const targetTableObj = newTables.find((t) => t.name === targetTableName);
-    
+
                     if (sourceTableUuid && targetTableObj) {
                         const sourceId = `table-${sourceTableUuid}-col-${table.desc.findIndex((c) => c.col_name === col.col_name) + 1}-left`;
                         const targetColumn = col.foreignKey.refColumns[0];
                         const targetId = `table-${targetTableObj.uuid}-col-${targetTableObj.desc.findIndex((c) => c.col_name === targetColumn) + 1}-right`;
-    
+
                         savedConnections.push({
                             sourceId,
                             targetId,
@@ -907,18 +965,18 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 }
             });
         });
-    
+
         setActivateTables(activatedTableNames);
         localStorage.setItem('savedTables', JSON.stringify(newTables));
         localStorage.setItem('connections', JSON.stringify(savedConnections));
-    
+
         return { savedTables: newTables, savedConnections, rulesData: {} };
-    };    
+    };
 
     const handlePreViewButtonClick = async (tableName) => {
+        setViewMode('output');
         await runQuery(`SELECT * FROM ${tableName} LIMIT 100`);
         setCondition('preview');
-        setViewMode('output');
     };
 
     const openModal = (info) => {
@@ -1083,9 +1141,9 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         const columns = Object.keys(normalizedData[0]).map((key) => ({
             accessorKey: key,
             header: key.charAt(0).toUpperCase() + key.slice(1),
-            muiTableHeadCellProps: { 
-                align: 'center', 
-                style: key === (outputTabInfo?.name || '') ? { backgroundColor: '#E9EFEC' } : {}, 
+            muiTableHeadCellProps: {
+                align: 'center',
+                style: key === (outputTabInfo?.name || '') ? { backgroundColor: '#E9EFEC' } : {},
             },
             muiTableBodyCellProps: {
                 style: key === (outputTabInfo?.name || '') ? { backgroundColor: '#E9EFEC' } : {},
@@ -1362,6 +1420,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                         const parsedData = result.map((item) =>
                             typeof item === 'string' ? JSON.parse(item) : item
                         );
+                        setViewMode('output');
 
                         setQueryResult(
                             <RenderTableForApi
@@ -1369,7 +1428,6 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                                 outputTabInfo={{ name, table, validRecord }}
                             />
                         );
-                        setViewMode('output');
                         setCondition('preview');
                     } catch (parseError) {
                         console.error('Error parsing data:', parseError);
@@ -1713,6 +1771,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                             onSubmit={handlePopupSubmit}
                             table={activateTargetTable}
                             setPopupMessage={setPopupMessage}
+                            updateUSLInfo={updateUSLInfo}
                         />
                     )}
 
