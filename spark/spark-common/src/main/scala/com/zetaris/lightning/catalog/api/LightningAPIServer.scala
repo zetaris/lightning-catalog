@@ -86,7 +86,9 @@ object LightningAPIServer {
 
     // API Server Configuration
     val serverPort = sys.env.getOrElse("LIGHTNING_SERVER_PORT", "8080").toInt
-    val apiBaseUri = UriBuilder.fromUri("http://localhost/").port(serverPort).build()
+    // val apiBaseUri = UriBuilder.fromUri("http://localhost/").port(serverPort).build()
+    val apiBaseUri = UriBuilder.fromUri("http://0.0.0.0/").host("localhost").port(serverPort).build()
+
     
     // Jersey configuration for API
     val config = new ResourceConfig(
@@ -110,6 +112,7 @@ object LightningAPIServer {
     val guiContext = new ContextHandler()
     guiContext.setContextPath("/")
     guiContext.setHandler(staticHandler)
+    guiContext.setVirtualHosts(Array("localhost", "0.0.0.0"))
     
     guiServer.setHandler(guiContext)
     guiServer.start()

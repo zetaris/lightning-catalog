@@ -739,7 +739,16 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
   tableContainer.id = uniqueTableId;
 
   const positions = calculateTablePositions(container);
-  const { x, y } = positions[container.querySelectorAll('.table-container').length];
+  const existingTableContainers = Array.from(container.querySelectorAll('.table-container'));
+
+  const uniqueTableNames = new Set(
+    existingTableContainers.map((table) => table.className.split(' ')[1])
+  );
+
+  const uniqueCount = uniqueTableNames.size;
+
+  const { x, y } = positions[uniqueCount] || { x: 0, y: 0 };
+  // const { x, y } = positions[container.querySelectorAll('.table-container').length];
 
   tableContainer.style.left = `${x}px`;
   tableContainer.style.top = `${y}px`;

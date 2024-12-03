@@ -3,7 +3,7 @@ import Editor from './Editor'; // Assuming this is the path for your custom edit
 import './Popup.css';
 import { fetchApi } from '../../../utils/common';
 
-const DataQualityPopup = ({ onClose, table, setPopupMessage }) => {
+const DataQualityPopup = ({ onClose, table, setPopupMessage, updateUSLInfo }) => {
     const [ruleName, setRuleName] = useState('');  // State for rule name
     const [ruleExpression, setRuleExpression] = useState('');  // State for rule expression
 
@@ -13,8 +13,7 @@ const DataQualityPopup = ({ onClose, table, setPopupMessage }) => {
             return;
         }
 
-        const formattedRuleName = `\`${ruleName}\``;
-        const query = `REGISTER DQ ${formattedRuleName} TABLE ${table.name} AS ${ruleExpression};`;
+        const query = `REGISTER DQ ${ruleName} TABLE ${table.name} AS ${ruleExpression};`;
 
         try {
             const response = await fetchApi(query);
@@ -22,9 +21,10 @@ const DataQualityPopup = ({ onClose, table, setPopupMessage }) => {
             if (response.error) {
                 setPopupMessage(response.message);
             }else{
+                updateUSLInfo();
                 onClose();
             }
-            setRuleName('');  // Clear inputs after submission
+            setRuleName('');
             setRuleExpression('');
         } catch (error) {
             setPopupMessage(error.message || 'An error occurred while registering the rule');
