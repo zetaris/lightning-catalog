@@ -24,33 +24,19 @@ Lightning Catalog has been tested with:
 * JRE 1.8, 11, 17, 18, 19.
 * Apache Spark (versions 3.4.x, 3.5.x).
 
-## 2. Lightning Architecture
-Lightning Catalog has three main components:
-* **API Server** (port 8080 by default): A RESTful API server to execute all commands and queries.
-* **Web Server** (port 8081 by default): Provides the web UI and communicates with the API server.
-* **Lightning Frontend**: React application.
-
-## 3. Install Spark
+## 2. Install Spark
 Lightning Catalog leverages Apache Spark as a compute engine. The Spark package can be downloaded from [Apache Spark Downloads](https://spark.apache.org/downloads.html).
 The `SPARK_HOME` environment variable must be set.
 
-## 4. Install Lightning Catalog
+## 3. Install Lightning Catalog
 The Lightning Catalog package can be downloaded from the GitHub release page: [GitHub Releases](https://github.com/zetaris/lightning-catalog/releases) or built from source.
 
 Assume the `LIGHTNING_HOME` variable points to the installation directory.
 
-## 5. Run Lightning Server
-* Copy all third-party libraries, such as JDBC drivers, into the `$LIGHTNING_HOME/3rd-party-lib` directory.
-* Edit the following parameters in `${LIGHTNING_HOME}/bin/start-light.sh`:
-  - `LIGHTNING_SERVER_PORT` (8080 by default) for the API server port.
-  - `LIGHTNING_GUI_PORT` (8081 by default) for the web server port.
-* Run `${LIGHTNING_HOME}/bin/start-light.sh`.
-* Open a web browser and navigate to `http://localhost:<LIGHTNING_GUI_PORT>`.
-
-## 6. Run Hive Thrift Server for JDBC Connectivity
+## 4. Run Hive Thrift Server for JDBC Connectivity
 * Run `${LIGHTNING_HOME}/bin/start-thriftserver-light.sh` to start the Hive Thrift server.
 
-## 7. Connect to Hive Thrift Server from JDBC Client
+## 5. Connect to Hive Thrift Server from JDBC Client
 In this example, **DBeaver** is used to connect to the Thrift server.
 
 * Select **Apache Hive** as the database and JDBC driver.
@@ -62,7 +48,7 @@ In this example, **DBeaver** is used to connect to the Thrift server.
 * The "default" and "global_temp" schemas will be displayed by default when the connection is made.
   ![SQL Editor](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/dbeaver-query.png)
 
-## 8. Create Namespace
+## 6. Create Namespace
 Lightning Catalog has two top-level namespaces:
 
 * **Datasource**:
@@ -79,7 +65,7 @@ Lightning Catalog has two top-level namespaces:
 CREATE NAMESPACE lightning.datasource.rdbms;
 ```
 
-##9. Register Data Source & Browse Schema, Tables
+##7. Register Data Source & Browse Schema, Tables
 ```bash   
    REGISTER OR REPLACE JDBC DATASOURCE qa_mssql2 OPTIONS(
    driver "com.microsoft.sqlserver.jdbc.SQLServerDriver",
@@ -137,7 +123,7 @@ tpch        | region     | false
 tpch        | supplier   | false
 ```
 
-## 10. Run query
+## 8. Run query
 Users can run queries using fully qualified namespaces.
 ```bash
 SELECT *
@@ -145,7 +131,7 @@ FROM lightning.datasource.rdbms.qa_mssql2.tpch.customer
 LIMIT 10;
 ```
 
-## 11. Joining Other Data Sources
+## 9. Joining Other Data Sources
 ```bash
 SELECT dt.d_year,
 item.i_brand_id AS brand_id,

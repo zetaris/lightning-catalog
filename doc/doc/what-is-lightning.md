@@ -33,6 +33,7 @@ Data engineer, scientist, analyst can use Lightning catalog to discover, access 
 * Support running data pipeline at scale by leveraging Apache Spark and optional NVIDIA GPU
 * Support running ANSI SQL and Hive QL over source systems defined in the Catalog
 * Support multiple namespace.
-* Support data quality by integrating Amazon Deequ.
-* Support data flow table, declarative ETL framework which defines and transforms your data.
+* Support unified semantic layer by compiling & deploying DDLs over underlying data sources
+* Support business data quality check as well as check database constraints over non rdbms sources.
 * Support metadata processing for unstructured data using endpoint declarations.
+* Support data flow table, declarative ETL framework which defines and transforms your data(ver 0.3).
