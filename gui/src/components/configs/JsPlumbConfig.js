@@ -2,7 +2,6 @@ import { jsPlumb } from 'jsplumb';
 import './JsPlumbTables.css';
 import { createRoot } from 'react-dom/client';
 import React from 'react';
-import { flushSync } from 'react-dom';
 import { ReactComponent as EllipsisIcon } from '../../assets/images/ellipsis-vertical-solid.svg';
 import { ReactComponent as PkIcon } from '../../assets/images/key-outline.svg';
 import { ReactComponent as UniqueIcon } from '../../assets/images/fingerprint-solid.svg';
@@ -847,7 +846,7 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
     if (isActive) {
       const activateQueryOption = document.createElement('div');
       activateQueryOption.className = 'popup-menu-option';
-      activateQueryOption.innerText = 'Activate Query';
+      activateQueryOption.innerText = 'Activate Table';
       activateQueryOption.onclick = (e) => {
         e.stopPropagation();
         handleActivateQueryClick(selectedTable);
