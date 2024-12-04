@@ -19,59 +19,66 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SO
 
 ## Lightning Catalog
 
-Lightning catalog is an open source data catalog for the preparing data at any scale in ad-hoc analytics, data warehouse, lake house and ML project
+The Lightning Catalog is an open-source data catalog designed for preparing data at any scale in ad-hoc analytics, data warehousing, lake houses, and ML projects.
+It is primarily developed to provide management of various data assets across the enterprise and stitch them together without requiring a centralized repository.
+It leverages Apache Spark as the primary compute engine.
 
 ## Key Capabilities
-* Lightning catalog manages an endpoint of source system providing unified access to them  through SQL and Apache SPARK API, which makes data discovery easy.
-* Lightning catalog allows to run ad-hoc query(SQL) over underlying heterogenous source systems in federate way, E,g Join between multiple source system without moving data.
-* Lightning catalog simplify the life cycle of data engineering pipe line, build, test and deploy by leveraging Data Flow Table, E,g Load data into lake house by fetching delta and transform all the way of SQL operation.
-* Lightning catalog can get rid of burden of data preparation workload for ML engineer, and help them focusing on building model. It supports to access to unstructured data.
+
+* Lightning Catalog manages endpoints of source systems, providing unified access to them through SQL and the Apache Spark API, making data discovery easy.
+* Lightning Catalog allows you to run ad-hoc SQL queries over underlying heterogeneous source systems in a federated manner (e.g., joins between multiple source systems without moving data).
+* Lightning Catalog simplifies the lifecycle of data engineering pipelines, from build and test to deployment, by leveraging Data Flow Tables. For example, you can load data into a lake house by fetching deltas and transforming data through SQL operations.
+* Lightning Catalog alleviates the burden of data preparation for ML engineers, enabling them to focus on building models. It also supports access to unstructured data.
+* Lightning Catalog allows you to ingest unstructured files and query both their metadata and actual contents. It leverages Spark's parallel processing capabilities.
+* Lightning Catalog enables the creation of a unified semantic layer in a top-down manner, allowing users to upload DDL and map table definitions to underlying data sources.
+* Lightning Catalog brings data quality capabilities, including checking database constraints (PK, Unique, FK) over non-RDBMS tables, such as Parquet, Iceberg, Delta, and more.
 
 ## Online Documentation
-* The latest documentation is found on the [project web page](https://www.zetaris.com/lightning-opensource)
-* git hub online [doc](https://github.com/zetaris/lightning-catalog/tree/master/doc/doc)
+
+* The latest documentation is available on the [project web page](https://www.zetaris.com/lightning-opensource).
+* GitHub online [documentation](https://github.com/zetaris/lightning-catalog/tree/master/doc/doc).
 
 ## Collaboration
 
-Lightning tracks issues in GitHub and prefers to receive contributions as pull requests.
+Lightning tracks issues on GitHub and encourages contributions via pull requests.
 
+### Building - Backend
 
-### Building - backend
+Lightning is built using Gradle with Java 1.8, Java 11, Java 17, 18, 19.
 
-Lightning is built using Gradle with Java 1.8 or Java 11 or Java 17, 19, 19
-
-* To invoke a build and run tests: `./gradlew build`
+* To build and run tests: `./gradlew build`
 * To skip tests: `./gradlew build -x test -x integrationTest`
 * To fix code style for default versions: `./gradlew spotlessApply`
-* To fix code style for all versions of Spark/Hive/Flink:`./gradlew spotlessApply -DallVersions`
-* To build with spark version profile: `./gradlew clean build -DdefaultSparkMajorVersion=3.4 -DdefaultSparkVersion=3.4.2`  
-* distribution package is found `lightning-metastore/spark/spark_version(v3.4, v3.5)/spark-runtime/build/distributions`
+* To fix code style for all versions of Spark/Hive/Flink: `./gradlew spotlessApply -DallVersions`
+* To build with a specific Spark version profile: `./gradlew clean build -DdefaultSparkMajorVersion=3.4 -DdefaultSparkVersion=3.4.2`
+* The distribution package can be found at `lightning-metastore/spark/spark_version(v3.4, v3.5)/spark-runtime/build/distributions`.
 
-### Building - frontend & backend
+### Building - Frontend & Backend
 
-Lightning provides build.sh to build both frontend and backend.
-* `build.sh` takes all parameters from the above backend build param
-* distribution package is found `lightning-metastore/build/lightning-metastore-(spark majer version)-(lightning version).zip`
+Lightning provides `build.sh` to build both the frontend and backend.
+
+* `build.sh` takes parameters from the backend build commands listed above.
+* The distribution package can be found at `lightning-metastore/build/lightning-metastore-(spark_major_version)-(lightning_version).zip`.
 
 ### Execution
 
-* Copy 3rd party libraries such as JDBC lib into $LIGHTNING_HOME/3rd-party-lib
-* Change the following two parameters in $LIGHTNING_HOME/bin/start-ligt.sh, and run it
+* Copy third-party libraries, such as JDBC libraries, into `$LIGHTNING_HOME/3rd-party-lib`.
+* Modify the following two parameters in `$LIGHTNING_HOME/bin/start-light.sh`, then run the script.
 
 ### Major Features
 
-* Running catalog in file system( HDFS, Blob, and local file) which allows version control.
-* Support Apache Spark Plug-in architecture
-* Support running data pipeline at any scale by leveraging Apache Spark.
-* Support running ANSI SQL and Hive QL over underlying source systems.
-* Support multiple namespace.
-* Support data quality by integrating Amazon Deequ
-* Support data flow table, declarative ETL framework which define transforms your data.
-* Support processing unstructured data, accessing all files and their meta data recursively from an endpoint.
-* Support unified semantic layer(ULS) by compiling & deploy DDL.
-* Support Database constraints check as well as Business Rule Data Quality check over USL  
+* Running the catalog on file systems (HDFS, Blob, and local file), allowing version control.
+* Support for Apache Spark plug-in architecture.
+* Ability to run data pipelines at any scale by leveraging Apache Spark.
+* Support for running ANSI SQL and HiveQL queries over underlying source systems.
+* Support for multiple namespaces.
+* Data quality support via integration with Amazon Deequ.
+* Data flow tables, a declarative ETL framework that defines transformations on data.
+* Processing unstructured data, recursively accessing all files and their metadata from an endpoint.
+* Unified semantic layer (USL) by compiling and deploying DDL.
+* Database constraint checks and business rule data quality checks over USL.
 
-### Currently supported data sources (more to be added)
+### Currently Supported Data Sources (More to be Added)
 ```
 DeltaLake
 Iceberg

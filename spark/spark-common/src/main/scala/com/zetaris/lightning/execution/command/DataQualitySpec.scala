@@ -459,11 +459,12 @@ case class RunDataQualitySpec(name: Option[String], table: Seq[String]) extends 
     )
 
     if (name.isDefined) {
-      val dq = createTableSpec.dqAnnotations.find(_.name.equalsIgnoreCase(name.get))
+      val stripped = stripCompositeKeys(name.get)
+      val dq = createTableSpec.dqAnnotations.find(_.name.equalsIgnoreCase(stripped))
       if (dq.isDefined) {
         runDQ(sparkSession, createTableSpec, dq.get) :: Nil
       } else {
-        runDatabaseConstraints(sparkSession, createTableSpec, name.get)
+        runDatabaseConstraints(sparkSession, createTableSpec, stripped)
       }
     } else {
       createTableSpec.dqAnnotations.map { dq =>

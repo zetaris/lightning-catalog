@@ -55,7 +55,7 @@ class SnowflakeJDBCTableCatalog extends JDBCTableCatalog {
   override def listTables(namespace: Array[String]): Array[Identifier] = {
     JdbcUtils.withConnection(options) { conn =>
       val catalog = if (namespace.length > 1) {
-        namespace.head
+        namespace.head.toUpperCase()
       } else {
         null
       }
@@ -66,7 +66,7 @@ class SnowflakeJDBCTableCatalog extends JDBCTableCatalog {
       }
 
       val rs = conn.getMetaData
-        .getTables(catalog.toUpperCase, schemaPattern.toUpperCase, "%", Array("TABLE"))
+        .getTables(catalog, schemaPattern.toUpperCase, "%", Array("TABLE"))
       new Iterator[Identifier] {
         def hasNext = rs.next()
         def next() = {

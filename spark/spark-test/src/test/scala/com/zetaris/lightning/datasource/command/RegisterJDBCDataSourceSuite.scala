@@ -31,7 +31,6 @@ class RegisterJDBCDataSourceSuite extends SparkExtensionsTestBase with H2TestBas
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-
     createH2SimpleTable(dbName, schema)
     initRoootNamespace()
     registerH2DataSource(dbName)
