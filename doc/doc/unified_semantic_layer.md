@@ -38,3 +38,5 @@ And then, Lighting Catalog can compile DDLs into JSON representation, deploy it 
 ## Run Data Quality
 ![Load ERD](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/run-dq.png)
 
+## Export Invalid(valid) records
+![Load ERD](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/export-invalid-records.png)
