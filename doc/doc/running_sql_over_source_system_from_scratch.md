@@ -46,6 +46,11 @@ Assume the `LIGHTNING_HOME` variable points to the installation directory.
   - `LIGHTNING_GUI_PORT` (8081 by default) for the web server port.
 * Run `${LIGHTNING_HOME}/bin/start-light.sh`.
 * Open a web browser and navigate to `http://localhost:<LIGHTNING_GUI_PORT>`.
+  ![SQL Editor](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/sql-editor.png)
+* Unified Semantic Layer: Compile & Deploy DDL.
+  ![Compile USL](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/compile-ddl.png)
+* Unified Semantic Layer: ERD & Data Quality
+  ![ERD & Data Quality](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/usl-main.png)
 
 ## 6. Run Hive Thrift Server for JDBC Connectivity
 * Run `${LIGHTNING_HOME}/bin/start-thriftserver-light.sh` to start the Hive Thrift server.
