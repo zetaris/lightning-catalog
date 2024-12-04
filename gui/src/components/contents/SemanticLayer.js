@@ -205,17 +205,29 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
     }
 
     const handleListDQClick = (table) => {
-        const uslInfo = JSON.parse(localStorage.getItem(table.name.split('.').slice(-2, -1)))
-        console.log(uslInfo)
+
+        const uslInfoKey = table.name.split('.').slice(-2, -1)[0];
+        const uslInfo = JSON.parse(localStorage.getItem(uslInfoKey));
+
         if (uslInfo && Array.isArray(uslInfo.tables)) {
-            const matchedTable = uslInfo.tables.find((t) => t.name === table.name.split('.').pop());
+            const tableName = table.name.split('.').pop();
+            const matchedTable = uslInfo.tables.find((t) => t.name === tableName);
+
             if (matchedTable) {
                 table = matchedTable;
-                console.log(table)
-            } else {
-                console.error(`Table with name "${table.name}" not found in uslInfo.`);
+                const savedTableData = JSON.parse(localStorage.getItem('savedTable'));
+
+                if (Array.isArray(savedTableData)) {
+                    const savedTable = savedTableData.find((t) => t.name === table.name);
+
+                    if (savedTable) {
+                        savedTable.isActivated = true;
+                        localStorage.setItem('savedTable', JSON.stringify(savedTableData));
+                    }
+                }
             }
         }
+
         setActivateTargetTable(table);
         setShowDQListPopup(true);
     }
@@ -250,42 +262,69 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
     const handleSubmitActivateQuery = async (query) => {
         const activateKeyword = 'ACTIVATE USL TABLE ';
         const asKeyword = ' AS ';
-
+    
         const startIndex = query.expression.indexOf(activateKeyword) + activateKeyword.length;
         const endIndex = query.expression.indexOf(asKeyword);
-
+    
         if (startIndex === -1 || endIndex === -1) {
             console.error("Invalid query expression: Required keywords not found.");
             return;
         }
-
+    
         const table = query.expression.substring(startIndex, endIndex).trim();
         const queryIndex = query.expression.indexOf('SELECT');
         if (queryIndex === -1) {
             console.error("Invalid query expression: SELECT statement not found.");
             return;
         }
-
+    
         const selectQuery = query.expression.substring(queryIndex);
         const requestData = {
             table: table,
             query: selectQuery
         };
-
-        let result = await fetchActivateTableApi(requestData);
-        if (!result.error) {
-            setActivateTables((prevTables) => {
-                const updatedTables = [...prevTables, table];
-                updateActivatedTables(true, updatedTables);
-                return updatedTables;
-            });
-        } else {
-            setPopupMessage(result.message);
+    
+        try {
+            let result = await fetchActivateTableApi(requestData);
+            if (!result.error) {
+                const parsedResult = JSON.parse(result)
+                const registered = JSON.parse(parsedResult.registered);
+                const registeredName = registered.name;
+                const registeredQuery = registered.query;
+    
+                const savedTablesData = JSON.parse(localStorage.getItem('savedTables'));
+    
+                if (Array.isArray(savedTablesData)) {
+                    console.log(registeredName)
+    
+                    const tableToUpdate = savedTablesData.find(t => t.name.split('.').pop() === registeredName);
+    
+                    if (tableToUpdate) {
+                        tableToUpdate.isActivated = true;
+                        tableToUpdate.activateQuery = registeredQuery;
+    
+                        localStorage.setItem('savedTables', JSON.stringify(savedTablesData));
+                    } 
+                }
+    
+                updateUSLInfo();
+                console.log(result);
+                setActivateTables((prevTables) => {
+                    const updatedTables = [...prevTables, table];
+                    updateActivatedTables(true, updatedTables);
+                    return updatedTables;
+                });
+            } else {
+                setPopupMessage(result.message);
+                updateActivatedTables(false);
+            }
+        } catch (error) {
+            setPopupMessage("Error : ", error);
             updateActivatedTables(false);
         }
-        // fetchActivateTableData();
+    
         setShowActivePopup(false);
-    };
+    };    
 
     const handleTableInfoClick = (table) => {
         showTableInfo(table);
@@ -568,7 +607,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
 
 
     const reFreshScreen = () => {
-        const savedTables = JSON.parse(localStorage.getItem('savedTables')) || [];
+        let savedTables = JSON.parse(localStorage.getItem('savedTables')) || [];
         let savedConnections = JSON.parse(localStorage.getItem('connections')) || [];
 
         if (savedTables && savedTables.length > 0) {

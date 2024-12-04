@@ -3,10 +3,9 @@ import Editor from './Editor';
 import './Popup.css';
 
 const ActivatePopup = ({ onClose, onSubmit, table }) => {
-    // Initialize dataSource with activateQuery if available, otherwise use a default template
     const [dataSource, setDataSource] = useState(() => {
         try {
-            return table.activateQuery ? JSON.parse(table.activateQuery).query || "" : "";
+            return table.activateQuery ? table.activateQuery || "" : "";
         } catch (error) {
             console.error("Invalid JSON format:", error);
             return "";
@@ -24,7 +23,7 @@ const ActivatePopup = ({ onClose, onSubmit, table }) => {
         <div className="popup-overlay">
             <div className="popup">
                 <div className="popup-content">
-                    <div className="popup-title">Activate Query</div>
+                    <div className="popup-title">Activate Table</div>
                     <div className="popup-field">
                         <div style={{ height: '500px', width: '100%' }}>
                             <Editor

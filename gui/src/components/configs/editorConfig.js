@@ -178,90 +178,21 @@ export const setPathKeywords = (paths) => {
   initializeFuse(Object.keys(pathKeywords));
 };
 
-// const onDotTyped = async (editorInstance) => {
-//   const editorPosition = editorInstance.getCursorPosition();
-//   const currentLine = editorInstance.getSession().getLine(editorPosition.row);
-//   currentSuggestions = [];
-
-//   const exportPath = (() => {
-//     const match = currentLine.trim().match(/.*lightning\..+/);
-//     if (match) {
-//       const lastLightningIndex = match[0].lastIndexOf('lightning.');
-//       const lastLightningSegment = match[0].slice(lastLightningIndex);
-//       return lastLightningSegment.split('.').slice(0, -1).join('.');
-//     }
-//     return '';
-//   })();  
-
-//   let queryPath = exportPath;
-
-//   const beforeCursor = currentLine.slice(0, editorPosition.column);
-//   const lastSegment = beforeCursor.split('.').slice(-1)[0].trim().split(/[\s]+/).pop();
-
-//   if (tableAliases[lastSegment]) {
-//     queryPath = tableAliases[lastSegment];
-//   }
-
-//   if (queryPath === '') {
-//     currentSuggestions = ['datasource', 'metastore']
-//   } else if (queryPath) {
-//     try {
-//       const query = `SHOW NAMESPACES OR TABLES IN ${queryPath};`;
-//       const response = await fetchApi(query);
-
-//       if (response.message && response.message.startsWith("[SCHEMA_NOT_FOUND]")) {
-
-//         const descQuery = `DESC ${queryPath};`;
-//         const descResponse = await fetchApi(descQuery);
-
-//         if (descResponse) {
-//           const descResults = descResponse.map((item) => JSON.parse(item));
-
-//           currentSuggestions = descResults.map((result) => result.col_name || '');
-//         }
-//       } else {
-//         const results = response.map((item) => JSON.parse(item));
-
-//         currentSuggestions = results.map((result) => result.name || '');
-//       }
-//     } catch (error) {
-//       console.error('Error fetching namespaces or tables:', error);
-//     }
-//   }
-
-//   if (currentSuggestions.length > 0) {
-//     setTimeout(() => {
-//       editorInstance.execCommand('startAutocomplete');
-//     }, 0);
-//   }
-// };
-
 const onDotTyped = async (editorInstance) => {
-  const editorPosition = editorInstance.getCursorPosition();
-  const currentLine = editorInstance.getSession().getLine(editorPosition.row).trim();
-  const beforeCursor = currentLine.slice(0, editorPosition.column).trim();
+  const context = getContext(editorInstance);
 
   currentSuggestions = [];
   let queryPath = '';
-  let context = getContext(beforeCursor);
 
-  if (context.type === "SELECT") {
+  if (context.type === "SELECT" || context.type === "WHERE") {
     queryPath = context.tableAlias || context.tablePath;
-
     if (queryPath) {
       await fetchColumns(queryPath);
     }
-  } else if (context.type === "FROM") {
+  } else if (context.type === "FROM" || context.type === "LIGHTNING") {
     queryPath = context.path;
-
     if (queryPath) {
       await fetchTablesOrNamespaces(queryPath);
-    }
-  } else if (context.type === "WHERE") {
-    queryPath = context.tableAlias || context.tablePath;
-
-    if (queryPath) {
-      await fetchColumns(queryPath);
     }
   }
 
@@ -272,46 +203,161 @@ const onDotTyped = async (editorInstance) => {
   }
 };
 
-const getContext = (beforeCursor) => {
-  const context = { type: null, path: null, tableAlias: null, tablePath: null };
+const getContext = (editorInstance) => {
+  const cursorPosition = editorInstance.getCursorPosition();
+  const cursorRow = cursorPosition.row;
+  const session = editorInstance.getSession();
 
-  const upperCaseCursor = beforeCursor.toUpperCase();
+  const allLines = session.getLines(0, cursorRow);
+  const currentLineBefore = session.getLine(cursorRow).slice(0, cursorPosition.column);
+  allLines.push(currentLineBefore);
+  const beforeCursor = allLines.join(' ');
 
-  if (upperCaseCursor.includes("WHERE")) {
-    context.type = "WHERE";
+  const totalLines = session.getLength();
+  const afterLines = session.getLines(cursorRow, totalLines);
+  const currentLineAfter = session.getLine(cursorRow).slice(cursorPosition.column);
+  afterLines.unshift(currentLineAfter);
+  const afterCursor = afterLines.join(' ');
 
-    const lastSegment = beforeCursor.split(/[\s.]+/).pop();
-    context.tableAlias = tableAliases[lastSegment] || null;
-  }else if (upperCaseCursor.includes("FROM")) {
-    context.type = "FROM";
+  const context = { type: null, path: null, tableAlias: null, tablePath: null, insideFunction: false };
 
-    const match = beforeCursor.match(/FROM\s+([\w.]+)$/i);
-    if (match) {
-      context.path = match[1];
+  const patterns = {
+    "LIGHTNING": /LIGHTNING\.(\w+(?:\.\w+)*)/ig,
+    "FROM": /FROM\s+([\w\.]+)(?:\s+AS\s+(\w+))?/ig,
+    "SELECT": /SELECT\s+([^FROM]+)/ig,
+    "WHERE": /WHERE\s+([^FROM]+)/ig
+  };
+
+  const matches = [];
+
+  for (const [type, regex] of Object.entries(patterns)) {
+    let match;
+    while ((match = regex.exec(beforeCursor)) !== null) {
+      matches.push({
+        type,
+        match,
+        index: match.index
+      });
     }
-  }else if (upperCaseCursor.includes("SELECT")) {
-    context.type = "SELECT";
-
-    const lastSegment = beforeCursor.split(/[\s.]+/).pop();
-    context.tableAlias = tableAliases[lastSegment] || null;
   }
+
+  if (matches.length === 0) {
+    for (const [type, regex] of Object.entries(patterns)) {
+      let match;
+      while ((match = regex.exec(afterCursor)) !== null) {
+        matches.push({
+          type,
+          match,
+          index: match.index
+        });
+      }
+    }
+  }
+
+  if (matches.length === 0) {
+    return context;
+  }
+
+  const closestMatch = matches.reduce((prev, current) => {
+    return (current.index > prev.index) ? current : prev;
+  }, matches[0]);
+
+  switch (closestMatch.type) {
+    case "LIGHTNING":
+      context.type = "LIGHTNING";
+      context.path = `lightning.${closestMatch.match[1]}`;
+      break;
+    case "FROM":
+      context.type = "FROM";
+      context.path = closestMatch.match[1];
+      context.tableAlias = closestMatch.match[2] || null;
+      break;
+    case "SELECT":
+      context.type = "SELECT";
+      const selectedColumns = closestMatch.match[1].trim();
+
+      const selectAliasMatches = [...selectedColumns.matchAll(/(\w+)\./g)];
+
+      const uniqueAliasMatches = [];
+      const seenAliases = new Set();
+
+      for (let i = 0; i < selectAliasMatches.length; i++) {
+        const alias = selectAliasMatches[i][1];
+        if (!seenAliases.has(alias)) {
+          uniqueAliasMatches.push(selectAliasMatches[i]);
+          seenAliases.add(alias);
+        }
+      }
+
+      const lastSelectAliasMatch = uniqueAliasMatches.length > 0 ? uniqueAliasMatches[uniqueAliasMatches.length - 1][1] : null;
+
+      if (lastSelectAliasMatch) {
+        context.tableAlias = tableAliases[lastSelectAliasMatch] || null;
+      } else {
+        const fromMatch = afterCursor.match(/FROM\s+([\w\.]+)(?:\s+AS\s+(\w+))?/i);
+        if (fromMatch) {
+          context.tablePath = fromMatch[1];
+        }
+      }
+      break;
+    case "WHERE":
+      context.type = "WHERE";
+      const whereConditions = closestMatch.match[1];
+
+      const whereAliasMatches = [...whereConditions.matchAll(/(\w+)\./g)];
+      const lastWhereAliasMatch = whereAliasMatches.length > 0 ? whereAliasMatches[whereAliasMatches.length - 1][1] : null;
+
+      if (lastWhereAliasMatch) {
+        context.tableAlias = tableAliases[lastWhereAliasMatch] || null;
+      } else {
+        const fromMatch = beforeCursor.match(/FROM\s+([\w\.]+)(?:\s+AS\s+(\w+))?/i);
+        if (fromMatch) {
+          context.tablePath = fromMatch[1];
+        }
+      }
+      break;
+    default:
+      break;
+  }
+
+  let clauseText = '';
+  if (context.type === "SELECT") {
+    const selectMatch = beforeCursor.match(/SELECT\s+([^FROM]+)/i);
+    clauseText = selectMatch ? selectMatch[1] : '';
+  } else if (context.type === "WHERE") {
+    const whereMatch = beforeCursor.match(/WHERE\s+([^FROM]+)/i);
+    clauseText = whereMatch ? whereMatch[1] : '';
+  }
+
+  const textUpToCursor = clauseText.slice(0, closestMatch.match.index + closestMatch.match[0].length);
+  const openParens = (textUpToCursor.match(/\(/g) || []).length;
+  const closeParens = (textUpToCursor.match(/\)/g) || []).length;
+
+  context.insideFunction = openParens > closeParens;
 
   return context;
 };
 
 const fetchTablesOrNamespaces = async (queryPath) => {
   try {
+    if (queryPath === "lightning") {
+      currentSuggestions = ["datasource", "metastore"];
+      return;
+    }
+
     const query = `SHOW NAMESPACES OR TABLES IN ${queryPath};`;
     const response = await fetchApi(query);
 
     if (response.message?.startsWith("[SCHEMA_NOT_FOUND]")) {
-      console.error("Schema not found:", response.message);
+      const columnsResponse = await fetchColumns(queryPath);
+      const results = columnsResponse.map((item) => JSON.parse(item));
+      currentSuggestions = results.map((result) => result.col_name || '');
     } else {
       const results = response.map((item) => JSON.parse(item));
       currentSuggestions = results.map((result) => result.name || '');
     }
   } catch (error) {
-    console.error("Error fetching tables or namespaces:", error);
+    // console.error("Error fetching tables or namespaces:", error);
   }
 };
 
@@ -325,67 +371,32 @@ const fetchColumns = async (tablePath) => {
       currentSuggestions = results.map((result) => result.col_name || '');
     }
   } catch (error) {
-    console.error("Error fetching columns:", error);
+    // console.error("Error fetching columns:", error);
   }
 };
 
-const nonDotTyped = async (editorInstance, tableName = '') => {
-  let currentLine = editorInstance.getSession().getLine(editorInstance.getCursorPosition().row);
+const onNonDotTyped = async (editorInstance) => {
+  const context = getContext(editorInstance);
+
   currentSuggestions = [];
+  let queryPath = '';
 
-  if (tableName) {
-    // const pathSegments = currentLine.trim().split(/[\s.]+/);
-    // const aliasOrPath = pathSegments.slice(-2, -1).join('.');
-
-    // resolvedPath = pathKeywords[aliasOrPath] || aliasOrPath;
-
-    // if (resolvedPath.includes('.')) {
-    //   const segments = resolvedPath.split('.');
-    //   resolvedPath = segments[segments.length - 1];
-    // }
-
-    const descQuery = `DESC ${queryPath};`;
-    const descResponse = await fetchApi(descQuery);
-
-    if (descResponse) {
-      const descResults = descResponse.map((item) => JSON.parse(item));
-
-      currentSuggestions = descResults.map((result) => result.col_name || '');
+  if (context.type === "SELECT" || context.type === "WHERE") {
+    queryPath = context.tableAlias || context.tablePath;
+    if (queryPath) {
+      await fetchColumns(queryPath);
+    }
+  } else if (context.type === "FROM" || context.type === "LIGHTNING") {
+    queryPath = context.tablePath;
+    if (queryPath) {
+      await fetchTablesOrNamespaces(queryPath);
     }
   }
 
-  // Extract the path to query
-  const queryPath = currentLine.trim().split('.').slice(0, -1).join('.');
-
-  if (queryPath) {
-    try {
-      const query = `SHOW NAMESPACES OR TABLES IN ${queryPath};`;
-      const response = await fetchApi(query);
-
-      if (response.message && response.message.startsWith("[SCHEMA_NOT_FOUND]")) {
-
-        const descQuery = `DESC ${queryPath};`;
-        const descResponse = await fetchApi(descQuery);
-
-        if (descResponse) {
-          const descResults = descResponse.map((item) => JSON.parse(item));
-
-          currentSuggestions = descResults.map((result) => result.col_name || '');
-        }
-      } else {
-        const results = response.map((item) => JSON.parse(item));
-
-        currentSuggestions = results.map((result) => result.name || '');
-      }
-
-      if (currentSuggestions.length > 0) {
-        setTimeout(() => {
-          editorInstance.execCommand('startAutocomplete');
-        }, 5);
-      }
-    } catch (error) {
-      console.error('Error fetching namespaces or tables:', error);
-    }
+  if (currentSuggestions.length > 0) {
+    setTimeout(() => {
+      editorInstance.execCommand('startAutocomplete');
+    }, 0);
   }
 };
 
@@ -430,6 +441,30 @@ export const setupAceEditor = (editor) => {
     enableLiveAutocompletion: true,
   });
 
+  let lastAction = null;
+  let debounceTimer = null;
+
+  const getCurrentClause = (content, cursorRow, session) => {
+    const lines = session.getLines(0, cursorRow + 1);
+    const currentContent = lines.join(' ');
+    const cursorIndex = session.doc.positionToIndex({ row: cursorRow, column: editor.getCursorPosition().column }, 0);
+    const beforeCursor = currentContent.substring(0, cursorIndex).toUpperCase();
+
+    const selectIndex = beforeCursor.lastIndexOf("SELECT");
+    const fromIndex = beforeCursor.lastIndexOf("FROM");
+    const whereIndex = beforeCursor.lastIndexOf("WHERE");
+
+    const latest = Math.max(selectIndex, fromIndex, whereIndex);
+
+    if (latest === -1) return null;
+
+    if (latest === selectIndex) return 'SELECT';
+    if (latest === fromIndex) return 'FROM';
+    if (latest === whereIndex) return 'WHERE';
+
+    return null;
+  };
+
   editor.getSession().on("change", (delta) => {
     const { action, lines } = delta;
     const cursorPosition = editor.getCursorPosition();
@@ -441,49 +476,92 @@ export const setupAceEditor = (editor) => {
       const content = editor.getValue();
       const upperContent = content.toUpperCase();
 
-      if (upperContent.includes("WHERE")) {
+      const currentClause = getCurrentClause(content, cursorRow, session);
+
+      if (currentClause === "SELECT") {
+        fromToWhere = extractSelectFromToWhere(content, cursorRow, session);
+        if (fromToWhere) {
+          analyzingFrom(fromToWhere);
+        }
+      } else if (currentClause === "FROM" || currentClause === "WHERE") {
         fromToWhere = extractFromToWhere(content, cursorRow, session);
         if (fromToWhere) {
           analyzingFrom(fromToWhere);
         }
       }
+
+      // 기존의 자동완성 관련 로직 유지
+      const currentLine = lines.join("");
+      if (currentLine.endsWith(".")) {
+        onDotTyped(editor);
+        lastAction = 'dot';
+        if (debounceTimer) clearTimeout(debounceTimer);
+      } else {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(async () => {
+          const context = getContext(editor);
+          if (['SELECT', 'FROM', 'WHERE', 'LIGHTNING'].includes(context.type)) {
+            if (lastAction !== 'dot') {
+              await onNonDotTyped(editor);
+              lastAction = 'non-dot';
+            }
+          }
+        }, 300);
+      }
     }
 
-    if (action === 'insert') {
-      const currentLine = lines.join("");
-      onDotTyped(editor);
-      // if (fromToWhere && !currentLine.endsWith(".")) {
-      //   onDotTyped(editor);
-      // }
-    } else if (action === 'remove') {
+    if (action === 'remove') {
       resetSuggestions();
+      lastAction = null;
+      if (debounceTimer) clearTimeout(debounceTimer);
     }
   });
 };
 
+const extractSelectFromToWhere = (content, cursorRow, session) => {
+  const allLines = session.getLines(0, cursorRow + 1);
+  const upperContent = allLines.join('\n').toUpperCase();
+  const originalContent = allLines.join('\n');
+
+  const selectIndex = upperContent.lastIndexOf('SELECT');
+  if (selectIndex === -1) return null;
+
+  const fromIndex = upperContent.indexOf('FROM', selectIndex);
+  if (fromIndex === -1) return null;
+
+  const whereIndex = upperContent.indexOf('WHERE', fromIndex);
+
+  const fromClause = originalContent.substring(
+    fromIndex,
+    whereIndex !== -1 ? whereIndex : undefined
+  ).trim();
+
+  return fromClause;
+};
+
 const tableAliases = {};
 const analyzingFrom = (fromToWhere) => {
+  Object.keys(tableAliases).forEach(key => delete tableAliases[key]);
+
   const tables = fromToWhere.split(',').map((table) => table.trim());
 
   tables.forEach((table) => {
-    const aliasMatch = table.match(/(\S+)\s+(AS\s+)?(\w+)$/i);
+    const aliasMatch = table.match(/(\S+)\s+(?:AS\s+)?(\w+)$/i);
 
     if (aliasMatch) {
       const tablePath = aliasMatch[1];
-      const alias = aliasMatch[3];
+      const alias = aliasMatch[2];
       tableAliases[alias] = tablePath;
 
       addColumnsToSuggestions(tablePath, alias);
     } else {
       const segments = table.split('.');
       const tableName = segments[segments.length - 1];
-      tableAliases[tableName] = table;
+      tableAliases[tableName] = tableName;
 
       addColumnsToSuggestions(table, tableName);
     }
   });
-
-  return tableAliases;
 };
 
 const addColumnsToSuggestions = (tablePath, alias) => {
