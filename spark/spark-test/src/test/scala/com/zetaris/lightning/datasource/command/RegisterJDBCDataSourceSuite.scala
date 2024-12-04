@@ -31,12 +31,11 @@ class RegisterJDBCDataSourceSuite extends SparkExtensionsTestBase with H2TestBas
 
   override def beforeAll(): Unit = {
     super.beforeAll()
-
     createH2SimpleTable(dbName, schema)
     initRoootNamespace()
     registerH2DataSource(dbName)
   }
-/**
+
   test("should create namespace") {
     checkAnswer(sparkSession.sql("SHOW NAMESPACES IN lightning.datasource"), Seq(Row("h2")))
     checkAnswer(sparkSession.sql("SHOW NAMESPACES IN lightning.datasource.h2"), Seq(Row(dbName)))
@@ -118,21 +117,5 @@ class RegisterJDBCDataSourceSuite extends SparkExtensionsTestBase with H2TestBas
   test("should run query over existing table") {
     checkAnswer(sparkSession.sql(s"select * from lightning.datasource.h2.${dbName}.${schema}.test_users"),
       Seq(Row(1, 1), Row(2, 2), Row(3, 3), Row(4, 4), Row(5, 5)))
-  }
-*/
-  test("should register postgres") {
-    sparkSession.sql(s"CREATE NAMESPACE lightning.datasource.postgres")
-    sparkSession.sql(
-      s"""
-         |REGISTER OR REPLACE JDBC DATASOURCE qa_postgres OPTIONS (
-         |driver "org.postgresql.Driver",
-         |url "jdbc:postgresql://zetarispostgres.postgres.database.azure.com:5432/qa_automation",
-         |user "zetaris@zetarispostgres",
-         |password "P@55word"
-         |) NAMESPACE lightning.datasource.postgres
-         |""".stripMargin)
-
-    sparkSession.sql(s"show namespaces in lightning.datasource.postgres").show()
-    sparkSession.sql(s"show namespaces in lightning.datasource.postgres.qa_postgres").show()
   }
 }
