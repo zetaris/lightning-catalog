@@ -37,3 +37,7 @@ button {
   font-weight: 650;
   color: #676e72;
 }
+
+.cursor-wait {
+  cursor: wait !important;
+}

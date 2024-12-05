@@ -32,6 +32,7 @@ function App() {
   const [uslNamebyClick, setUslNamebyClick] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [previewTableName, setPreviewTableName] = useState(null);
+  const [isMouseLoading, setIsMouseLoading] = useState(false);
 
   const handleSetView = (newView) => {
     setView(newView);
@@ -82,6 +83,7 @@ function App() {
                   setUslNamebyClick={setUslNamebyClick}
                   setPreviewTableName={setPreviewTableName}
                   setIsLoading={setIsLoading}
+                  setIsMouseLoading={setIsMouseLoading}
                 />
               </div>
 
@@ -119,6 +121,7 @@ function App() {
                   uslNamebyClick={uslNamebyClick}
                   setIsLoading={setIsLoading}
                   previewTableName={previewTableName}
+                  isMouseLoading={isMouseLoading}
                 />
               </div>
             </>

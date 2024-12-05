@@ -4,7 +4,7 @@ import AceEditor from 'react-ace';
 
 import { defineCustomTheme, setupAceEditor, editorOptions } from '../../configs/editorConfig';
 
-const Editor = ({ id, content, onChange, setEditorInstances }) => {
+const Editor = ({ id, content, onChange, setEditorInstances, isMouseLoading }) => {
     useEffect(() => {
         defineCustomTheme();
     }, []);
