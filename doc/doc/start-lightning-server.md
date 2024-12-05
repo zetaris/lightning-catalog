@@ -38,7 +38,7 @@ Lightning Catalog package can be downloaded in github release page(https://githu
 Assuming LIGT_HOME variable point the installation directory.
 
 ## 5. run lightning server
-* copy all 3rd party libs such as JDBC driver into $LIGT_HOME/3rd-party-lib directory
+* copy all 3rd party libs such as JDBC driver or cloud storage library into $LIGT_HOME/3rd-party-lib directory
 * change LIGHTNING_SERVER_PORT(8080 by default) for API port, LIGHTNING_GUI_PORT(8081 by default) for web server port in ${LIGT_HOME}/bin/start-ligt.sh
 * run ${LIGT_HOME}/bin/start-ligt.sh
 * connect to http://localhost:LIGHTNING_GUI_PORT from web browser.
