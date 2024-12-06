@@ -1,6 +1,7 @@
 // Generalized API function using the /q endpoint for query execution
 const executeQueryApi = async (query) => {
   try {
+    document.body.classList.add('cursor-wait');
     const response = await fetch('http://localhost:8080/api/q', {
       method: 'POST',
       headers: {
@@ -28,6 +29,8 @@ const executeQueryApi = async (query) => {
       error: true,
       message: error.message || 'Request failed',
     };
+  }finally{
+    document.body.classList.remove('cursor-wait');
   }
 };
 

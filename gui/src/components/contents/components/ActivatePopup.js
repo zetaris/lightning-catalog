@@ -5,7 +5,7 @@ import './Popup.css';
 const ActivatePopup = ({ onClose, onSubmit, table }) => {
     const [dataSource, setDataSource] = useState(() => {
         try {
-            return table.activateQuery ? table.activateQuery || "" : "";
+            return table.activateQuery ? JSON.parse(table.activateQuery).query || "" : "";
         } catch (error) {
             console.error("Invalid JSON format:", error);
             return "";

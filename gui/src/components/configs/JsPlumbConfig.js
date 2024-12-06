@@ -862,23 +862,23 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
         popupMenu.classList.add('hidden');
       };
 
-      const listDataQualityOption = document.createElement('div');
-      listDataQualityOption.className = 'popup-menu-option';
-      listDataQualityOption.innerText = 'Data Quality List';
-      listDataQualityOption.onclick = (e) => {
-        e.stopPropagation();
-        handleListDQClick(selectedTable);
-        popupMenu.classList.add('hidden');
-      };
+      // const listDataQualityOption = document.createElement('div');
+      // listDataQualityOption.className = 'popup-menu-option';
+      // listDataQualityOption.innerText = 'Data Quality List';
+      // listDataQualityOption.onclick = (e) => {
+      //   e.stopPropagation();
+      //   handleListDQClick(selectedTable);
+      //   popupMenu.classList.add('hidden');
+      // };
 
-      const dataQualityOption = document.createElement('div');
-      dataQualityOption.className = 'popup-menu-option';
-      dataQualityOption.innerText = 'Register Data Quality';
-      dataQualityOption.onclick = (e) => {
-        e.stopPropagation();
-        handleDataQualityButtonClick(selectedTable);
-        popupMenu.classList.add('hidden');
-      };
+      // const dataQualityOption = document.createElement('div');
+      // dataQualityOption.className = 'popup-menu-option';
+      // dataQualityOption.innerText = 'Register Data Quality';
+      // dataQualityOption.onclick = (e) => {
+      //   e.stopPropagation();
+      //   handleDataQualityButtonClick(selectedTable);
+      //   popupMenu.classList.add('hidden');
+      // };
 
       // const tableInfoOption = document.createElement('div');
       // tableInfoOption.className = 'popup-menu-option';
@@ -900,8 +900,8 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
 
       popupMenu.appendChild(activateQueryOption);
       popupMenu.appendChild(previewOption);
-      popupMenu.appendChild(listDataQualityOption);
-      popupMenu.appendChild(dataQualityOption);
+      // popupMenu.appendChild(listDataQualityOption);
+      // popupMenu.appendChild(dataQualityOption);
       // popupMenu.appendChild(tableInfoOption);
       popupMenu.appendChild(deleteOption);
     } else {

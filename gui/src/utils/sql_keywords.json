@@ -108,7 +108,9 @@
         "REGISTER DQ",
         "DQ",
         "RUN DQ",
-        "RUN"
+        "RUN",
+        "SHOW",
+        "TABLES"
     ],
     "dataTypes": [
         "H2",

@@ -10,7 +10,7 @@ import { queryBookContents, queryBookColumns } from '../configs/editorConfig';
 import { useDispatch, useSelector } from 'react-redux';
 import { setQueryResult, addQueryToHistory } from '../../store/querySlice';
 
-function SqlEditor({ toggleRefreshNav, previewTableName }) {
+function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
     const dispatch = useDispatch();
     const queryResult = useSelector((state) => state.query.queryResult);
     const queryHistory = useSelector((state) => state.query.queryHistory);
@@ -45,6 +45,10 @@ function SqlEditor({ toggleRefreshNav, previewTableName }) {
     
         runPreviewQuery();
     }, [previewTableName, dispatch]);     
+
+    useEffect(() => {
+        isMouseLoading? document.body.style.cursor="wait":document.body.style.cursor="default";
+    }, [isMouseLoading])
 
     useEffect(() => {
         const storedEditors = localStorage.getItem('editors');
@@ -412,7 +416,7 @@ function SqlEditor({ toggleRefreshNav, previewTableName }) {
                                             content={editor.content}
                                             onChange={(newValue) => handleEditorChange(newValue, editor.id)}
                                             setEditorInstances={setEditorInstances}
-                                            runQuery={runQuery}
+                                            isMouseLoading={isMouseLoading}
                                         />
                                     )
                             )}

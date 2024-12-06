@@ -18,7 +18,7 @@ import DataQualityPopup from './components/DataQualityPopup.js';
 import DataQualityListPopup from './components/DataQualityListPopup.js';
 import ActivePopup from './components/ActivatePopup.js';
 
-function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIsLoading, previewTableName }) {
+function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIsLoading, previewTableName, isMouseLoading }) {
     const jsPlumbRef = useRef(null);
     const jsPlumbInstanceRef = useRef(null);
     const [condition, setCondition] = useState('');
@@ -200,6 +200,49 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         }
     };
 
+    const removeDQ = async () => {
+        if (!selectedRowData || selectedRowData.length === 0) {
+            setPopupMessage("Please select DQ item to delete");
+            return;
+        }
+    
+        const dqEntriesToRemove = [...selectedRowData];
+    
+        const removalPromises = dqEntriesToRemove.map(async (dqEntry) => {
+            const runDQQuery = `REMOVE DQ ${dqEntry.Name} TABLE ${dqEntry.Table}`;
+            try {
+                const removeDQResult = await fetchApi(runDQQuery);
+                const parsedResult = JSON.parse(removeDQResult);
+    
+                if (parsedResult.remove === true) {
+                    return { ...dqEntry, success: true };
+                } else {
+                    return { ...dqEntry, success: false, message: parsedResult.message || "Failed to delete" };
+                }
+            } catch (error) {
+                return { ...dqEntry, success: false, message: error.message || "Unknown error" };
+            }
+        });
+    
+        const removalResults = await Promise.all(removalPromises);
+    
+        const successfullyRemoved = removalResults.filter(result => result.success).map(result => result.Name + result.Table);
+        const failedToRemove = removalResults.filter(result => !result.success);
+    
+        if (successfullyRemoved.length > 0) {
+            setDQResults(prevDQResults =>
+                prevDQResults.filter(entry => 
+                    !successfullyRemoved.includes(entry.Name + entry.Table)
+                )
+            );
+        }
+    
+        if (failedToRemove.length > 0) {
+            const errorMessages = failedToRemove.map(item => `${item.Name}: ${item.message}`).join("\n");
+            setPopupMessage(`Failed to delete the following DQ items : ${errorMessages}`);
+        }
+    };    
+
     const handleTableDoubleClick = () => {
         // console.log("handleTableDoubleClick");
     }
@@ -262,28 +305,28 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
     const handleSubmitActivateQuery = async (query) => {
         const activateKeyword = 'ACTIVATE USL TABLE ';
         const asKeyword = ' AS ';
-    
+
         const startIndex = query.expression.indexOf(activateKeyword) + activateKeyword.length;
         const endIndex = query.expression.indexOf(asKeyword);
-    
+
         if (startIndex === -1 || endIndex === -1) {
             console.error("Invalid query expression: Required keywords not found.");
             return;
         }
-    
+
         const table = query.expression.substring(startIndex, endIndex).trim();
         const queryIndex = query.expression.indexOf('SELECT');
         if (queryIndex === -1) {
             console.error("Invalid query expression: SELECT statement not found.");
             return;
         }
-    
+
         const selectQuery = query.expression.substring(queryIndex);
         const requestData = {
             table: table,
             query: selectQuery
         };
-    
+
         try {
             let result = await fetchActivateTableApi(requestData);
             if (!result.error) {
@@ -291,22 +334,22 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 const registered = JSON.parse(parsedResult.registered);
                 const registeredName = registered.name;
                 const registeredQuery = registered.query;
-    
+
                 const savedTablesData = JSON.parse(localStorage.getItem('savedTables'));
-    
+
                 if (Array.isArray(savedTablesData)) {
                     console.log(registeredName)
-    
+
                     const tableToUpdate = savedTablesData.find(t => t.name.split('.').pop() === registeredName);
-    
+
                     if (tableToUpdate) {
                         tableToUpdate.isActivated = true;
                         tableToUpdate.activateQuery = registeredQuery;
-    
+
                         localStorage.setItem('savedTables', JSON.stringify(savedTablesData));
-                    } 
+                    }
                 }
-    
+
                 updateUSLInfo();
                 console.log(result);
                 setActivateTables((prevTables) => {
@@ -322,9 +365,9 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             setPopupMessage("Error : ", error);
             updateActivatedTables(false);
         }
-    
+
         setShowActivePopup(false);
-    };    
+    };
 
     const handleTableInfoClick = (table) => {
         showTableInfo(table);
@@ -1424,9 +1467,33 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                             left: '10px',
                             zIndex: 100,
                         }}
-                        onClick={(runDQ)}
+                        onClick={runDQ}
                     >
-                        Run DQ
+                        Run
+                    </button>
+                    <button
+                        className='btn-primary'
+                        style={{
+                            position: 'absolute',
+                            top: '10px',
+                            left: '80px',
+                            zIndex: 100,
+                        }}
+                        onClick={handleDataQualityButtonClick}
+                    >
+                        Register
+                    </button>
+                    <button
+                        className='btn-primary'
+                        style={{
+                            position: 'absolute',
+                            top: '10px',
+                            left: '180px',
+                            zIndex: 100,
+                        }}
+                    onClick={removeDQ}
+                    >
+                        Remove
                     </button>
                     <MaterialReactTable
                         columns={dqColumns}
@@ -1545,12 +1612,12 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 data={tableData}
                 enableColumnFilters={false}
                 enableSorting={false}
-                enableHiding={false}  // Disable the column hiding functionality
-                enableColumnActions={false}  // Disable the column actions button entirely
-                enableGlobalFilter={false}  // Disable the search bar
-                enableDensityToggle={false}  // Disable the density toggle
-                enableFullScreenToggle={false}  // Disable the full-screen toggle
-                initialState={{ density: 'compact' }}  // Set default density
+                enableHiding={false}
+                enableColumnActions={false}
+                enableGlobalFilter={false}
+                enableDensityToggle={false}
+                enableFullScreenToggle={false}
+                initialState={{ density: 'compact' }}
             />
         );
     };
@@ -1558,7 +1625,6 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
     const handleInputChange = (colIndex, rowIndex, value) => {
         const updatedColumns = [...rulesData.columns];
 
-        // Update the value in the specified column and row
         updatedColumns[colIndex][rowIndex] = value;
 
         setRulesData({ ...rulesData, columns: updatedColumns });
@@ -1623,16 +1689,12 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
     };
 
     const onSaveChanges = (updatedTableInfo) => {
-        // console.log(updatedTableInfo)
-        // Retrieve savedTables from localStorage or initialize an empty array
         let savedTable = JSON.parse(localStorage.getItem('savedTables')) || [];
-
-        // Update the saved table with the new table info by matching uuid
         const updatedTable = savedTable.map(item => {
             if (item.uuid === updatedTableInfo.uuid) {
-                return updatedTableInfo;  // Replace with updatedTableInfo if uuid matches
+                return updatedTableInfo;
             }
-            return item;  // Otherwise, return the original table info
+            return item;
         });
 
         localStorage.setItem('savedTables', JSON.stringify(updatedTable));
@@ -1664,8 +1726,6 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
 
         setActivateTables([]);
         updateActivatedTables(false);
-
-        // console.log("All tables and connections have been deleted.");
     };
 
     const handleOutputButton = () => {
@@ -1712,7 +1772,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                                 transformOrigin: '0 0',
                                 top: offset.y,
                                 left: offset.x,
-                                cursor: isDragging ? 'grabbing' : 'grab',
+                                cursor: isMouseLoading ? 'wait' : (isDragging ? 'grabbing' : 'grab'),
                                 backgroundColor: 'white',
                             }}
                             onMouseDown={handleMouseDown}
@@ -1749,12 +1809,6 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                             }}
                         />
                     </div>
-                    {/* <div className='result-box'
-                        style={{ '--position-offset': `${position - reSizingOffset}px` }}
-                    >
-                        <button className="btn-primary" onClick={(() => setViewMode('output'))}>Output</button>
-                        {renderResults(position)}
-                    </div> */}
                     <div
                         className="result-box"
                         style={{ '--position-offset': `${position - reSizingOffset}px` }}
