@@ -27,7 +27,6 @@ import com.zetaris.lightning.model.serde.DataSource.{DataSource, toJson}
 import com.zetaris.lightning.model.serde.UnifiedSemanticLayerTable
 import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
 import com.zetaris.lightning.model.serde.{jsonToMap, mapToJson}
-import com.zetaris.lightning.util.FileSystemUtils
 import org.apache.spark.sql.connector.catalog.{Identifier, Table}
 import org.apache.spark.sql.types.StructType
 import org.apache.spark.sql.util.CaseInsensitiveStringMap

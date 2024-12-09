@@ -21,7 +21,6 @@
 
 package com.zetaris.lightning.catalog
 
-import com.zetaris.lightning.util.FileSystemUtils
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.connector.catalog.Identifier
 import org.apache.spark.sql.connector.catalog.Table

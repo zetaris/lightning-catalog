@@ -23,7 +23,6 @@ package com.zetaris.lightning.datasource.command
 
 import com.zetaris.lightning.model.HdfsFileSystem
 import com.zetaris.lightning.spark.{H2TestBase, SparkExtensionsTestBase}
-import com.zetaris.lightning.util.FileSystemUtils
 import org.apache.spark.sql.Row
 import org.junit.runner.RunWith
 import org.scalatestplus.junit.JUnitRunner

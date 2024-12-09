@@ -30,7 +30,6 @@ import com.zetaris.lightning.datasources.v2.video.VideoTable
 import com.zetaris.lightning.execution.command.DataSourceType._
 import com.zetaris.lightning.model.{HdfsFileSystem, LightningModel}
 import com.zetaris.lightning.model.serde.DataSource.DataSource
-import com.zetaris.lightning.util.FileSystemUtils
 import org.apache.spark.sql.connector.catalog.{Identifier, Table}
 import org.apache.spark.sql.connector.expressions.Transform
 import org.apache.spark.sql.execution.datasources.FileFormat
