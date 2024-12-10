@@ -95,6 +95,24 @@ project(":lightning-spark:lightning-spark-runtime-${sparkMajorVersion}_${scalaVe
     integrationImplementation project(path: ":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scalaVersion}", configuration: 'testArtifacts')
     // Not allowed on our classpath, only the runtime jar is allowed
     integrationCompileOnly project(":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scalaVersion}")
+
+    implementation ("org.apache.hadoop:hadoop-aws:3.3.6") {
+      exclude group: 'io.netty'
+    }
+    implementation ("com.amazonaws:aws-java-sdk-bundle:1.12.429") {
+      exclude group: 'com.fasterxml.jackson.core'
+      exclude group: 'io.netty'
+    }
+
+    implementation ("org.apache.hadoop:hadoop-azure:3.3.6") {
+      exclude group: 'com.fasterxml.jackson.core'
+    }
+
+    implementation ("com.azure:azure-storage-blob:12.24.0") {
+      exclude group: 'com.fasterxml.jackson.core'
+      exclude group: 'io.netty'
+    }
+
   }
 
   task integrationTest(type: Test) {
