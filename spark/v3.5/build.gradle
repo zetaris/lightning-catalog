@@ -45,12 +45,12 @@ project(":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scal
 
     implementation ("org.apache.iceberg:iceberg-spark-${sparkMajorVersion}_${scalaVersion}:1.4.3")
     implementation ("org.apache.iceberg:iceberg-spark-extensions-${sparkMajorVersion}_${scalaVersion}:1.4.3")
+
     //implementation ("org.apache.iceberg:iceberg-hive-matastore:1.4.3")
 
     implementation ("io.delta:delta-spark_${scalaVersion}:3.1.0")
     implementation ("org.apache.spark:spark-avro_${scalaVersion}:${sparkVersion}")
     implementation("com.databricks:spark-xml_${scalaVersion}:0.17.0")
-
   }
 }
 
@@ -101,6 +101,23 @@ project(":lightning-spark:lightning-spark-runtime-${sparkMajorVersion}_${scalaVe
     integrationImplementation project(path: ":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scalaVersion}", configuration: 'testArtifacts')
     // Not allowed on our classpath, only the runtime jar is allowed
     integrationCompileOnly project(":lightning-spark:lightning-spark-extensions-${sparkMajorVersion}_${scalaVersion}")
+    implementation ("org.apache.hadoop:hadoop-aws:3.3.4") {
+      exclude group: 'io.netty'
+    }
+    implementation ("com.amazonaws:aws-java-sdk-bundle:1.12.429") {
+      exclude group: 'com.fasterxml.jackson.core'
+      exclude group: 'io.netty'
+    }
+
+    implementation ("org.apache.hadoop:hadoop-azure:3.3.4") {
+      exclude group: 'com.fasterxml.jackson.core'
+    }
+
+    implementation ("com.azure:azure-storage-blob:12.24.0") {
+      exclude group: 'com.fasterxml.jackson.core'
+      exclude group: 'io.netty'
+    }
+
   }
 
   task integrationTest(type: Test) {
