@@ -59,7 +59,7 @@ abstract class AbstractLightningCatalog extends TableCatalog with SupportsNamesp
     JdbcDialects.registerDialect(SnowflakeDialect)
   }
 
-  protected def loadDataSource(namespace: Array[String], name: String): Option[DataSource] = {
+  def loadDataSource(namespace: Array[String], name: String): Option[DataSource] = {
     try {
       model.loadDataSources(namespace, name).headOption
     } catch {

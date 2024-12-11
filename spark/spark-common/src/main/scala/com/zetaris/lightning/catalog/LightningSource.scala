@@ -70,13 +70,21 @@ trait LightningSource {
       case BooleanType => queried.isInstanceOf[BooleanType]
       case ByteType => queried.isInstanceOf[ByteType] || queried.isInstanceOf[CharType]
       case DateType => queried.isInstanceOf[DateType]
-      case TimestampType => queried.isInstanceOf[TimestampType]
-      case _: DecimalType | _: FloatType => queried.isInstanceOf[DecimalType] || queried.isInstanceOf[FloatType] ||
-        queried.isInstanceOf[DoubleType]
-      case IntegerType | LongType | ShortType => queried.isInstanceOf[IntegerType] || queried.isInstanceOf[LongType] ||
-        queried.isInstanceOf[ShortType]
-      case _: VarcharType | _: StringType | _: CharType => queried.isInstanceOf[VarcharType] ||
-        queried.isInstanceOf[StringType] || queried.isInstanceOf[CharType]
+      case TimestampType => queried.isInstanceOf[TimestampType] || queried.isInstanceOf[DateType]
+      case _: FloatType => queried.isInstanceOf[FloatType]
+      case _: DoubleType => queried.isInstanceOf[FloatType] || queried.isInstanceOf[DoubleType]
+      case _: DecimalType => queried.isInstanceOf[FloatType] || queried.isInstanceOf[DoubleType] ||
+        queried.isInstanceOf[DecimalType]
+      case ShortType => queried.isInstanceOf[ByteType] || queried.isInstanceOf[ShortType]
+      case IntegerType => queried.isInstanceOf[ByteType] || queried.isInstanceOf[ShortType] ||
+        queried.isInstanceOf[IntegerType]
+      case LongType => queried.isInstanceOf[ByteType] || queried.isInstanceOf[ShortType] ||
+        queried.isInstanceOf[IntegerType] || queried.isInstanceOf[LongType]
+      case _: CharType => queried.isInstanceOf[CharType]
+      case _: VarcharType if queried.isInstanceOf[CharType] => true
+      case t: VarcharType if queried.isInstanceOf[VarcharType] => t.length >= queried.asInstanceOf[VarcharType].length
+      case _: StringType => queried.isInstanceOf[CharType] || queried.isInstanceOf[VarcharType] ||
+        queried.isInstanceOf[StringType]
       case _ => DataType.equalsStructurally(defined, queried, true)
     }
   }

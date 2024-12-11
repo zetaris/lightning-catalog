@@ -74,7 +74,8 @@ case class ActivateUSLTableSpec(table: Seq[String], query: String) extends Light
       val queried = queriedDataTypes(index)
 
       if(!dataTypeQueryable(defined, queried)) {
-        throw UnifiedSemanticLayerException(s"datatype mismatch, defined: $defined, query: $queried", null)
+        val name = analysedPlan.schema.fields(index).name
+        throw UnifiedSemanticLayerException(s"table : ${toFqn(table)}, column: $name, datatype mismatch, defined: $defined, query: $queried", null)
       }
     }
 

@@ -46,9 +46,9 @@ class ActivateUCLTableTestSuite extends SparkExtensionsTestBase with H2TestBase 
       """
         |COMPILE USL IF NOT EXISTS ordermart DEPLOY NAMESPACE lightning.metastore.crm DDL
         |-- create table customer
-        |create table customer (id BIGINT primary key, name varchar(30), address varchar(50));
+        |create table customer (id BIGINT primary key, name string, address string);
         |
-        |create table lineitem (id BIGINT primary key, name varchar(30), price decimal);
+        |create table lineitem (id BIGINT primary key, name string, price decimal);
         |
         |create table order (id BIGINT primary key,
         |cid BIGINT,
@@ -72,12 +72,12 @@ class ActivateUCLTableTestSuite extends SparkExtensionsTestBase with H2TestBase 
 
     checkAnswer(sparkSession.sql(s"DESC TABLE lightning.metastore.crm.ordermart.customer"),
       Seq(Row("id", "bigint", null),
-        Row("name", "varchar(30)", null),
-        Row("address", "varchar(50)", null)))
+        Row("name", "string", null),
+        Row("address", "string", null)))
 
     checkAnswer(sparkSession.sql(s"DESC TABLE lightning.metastore.crm.ordermart.lineitem"),
       Seq(Row("id", "bigint", null),
-        Row("name", "varchar(30)", null),
+        Row("name", "string", null),
         Row("price", "decimal(10,0)", null)))
 
     checkAnswer(sparkSession.sql(s"DESC TABLE lightning.metastore.crm.ordermart.order"),
@@ -88,7 +88,7 @@ class ActivateUCLTableTestSuite extends SparkExtensionsTestBase with H2TestBase 
         Row("odate", "date", null),
         Row("otime", "timestamp", null)))
 
-    sparkSession.sql(s"DESC TABLE lightning.metastore.crm.ordermart.order").show()
+    sparkSession.sql(s"desc lightning.datasource.h2.$dbName.$schema.customer").show()
 
     sparkSession.sql(
       s"""

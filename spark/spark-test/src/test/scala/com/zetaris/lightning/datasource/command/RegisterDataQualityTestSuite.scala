@@ -50,13 +50,13 @@ class RegisterDataQualityTestSuite extends SparkExtensionsTestBase with H2TestBa
         |COMPILE USL IF NOT EXISTS ordermart DEPLOY NAMESPACE lightning.metastore.crm DDL
         |-- create table customer
         |create table customer (id BIGINT primary key,
-        |name varchar(30),
-        |address varchar(50),
+        |name String,
+        |address String,
         |UNIQUE (id),
         |UNIQUE (id, name));
         |
         |create table lineitem (id BIGINT,
-        |name varchar(30),
+        |name String,
         |price decimal,
         |PRIMARY KEY (id, name));
         |
