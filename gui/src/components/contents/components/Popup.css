@@ -162,6 +162,18 @@
   color: #27A7D2;
 }
 
+.action-x-button {
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+}
+
+.action-x-button:hover {
+  fill: #27A7D2;
+}
+
 /* Data Quality Popup specific styles */
 .popup ul {
   list-style-type: none; /* Remove bullet points */

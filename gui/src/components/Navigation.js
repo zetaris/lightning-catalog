@@ -368,36 +368,62 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
           if (storedData) {
             // console.log(`Loading ${node.name} data from localStorage.`);
             const uslData = JSON.parse(storedData);
-
+        
             const semanticLayerChildren = uslData.tables.map((table) => ({
-              name: table.name,
-              fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${table.name}`,
-              type: 'table',
-              activateQuery: table.activateQuery,
-              children: table.columnSpecs.map((column) => ({
-                name: column.name,
-                fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${table.name}.${column.name}`,
-                type: 'column',
-                dataTypeElement: (
-                  <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
-                    ({column.dataType.replace(/"/g, '')})
-                  </span>
-                ),
-              })),
+                name: table.name,
+                fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${table.name}`,
+                type: 'table',
+                activateQuery: table.activateQuery,
+                children: table.columnSpecs.map((column) => {
+                    const icons = [];
+                    if (column.primaryKey) {
+                        icons.push(
+                            <PkIcon key={`pk-${column.name}`} style={{ width: '16px', height: '16px', marginLeft: '4px' }} />
+                        );
+                    }
+                    if (column.foreignKey) {
+                        icons.push(
+                            <LinkIcon key={`fk-${column.name}`} style={{ width: '16px', height: '16px', marginLeft: '4px' }} />
+                        );
+                    }
+                    if (column.notNull) {
+                        icons.push(
+                            <NNIcon key={`nn-${column.name}`} style={{ width: '16px', height: '16px', marginLeft: '4px' }} />
+                        );
+                    }
+        
+                    return {
+                        name: (
+                            <span style={{ display: 'flex', alignItems: 'center' }}>
+                                <span style={{ marginRight: '8px', fill: '#888', display: 'flex', alignItems: 'center' }}>
+                                    {icons}
+                                </span>
+                                <span>{column.name}</span>
+                            </span>
+                        ),
+                        fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${table.name}.${column.name}`,
+                        type: 'column',
+                        dataTypeElement: (
+                            <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
+                                ({column.dataType.replace(/"/g, '')})
+                            </span>
+                        ),
+                    };
+                }),
             }));
-
+        
             setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, semanticLayerChildren));
-
+        
             uslData.tables.forEach((table) => {
-              if (table.activateQuery) {
-                setPreviewableTables((prev) => {
-                  const newSet = new Set(prev);
-                  newSet.add(`${uslData.namespace.join('.')}.${uslData.name}.${table.name}`);
-                  return newSet;
-                });
-              }
+                if (table.activateQuery) {
+                    setPreviewableTables((prev) => {
+                        const newSet = new Set(prev);
+                        newSet.add(`${uslData.namespace.join('.')}.${uslData.name}.${table.name}`);
+                        return newSet;
+                    });
+                }
             });
-          } else {
+        } else {
             const dbname = node.fullPath.split('.').pop();
             const path = node.fullPath.split('.').slice(0, -1).join('.');
 
@@ -603,9 +629,9 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
         setPopupMessage('Namespace name cannot be empty.');
         return;
       }
-  
+
       const query = `CREATE NAMESPACE ${node.fullPath}.${namespaceName}`;
-  
+
       try {
         const response = await fetchApi(query);
         if (response.error) {
@@ -622,7 +648,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
         setPopupMessage(`Error : ${error.message}`);
       }
     }
-  };  
+  };
 
   const renderTree = (nodes, parentPath = '', isSemanticLayer = false) => {
     const uslDataKey = nodes[0]?.fullPath?.split('.')[1];

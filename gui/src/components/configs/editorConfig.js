@@ -2,6 +2,7 @@ import ace from 'ace-builds';
 import Fuse from 'fuse.js';
 import sqlKeywords from '../../utils/sql_keywords.json';
 import { fetchApi } from '../../utils/common';
+import { StateMachine } from './stateMachine';
 
 export const defineCustomTheme = () => {
   ace.define('ace/theme/myCustomTheme', ['require', 'exports', 'module', 'ace/lib/dom'], function (require, exports) {
@@ -158,6 +159,9 @@ ace.define("ace/mode/custom_sql", ["require", "exports", "ace/mode/sql", "ace/mo
 let fuse;
 let pathKeywords = {};
 let currentSuggestions = [];
+export const initSuggestions = () => {
+  currentSuggestions = [];
+}
 
 const initializeFuse = (paths) => {
   const options = {
@@ -178,50 +182,24 @@ export const setPathKeywords = (paths) => {
   initializeFuse(Object.keys(pathKeywords));
 };
 
-const onDotTyped = async (editorInstance) => {
-  const context = getContext(editorInstance);
-
-  console.log(context)
-
-  currentSuggestions = [];
-  let queryPath = '';
-
-  if (context.type === "SELECT" || context.type === "WHERE") {
-    queryPath = context.tableAlias || context.tablePath;
-    if (queryPath) {
-      await fetchColumns(queryPath);
-    }
-  } else if (context.type === "FROM" || context.type === "LIGHTNING") {
-    queryPath = context.path;
-    if (queryPath) {
-      await fetchTablesOrNamespaces(queryPath);
-    }
-  }
-
-  if (currentSuggestions.length > 0) {
-    setTimeout(() => {
-      editorInstance.execCommand('startAutocomplete');
-    }, 0);
-  }
-};
-
-const getContext = (editorInstance) => {
+export const getContext = (editorInstance) => {
   const cursorPosition = editorInstance.getCursorPosition();
   const cursorRow = cursorPosition.row;
+  const cursorColumn = cursorPosition.column;
   const session = editorInstance.getSession();
 
   const allLines = session.getLines(0, cursorRow);
-  const currentLineBefore = session.getLine(cursorRow).slice(0, cursorPosition.column);
+  const currentLineBefore = session.getLine(cursorRow).slice(0, cursorColumn);
   allLines.push(currentLineBefore);
-  const beforeCursor = allLines.join(' ');
+  const beforeCursor = allLines.join('\n');
 
   const totalLines = session.getLength();
   const afterLines = session.getLines(cursorRow, totalLines);
-  const currentLineAfter = session.getLine(cursorRow).slice(cursorPosition.column);
+  const currentLineAfter = session.getLine(cursorRow).slice(cursorColumn);
   afterLines.unshift(currentLineAfter);
-  const afterCursor = afterLines.join(' ');
+  const afterCursor = afterLines.join('\n');
 
-  const context = { type: null, path: null, tableAlias: null, tablePath: null, insideFunction: false };
+  const context = { type: null, path: null, tableAlias: null, tablePath: null, insideFunction: false, session, cursorRow, beforeCursor };
 
   const patterns = {
     "LIGHTNING": /LIGHTNING\.(\w+(?:\.\w+)*)/ig,
@@ -232,27 +210,35 @@ const getContext = (editorInstance) => {
 
   const matches = [];
 
+  // Search before cursor
   for (const [type, regex] of Object.entries(patterns)) {
     let match;
     while ((match = regex.exec(beforeCursor)) !== null) {
+      const matchRow = beforeCursor.slice(0, match.index).split('\n').length - 1;
+      const matchColumn = match.index - beforeCursor.lastIndexOf('\n', match.index) - 1;
       matches.push({
         type,
         match,
-        index: match.index
+        row: matchRow,
+        column: matchColumn,
+        distance: Math.abs(cursorRow - matchRow) * 100 + Math.abs(cursorColumn - matchColumn),
       });
     }
   }
 
-  if (matches.length === 0) {
-    for (const [type, regex] of Object.entries(patterns)) {
-      let match;
-      while ((match = regex.exec(afterCursor)) !== null) {
-        matches.push({
-          type,
-          match,
-          index: match.index
-        });
-      }
+  // Search after cursor
+  for (const [type, regex] of Object.entries(patterns)) {
+    let match;
+    while ((match = regex.exec(afterCursor)) !== null) {
+      const matchRow = cursorRow + afterCursor.slice(0, match.index).split('\n').length - 1;
+      const matchColumn = match.index - afterCursor.lastIndexOf('\n', match.index) - 1;
+      matches.push({
+        type,
+        match,
+        row: matchRow,
+        column: matchColumn,
+        distance: Math.abs(cursorRow - matchRow) * 100 + Math.abs(cursorColumn - matchColumn),
+      });
     }
   }
 
@@ -260,9 +246,10 @@ const getContext = (editorInstance) => {
     return context;
   }
 
+  // Find the closest match based on row and column
   const closestMatch = matches.reduce((prev, current) => {
-    return (current.index > prev.index) ? current : prev;
-  }, matches[0]);
+    return prev.distance <= current.distance ? prev : current;
+  });
 
   switch (closestMatch.type) {
     case "LIGHTNING":
@@ -318,7 +305,7 @@ const getContext = (editorInstance) => {
 
       if (lastWhereAliasMatch) {
         context.tableAlias = tableAliases[lastWhereAliasMatch] || null;
-      } else {
+      } else if(Object.keys(tableAliases).length === 0) {
         const fromMatches = [...beforeCursor.matchAll(/FROM\s+([\w\.]+)(?:\s+AS\s+(\w+))?/ig)];
         const lastFromMatch = fromMatches[fromMatches.length - 1];
         if (lastFromMatch) {
@@ -348,30 +335,29 @@ const getContext = (editorInstance) => {
   return context;
 };
 
-const fetchTablesOrNamespaces = async (queryPath) => {
+export const fetchTablesOrNamespaces = async (queryPath) => {
   try {
-    if (queryPath === "lightning") {
+    if (queryPath === "lightning" || queryPath === "lightning.") {
       currentSuggestions = ["datasource", "metastore"];
-      return;
+      return currentSuggestions;
     }
 
     const query = `SHOW NAMESPACES OR TABLES IN ${queryPath};`;
     const response = await fetchApi(query);
 
-    if (response.message?.startsWith("[SCHEMA_NOT_FOUND]")) {
+    if (response.message?.startsWith("[SCHEMA_NOT_FOUND]") || response.message?.includes("doesn't support list namespaces")) {
       const columnsResponse = await fetchColumns(queryPath);
-      const results = columnsResponse.map((item) => JSON.parse(item));
-      currentSuggestions = results.map((result) => result.col_name || '');
+      return currentSuggestions;
     } else {
       const results = response.map((item) => JSON.parse(item));
       currentSuggestions = results.map((result) => result.name || '');
+      return currentSuggestions;
     }
   } catch (error) {
-    // console.error("Error fetching tables or namespaces:", error);
   }
 };
 
-const fetchColumns = async (tablePath) => {
+export const fetchColumns = async (tablePath) => {
   try {
     const query = `DESC ${tablePath};`;
     const response = await fetchApi(query);
@@ -379,34 +365,9 @@ const fetchColumns = async (tablePath) => {
     if (response) {
       const results = response.map((item) => JSON.parse(item));
       currentSuggestions = results.map((result) => result.col_name || '');
+      return currentSuggestions;
     }
   } catch (error) {
-    // console.error("Error fetching columns:", error);
-  }
-};
-
-const onNonDotTyped = async (editorInstance) => {
-  const context = getContext(editorInstance);
-
-  currentSuggestions = [];
-  let queryPath = '';
-
-  if (context.type === "SELECT" || context.type === "WHERE") {
-    queryPath = context.tableAlias || context.tablePath;
-    if (queryPath) {
-      await fetchColumns(queryPath);
-    }
-  } else if (context.type === "FROM" || context.type === "LIGHTNING") {
-    queryPath = context.tablePath || context.path;
-    if (queryPath) {
-      await fetchTablesOrNamespaces(queryPath);
-    }
-  }
-
-  if (currentSuggestions.length > 0) {
-    setTimeout(() => {
-      editorInstance.execCommand('startAutocomplete');
-    }, 0);
   }
 };
 
@@ -422,12 +383,6 @@ export const customSQLCompleter = {
         score: 1000
       }))
       : [
-        ...currentSuggestions.map((suggestion) => ({
-          caption: suggestion,
-          value: suggestion,
-          meta: 'suggestion',
-          score: 1000,
-        })),
         ...keywords.map((kw) => ({ caption: kw, value: kw, meta: "keyword" })),
         ...lightning.map((lt) => ({ caption: lt, value: lt, meta: "lightning" })),
         ...dataTypes.map((dt) => ({ caption: dt, value: dt, meta: "dataType" })),
@@ -453,80 +408,60 @@ export const setupAceEditor = (editor) => {
 
   let lastAction = null;
   let debounceTimer = null;
-
-  const getCurrentClause = (content, cursorRow, session) => {
-    const lines = session.getLines(0, cursorRow + 1);
-    const currentContent = lines.join(' ');
-    const cursorIndex = session.doc.positionToIndex({ row: cursorRow, column: editor.getCursorPosition().column }, 0);
-    const beforeCursor = currentContent.substring(0, cursorIndex).toUpperCase();
-
-    const selectIndex = beforeCursor.lastIndexOf("SELECT");
-    const fromIndex = beforeCursor.lastIndexOf("FROM");
-    const whereIndex = beforeCursor.lastIndexOf("WHERE");
-
-    const latest = Math.max(selectIndex, fromIndex, whereIndex);
-
-    if (latest === -1) return null;
-
-    if (latest === selectIndex) return 'SELECT';
-    if (latest === fromIndex) return 'FROM';
-    if (latest === whereIndex) return 'WHERE';
-
-    return null;
-  };
+  const stateMachine = new StateMachine();
 
   editor.getSession().on("change", (delta) => {
     const { action, lines } = delta;
-    const cursorPosition = editor.getCursorPosition();
-    const cursorRow = cursorPosition.row;
-    const session = editor.getSession();
-    let fromToWhere;
+    const insertedText = lines.join('');
+    const context = getContext(editor);
+    stateMachine.transition({ type: 'CLAUSE_CHANGED' }, context);
 
     if (action === "insert") {
-      const content = editor.getValue();
-      const upperContent = content.toUpperCase();
-
-      const currentClause = getCurrentClause(content, cursorRow, session);
-
-      if (currentClause === "SELECT") {
-        fromToWhere = extractSelectFromToWhere(content, cursorRow, session);
-        if (fromToWhere) {
-          analyzingFrom(fromToWhere);
-        }
-      } else if (currentClause === "FROM" || currentClause === "WHERE") {
-        fromToWhere = extractFromToWhere(content, cursorRow, session);
-        if (fromToWhere) {
-          analyzingFrom(fromToWhere);
-        }
-      }
-
-      const currentLine = lines.join("");
-      const insertedText = lines.join('\n');
+      const insertedText = lines.join('');
+      
+      let eventType = null;
       if (insertedText === ".") {
-        onDotTyped(editor);
-        lastAction = 'dot';
+        eventType = 'DOT_TYPED';
+      } else if (insertedText === " ") {
+        eventType = 'SPACE_TYPED';
+      } else if (insertedText === "(" || insertedText === "()") {
+        eventType = 'BRACKET_TYPED';
+      } else if (/[\w]/.test(insertedText)) {
+        // CHAR_TYPED debounce
         if (debounceTimer) clearTimeout(debounceTimer);
-      } else if(insertedText === " " || insertedText === "(" || insertedText === "()") {
-        if (debounceTimer) clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(async () => {
-          const context = getContext(editor);
-          if (lastAction !== 'dot') {
-            onNonDotTyped(editor);
-            lastAction = 'non-dot';
-          }
-        }, 300);
+        debounceTimer = setTimeout(() => {
+          stateMachine.transition({ type: 'CHAR_TYPED' }, { ...context, editor })
+            .then(() => {
+              const suggestions = stateMachine.getSuggestions();
+              if (suggestions && suggestions.length > 0) {
+                editor.execCommand('startAutocomplete');
+              }
+            });
+        }, 100);
+        return; // CHAR_TYPED return
+      } else {
+        eventType = 'CLAUSE_CHANGED';
       }
-    }
+    
+      // DOT_TYPED, SPACE_TYPED, BRACKET_TYPED, CLAUSE_CHANGED
+      if (eventType) {
+        stateMachine.transition({ type: eventType }, context).then(() => {
+          const suggestions = stateMachine.getSuggestions();
+          if (suggestions && suggestions.length > 0) {
+            editor.execCommand('startAutocomplete');
+          }
+        });
+      }
+    }    
 
     if (action === 'remove') {
-      resetSuggestions();
-      lastAction = null;
+      stateMachine.clearSuggestions();
       if (debounceTimer) clearTimeout(debounceTimer);
     }
   });
 };
 
-const extractSelectFromToWhere = (content, cursorRow, session) => {
+export const extractSelectFromToWhere = (cursorRow, session) => {
   const allLines = session.getLines(0, cursorRow + 1);
   const upperContent = allLines.join('\n').toUpperCase();
   const originalContent = allLines.join('\n');
@@ -547,53 +482,24 @@ const extractSelectFromToWhere = (content, cursorRow, session) => {
   return fromClause;
 };
 
-const tableAliases = {};
-// add tableAliases and currentSuggestions
-const analyzingFrom = (fromToWhere) => {
+export let tableAliases = {};
+
+export const analyzingFrom = (fromToWhere) => {
   Object.keys(tableAliases).forEach(key => delete tableAliases[key]);
 
   const tables = fromToWhere.split(',').map((table) => table.trim());
 
   tables.forEach((table) => {
     const aliasMatch = table.match(/(\S+)\s+(?:AS\s+)?(\w+)$/i);
-
     if (aliasMatch) {
       const tablePath = aliasMatch[1];
       const alias = aliasMatch[2];
       tableAliases[alias] = tablePath;
-
-      addColumnsToSuggestions(tablePath, alias);
-    } else {
-      const segments = table.split('.');
-      const tableName = segments[segments.length - 1];
-      tableAliases[tableName] = tableName;
-
-      addColumnsToSuggestions(table, tableName);
     }
   });
 };
 
-const addColumnsToSuggestions = (tablePath, alias) => {
-  const columns = pathKeywords[tablePath];
-
-  if (alias) {
-    pathKeywords[alias] = tablePath;
-  }
-
-  if (Array.isArray(columns)) {
-    columns.forEach((column) => {
-      const suggestion = alias ? `${alias}.${column}` : `${tablePath}.${column}`;
-      currentSuggestions.push({
-        caption: column,
-        value: suggestion,
-        meta: "column",
-        score: 1000,
-      });
-    });
-  }
-};
-
-const extractFromToWhere = (content, cursorRow, session) => {
+export const extractFromToWhere = (cursorRow, session) => {
   const allLines = session.getLines(0, cursorRow);
   const upperLines = allLines.map((line) => line.toUpperCase());
 
@@ -616,10 +522,6 @@ const extractFromToWhere = (content, cursorRow, session) => {
   }
 
   return null;
-};
-
-const resetSuggestions = () => {
-  currentSuggestions = [];
 };
 
 export const editorOptions = {

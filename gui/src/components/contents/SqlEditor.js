@@ -21,20 +21,26 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
     const [loading, setLoading] = useState(false);
     const [showQueryBook, setShowQueryBook] = useState(false);
     const [popupMessage, setPopupMessage] = useState(null);
+    const [popupMessages, setPopupMessages] = useState([]);
+
     const offset = 80;
     const resizingRef = useRef(false);
     const [editorInstances, setEditorInstances] = useState({});
 
+    const addPopupMessage = (message) => {
+        setPopupMessages((prevMessages) => [...prevMessages, message]);
+    };
+
     useEffect(() => {
         const runPreviewQuery = async () => {
             if (!previewTableName || !previewTableName.startsWith('lightning.datasource')) return;
-    
+
             setLoading(true);
             const query = `SELECT * FROM ${previewTableName} LIMIT 100`;
             const result = await fetchApi(query);
-    
+
             setLoading(false);
-    
+
             if (result?.error) {
                 dispatch(setQueryResult({ error: result.message }));
             } else {
@@ -42,12 +48,12 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
                 dispatch(setQueryResult(parsedResult));
             }
         };
-    
+
         runPreviewQuery();
-    }, [previewTableName, dispatch]);     
+    }, [previewTableName, dispatch]);
 
     useEffect(() => {
-        isMouseLoading? document.body.style.cursor="wait":document.body.style.cursor="default";
+        isMouseLoading ? document.body.style.cursor = "wait" : document.body.style.cursor = "default";
     }, [isMouseLoading])
 
     useEffect(() => {
@@ -131,34 +137,103 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
         }
     };
 
+    // const runQuery = async () => {
+    //     const activeEditorInstance = editorInstances[activeEditor];
+    //     const selectedText = activeEditorInstance?.getSelectedText();
+
+    //     const activeEditorContent = editors.find((editor) => editor.id === activeEditor)?.content;
+    //     const cleanQuery = selectedText && selectedText.trim() !== ""
+    //         ? selectedText
+    //         : removeComments(activeEditorContent);
+
+    //     if (!cleanQuery || cleanQuery.trim() === "") {
+    //         dispatch(setQueryResult({ error: "Query is empty. Please provide a valid SQL query." }));
+    //         return;
+    //     }
+
+    //     setLoading(true);
+
+    //     // Update query history in Redux state
+    //     dispatch(addQueryToHistory({ query: cleanQuery, timestamp: new Date().toLocaleString() }));
+
+    //     const result = await fetchApi(cleanQuery);
+    //     setLoading(false);
+
+    //     if (result?.error) {
+    //         dispatch(setQueryResult({ error: result.message }));
+    //     } else {
+    //         const parsedResult = result.map((item) => JSON.parse(item));
+    //         dispatch(setQueryResult(parsedResult));
+    //     }
+    // };
+
+    const expandDuplicateKeys = (jsonStringArray) => {
+        return jsonStringArray.map((item) => {
+            const matches = [];
+            const regex = /"([^"]+)":\s*("[^"]*"|\d+|null|true|false)/g;
+            let match;
+    
+            while ((match = regex.exec(item)) !== null) {
+                matches.push([match[1], match[2].replace(/^"|"$/g, "")]);
+            }
+    
+            const expandedRow = {};
+            let keyCounters = {};
+    
+            matches.forEach(([key, value]) => {
+                const count = keyCounters[key] || 0;
+                const newKey = count === 0 ? key : `${key}_${count}`;
+                expandedRow[newKey] = value;
+                keyCounters[key] = count + 1;
+            });
+    
+            return expandedRow;
+        });
+    };    
+
     const runQuery = async () => {
         const activeEditorInstance = editorInstances[activeEditor];
         const selectedText = activeEditorInstance?.getSelectedText();
-    
+
         const activeEditorContent = editors.find((editor) => editor.id === activeEditor)?.content;
         const cleanQuery = selectedText && selectedText.trim() !== ""
             ? selectedText
             : removeComments(activeEditorContent);
-    
+
         if (!cleanQuery || cleanQuery.trim() === "") {
             dispatch(setQueryResult({ error: "Query is empty. Please provide a valid SQL query." }));
             return;
         }
-    
-        setLoading(true);
-    
-        // Update query history in Redux state
-        dispatch(addQueryToHistory({ query: cleanQuery, timestamp: new Date().toLocaleString() }));
-    
-        const result = await fetchApi(cleanQuery);
-        setLoading(false);
-    
-        if (result?.error) {
-            dispatch(setQueryResult({ error: result.message }));
-        } else {
-            const parsedResult = result.map((item) => JSON.parse(item));
-            dispatch(setQueryResult(parsedResult));
+
+        const queries = cleanQuery.split(";").map((query) => query.trim()).filter((query) => query);
+
+        if (queries.length === 0) {
+            dispatch(setQueryResult({ error: "No valid queries found. Please check your SQL input." }));
+            return;
         }
+
+        setLoading(true);
+
+        dispatch(addQueryToHistory({ query: cleanQuery, timestamp: new Date().toLocaleString() }));
+
+        for (const query of queries) {
+            try {
+                const result = await fetchApi(query);
+
+                if (result?.error) {
+                    // setPopupMessage(`Error executing query: "${query}". Error: ${result.message}`);
+                    addPopupMessage(`Error executing query: "${query}". Error: ${result.message}`);
+                } else {
+                    const parsedResult = expandDuplicateKeys(result);
+                    dispatch(setQueryResult(parsedResult));
+                }
+            } catch (error) {
+                // setPopupMessage(`Unexpected error executing query: "${query}". Error: ${error.message}`);
+                addPopupMessage(`Unexpected error executing query: "${query}". Error: ${error.message}`);
+            }
+        }
+
+        setLoading(false);
     };
 
     useEffect(() => {
@@ -168,9 +243,9 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
                 runQuery();
             }
         };
-    
+
         document.addEventListener('keydown', handleKeyPress);
-    
+
         return () => {
             document.removeEventListener('keydown', handleKeyPress);
         };
@@ -197,9 +272,9 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
         if (!data || data.length === 0) {
             return <div>No data available</div>;
         }
-    
+
         const normalizedData = normalizeData(data);
-    
+
         const columns = Object.keys(normalizedData[0]).map((key) => ({
             accessorKey: key,
             header: key.charAt(0).toUpperCase() + key.slice(1),
@@ -216,7 +291,7 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
                 return <div style={{ textAlign: 'left' }}>{value}</div>;
             },
         }));
-    
+
         return (
             <MaterialReactTable
                 columns={columns}
@@ -231,36 +306,36 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
                 }}
             />
         );
-    };    
+    };
 
     const renderTable = () => {
         if (loading) return <div>Fetching data...</div>;
-    
+
         if (showHistory) {
             return renderHistory();
         }
-    
+
         if (!queryResult) return <div>No result available</div>;
         if (queryResult.error) return <div>Error: {queryResult.error}</div>;
 
         console.log(queryResult)
-    
+
         return <RenderTableForApi data={queryResult} />;
     };
 
     const memoizedRenderTable = useMemo(() => {
         if (loading) return <div>Fetching data...</div>;
-    
+
         if (showHistory) {
             return renderHistory();
         }
-    
+
         if (!queryResult) return <div>No result available</div>;
         if (queryResult.error) return <div>Error: {queryResult.error}</div>;
-    
+
         return <RenderTableForApi data={queryResult} />;
     }, [loading, showHistory, queryResult]);
-    
+
 
     const renderQueryBook = () => {
         const queryBookData = queryBookContents;
@@ -306,12 +381,12 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
         if (queryHistory.length === 0) {
             return <div>No query history available.</div>;
         }
-    
+
         const columns = [
             { accessorKey: 'timestamp', header: 'Timestamp', muiTableHeadCellProps: { align: 'center' } },
             { accessorKey: 'query', header: 'Query', muiTableHeadCellProps: { align: 'center' } },
         ];
-    
+
         const handleRowClick = (query) => {
             setEditors((prevEditors) =>
                 prevEditors.map((editor) =>
@@ -321,7 +396,7 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
                 )
             );
         };
-    
+
         return (
             <MaterialReactTable
                 columns={columns}
@@ -335,7 +410,7 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
                 })}
             />
         );
-    }    
+    }
 
     const saveSQL = async () => {
         const activeEditorContent = editors.find(editor => editor.id === activeEditor)?.content;
@@ -352,11 +427,18 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
             console.error("Failed to save SQL:", response.message);
         } else {
             console.log("SQL saved successfully:", response.message);
-            setPopupMessage("The file has been successfully saved in the env/ligt-model folder.");
+            // setPopupMessage("The file has been successfully saved in the env/ligt-model folder.");
         }
     };
 
     const closePopup = () => setPopupMessage(null);
+
+    const closePopups = (messageToRemove) => {
+        setPopupMessages((prevMessages) =>
+            prevMessages.filter((message) => message !== messageToRemove)
+        );
+    };
+
 
     return (
         <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
@@ -444,7 +526,7 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
                                 }}
                             />
                         </div>
-                        <div className='result-box' style={{ '--position-offset': `${position - offset}px`, display:'block' }}>
+                        <div className='result-box' style={{ '--position-offset': `${position - offset}px`, display: 'block' }}>
                             {/* {loading ? <div>Fetching data...</div> : renderTable()} */}
                             {memoizedRenderTable}
                         </div>
@@ -458,6 +540,35 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
                                         <button className="btn-primary" onClick={closePopup}>Close</button>
                                     </div>
                                 </div>
+                            </div>
+                        )}
+
+                        {popupMessages.length > 0 && (
+                            <div className="popup-overlay">
+                                {popupMessages.map((msg, index) => (
+                                    <div
+                                        key={index}
+                                        className="popup-message"
+                                        onClick={(e) => e.stopPropagation()}
+                                        style={{
+                                            position: 'absolute',
+                                            top: `30%`,
+                                            left: '50%',
+                                            transform: 'translate(-50%, -50%)',
+                                            zIndex: 1000 + index,
+                                        }}
+                                    >
+                                        <p>{msg}</p>
+                                        <div className="popup-buttons">
+                                            <button
+                                                className="btn-primary"
+                                                onClick={() => closePopups(msg)}
+                                            >
+                                                Close
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
                         )}
                     </div>
