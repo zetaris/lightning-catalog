@@ -67,10 +67,12 @@ Welcome to the latest release of our software! Version 0.2 brings more features 
 ### Key Highlights:
 Supporting new UI, more data sources, unified semantic layer, and data quality.
 
-###New Features:
+### New Features:
+* Run metastore over hdfs, blob storage(s3, azure blob)
+  
 * New UI: UI allows to navigate data sources, running SQL, render ERD and run Data Quality check.
 
-* Unstructured Data source
+* Unstructured Data source(pdf, image, video, text)
 
 * Combining unstructured data source with custom schema
 

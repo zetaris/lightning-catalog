@@ -21,6 +21,7 @@
 
 package com.zetaris.lightning.parser
 
+import com.zetaris.lightning.catalog.LightningCatalogCache
 import org.antlr.v4.runtime._
 import org.antlr.v4.runtime.atn.PredictionMode
 import org.antlr.v4.runtime.misc.{Interval, ParseCancellationException}
@@ -225,7 +226,7 @@ class LightningExtendedParser(delegate: ParserInterface) extends ParserInterface
     } else {
       val parsedPlan = delegate.parsePlan(sqlText)
       parsedPlan match {
-        // Support UPDATE statement
+        // Support UPDATE statement for unstructure data tag
         case UpdateTable(UnresolvedLightningTable(aliasedTable), assignments, condition) => ???
         case other => other
       }
@@ -310,7 +311,10 @@ object UnresolvedLightningTable {
   }
 
   private def isLightningTable(multipartIdent: Seq[String]): Boolean = {
-    multipartIdent(0).equalsIgnoreCase("lightning")
+    LightningCatalogCache.catalog.loadDataSource(multipartIdent.dropRight(1).toArray, multipartIdent.last) match {
+      case Some(ds) if ds.tags.size > 0 => true
+      case _ => false
+    }
   }
 
 }
