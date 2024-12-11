@@ -3,17 +3,38 @@ import Editor from './Editor';
 import './Popup.css';
 
 const ActivatePopup = ({ onClose, onSubmit, table }) => {
-    const [dataSource, setDataSource] = useState(() => {
-        if (!table.activateQuery) return "";
+    const [dataSource, setDataSource] = useState("");
+    // const [dataSource, setDataSource] = useState(() => {
+    //     if (!table.activateQuery) return "";
     
-        try {
-            const parsed = JSON.parse(table.activateQuery);
-            return parsed.query || "";
-        } catch (error) {
-            // console.error("Invalid JSON format:", error);
-            return table.activateQuery;
+    //     try {
+    //         const parsed = JSON.parse(table.activateQuery);
+    //         return parsed.query || "";
+    //     } catch (error) {
+    //         // console.error("Invalid JSON format:", error);
+    //         return table.activateQuery;
+    //     }
+    // });
+    useEffect(() => {
+        const savedTableData = JSON.parse(localStorage.getItem("savedTables")) || [];
+        const matchedTable = savedTableData.find((t) => t.name === table.name);
+
+        if (matchedTable && matchedTable.activateQuery) {
+            console.log("Matched table activateQuery:", matchedTable.activateQuery);
+            setDataSource(matchedTable.activateQuery);
+        } else if (table.activateQuery) {
+            try {
+                console.log("Table activateQuery:", table.activateQuery);
+                const parsed = JSON.parse(table.activateQuery);
+                setDataSource(parsed.query || table.activateQuery);
+            } catch (error) {
+                setDataSource(table.activateQuery);
+            }
+        } else {
+            setDataSource("");
         }
-    });
+    }, []);
+    
     
 
     const handleSubmit = () => {

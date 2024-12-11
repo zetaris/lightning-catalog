@@ -255,27 +255,27 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
 
     const handleListDQClick = async (table) => {
 
-        // const uslInfoKey = table.name.split('.').slice(-2, -1)[0];
-        // const uslInfo = JSON.parse(localStorage.getItem(uslInfoKey));
+        const uslInfoKey = table.name.split('.').slice(-2, -1)[0];
+        const uslInfo = JSON.parse(localStorage.getItem(uslInfoKey));
 
-        // if (uslInfo && Array.isArray(uslInfo.tables)) {
-        //     const tableName = table.name.split('.').pop();
-        //     const matchedTable = uslInfo.tables.find((t) => t.name === tableName);
+        if (uslInfo && Array.isArray(uslInfo.tables)) {
+            const tableName = table.name.split('.').pop();
+            const matchedTable = uslInfo.tables.find((t) => t.name === tableName);
 
-        //     if (matchedTable) {
-        //         table = matchedTable;
-        //         const savedTableData = JSON.parse(localStorage.getItem('savedTable'));
+            if (matchedTable) {
+                table = matchedTable;
+                const savedTableData = JSON.parse(localStorage.getItem('savedTable'));
 
-        //         if (Array.isArray(savedTableData)) {
-        //             const savedTable = savedTableData.find((t) => t.name === table.name);
+                if (Array.isArray(savedTableData)) {
+                    const savedTable = savedTableData.find((t) => t.name === table.name);
 
-        //             if (savedTable) {
-        //                 savedTable.isActivated = true;
-        //                 localStorage.setItem('savedTable', JSON.stringify(savedTableData));
-        //             }
-        //         }
-        //     }
-        // }
+                    if (savedTable) {
+                        savedTable.isActivated = true;
+                        localStorage.setItem('savedTable', JSON.stringify(savedTableData));
+                    }
+                }
+            }
+        }
 
         setActivateTargetTable(table);
         setShowDQListPopup(true);
