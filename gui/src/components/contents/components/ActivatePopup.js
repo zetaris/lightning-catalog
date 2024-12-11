@@ -4,13 +4,17 @@ import './Popup.css';
 
 const ActivatePopup = ({ onClose, onSubmit, table }) => {
     const [dataSource, setDataSource] = useState(() => {
+        if (!table.activateQuery) return "";
+    
         try {
-            return table.activateQuery ? JSON.parse(table.activateQuery).query || "" : "";
+            const parsed = JSON.parse(table.activateQuery);
+            return parsed.query || "";
         } catch (error) {
-            console.error("Invalid JSON format:", error);
-            return "";
+            // console.error("Invalid JSON format:", error);
+            return table.activateQuery;
         }
     });
+    
 
     const handleSubmit = () => {
         const expression = `ACTIVATE USL TABLE ${table.name} AS ${dataSource};`;

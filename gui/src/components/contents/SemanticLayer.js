@@ -59,6 +59,9 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         pageIndex: 0,
         pageSize: 30,
     });
+    const [sorting, setSorting] = useState([]);
+    const [columnFilters, setColumnFilters] = useState([]);
+    const [globalFilter, setGlobalFilter] = useState('');
     const [outputTabInfo, setOutputTabInfo] = useState(null);
 
     const reSizingOffset = 80;
@@ -80,16 +83,13 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
     const handlePopupSubmit = (data) => {
     };
 
-    const updateUSLInfo = async () => {
+    const updateUSLInfo = async (uslData) => {
         const dbname = uslName.split('.').pop()
-        const path = uslName.split('.').slice(0, -1).join('.');
 
         try {
-            const query = `LOAD USL ${dbname} NAMESPACE ${path}`;
-            const result = await fetchApi(query);
-            const uslData = JSON.parse(JSON.parse(result).json);
+            const parsedDslData = JSON.parse(JSON.parse(uslData).json);
 
-            localStorage.setItem(dbname, JSON.stringify(uslData));
+            localStorage.setItem(dbname, JSON.stringify(parsedDslData));
         } catch {
 
         }
@@ -139,7 +139,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         }
 
         setDQResults(dqResults);
-        setViewMode('dq')
+        setViewMode('dq');
     };
 
     const runDQ = async () => {
@@ -152,7 +152,13 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             errorMessage: '',
         }));
 
-        setDQResults(updatedDQResults);
+        // setDQResults(updatedDQResults);
+        setDQResults((prevResults) => {
+            if (JSON.stringify(prevResults) === JSON.stringify(updatedDQResults)) {
+                return prevResults;
+            }
+            return updatedDQResults;
+        });
 
         for (const dqEntry of selectedRowData) {
             dqEntry.Status = 'loading';
@@ -205,15 +211,15 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             setPopupMessage("Please select DQ item to delete");
             return;
         }
-    
+
         const dqEntriesToRemove = [...selectedRowData];
-    
+
         const removalPromises = dqEntriesToRemove.map(async (dqEntry) => {
             const runDQQuery = `REMOVE DQ ${dqEntry.Name} TABLE ${dqEntry.Table}`;
             try {
                 const removeDQResult = await fetchApi(runDQQuery);
                 const parsedResult = JSON.parse(removeDQResult);
-    
+
                 if (parsedResult.remove === true) {
                     return { ...dqEntry, success: true };
                 } else {
@@ -223,53 +229,53 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 return { ...dqEntry, success: false, message: error.message || "Unknown error" };
             }
         });
-    
+
         const removalResults = await Promise.all(removalPromises);
-    
+
         const successfullyRemoved = removalResults.filter(result => result.success).map(result => result.Name + result.Table);
         const failedToRemove = removalResults.filter(result => !result.success);
-    
+
         if (successfullyRemoved.length > 0) {
             setDQResults(prevDQResults =>
-                prevDQResults.filter(entry => 
+                prevDQResults.filter(entry =>
                     !successfullyRemoved.includes(entry.Name + entry.Table)
                 )
             );
         }
-    
+
         if (failedToRemove.length > 0) {
             const errorMessages = failedToRemove.map(item => `${item.Name}: ${item.message}`).join("\n");
             setPopupMessage(`Failed to delete the following DQ items : ${errorMessages}`);
         }
-    };    
+    };
 
     const handleTableDoubleClick = () => {
         // console.log("handleTableDoubleClick");
     }
 
-    const handleListDQClick = (table) => {
+    const handleListDQClick = async (table) => {
 
-        const uslInfoKey = table.name.split('.').slice(-2, -1)[0];
-        const uslInfo = JSON.parse(localStorage.getItem(uslInfoKey));
+        // const uslInfoKey = table.name.split('.').slice(-2, -1)[0];
+        // const uslInfo = JSON.parse(localStorage.getItem(uslInfoKey));
 
-        if (uslInfo && Array.isArray(uslInfo.tables)) {
-            const tableName = table.name.split('.').pop();
-            const matchedTable = uslInfo.tables.find((t) => t.name === tableName);
+        // if (uslInfo && Array.isArray(uslInfo.tables)) {
+        //     const tableName = table.name.split('.').pop();
+        //     const matchedTable = uslInfo.tables.find((t) => t.name === tableName);
 
-            if (matchedTable) {
-                table = matchedTable;
-                const savedTableData = JSON.parse(localStorage.getItem('savedTable'));
+        //     if (matchedTable) {
+        //         table = matchedTable;
+        //         const savedTableData = JSON.parse(localStorage.getItem('savedTable'));
 
-                if (Array.isArray(savedTableData)) {
-                    const savedTable = savedTableData.find((t) => t.name === table.name);
+        //         if (Array.isArray(savedTableData)) {
+        //             const savedTable = savedTableData.find((t) => t.name === table.name);
 
-                    if (savedTable) {
-                        savedTable.isActivated = true;
-                        localStorage.setItem('savedTable', JSON.stringify(savedTableData));
-                    }
-                }
-            }
-        }
+        //             if (savedTable) {
+        //                 savedTable.isActivated = true;
+        //                 localStorage.setItem('savedTable', JSON.stringify(savedTableData));
+        //             }
+        //         }
+        //     }
+        // }
 
         setActivateTargetTable(table);
         setShowDQListPopup(true);
@@ -307,17 +313,17 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         const asKeyword = ' AS ';
 
         const startIndex = query.expression.indexOf(activateKeyword) + activateKeyword.length;
-        const endIndex = query.expression.indexOf(asKeyword);
+        const endIndex = query.expression.toUpperCase().indexOf(asKeyword);
 
         if (startIndex === -1 || endIndex === -1) {
-            console.error("Invalid query expression: Required keywords not found.");
+            setPopupMessage("Invalid query expression: Required keywords not found.");
             return;
         }
 
         const table = query.expression.substring(startIndex, endIndex).trim();
-        const queryIndex = query.expression.indexOf('SELECT');
+        const queryIndex = query.expression.toUpperCase().indexOf('SELECT');
         if (queryIndex === -1) {
-            console.error("Invalid query expression: SELECT statement not found.");
+            setPopupMessage("Invalid query expression: SELECT statement not found.");
             return;
         }
 
@@ -338,7 +344,6 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 const savedTablesData = JSON.parse(localStorage.getItem('savedTables'));
 
                 if (Array.isArray(savedTablesData)) {
-                    console.log(registeredName)
 
                     const tableToUpdate = savedTablesData.find(t => t.name.split('.').pop() === registeredName);
 
@@ -351,7 +356,6 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 }
 
                 updateUSLInfo();
-                console.log(result);
                 setActivateTables((prevTables) => {
                     const updatedTables = [...prevTables, table];
                     updateActivatedTables(true, updatedTables);
@@ -1057,7 +1061,10 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
 
     const handlePreViewButtonClick = async (tableName) => {
         setViewMode('output');
-        await runQuery(`SELECT * FROM ${tableName} LIMIT 100`);
+        const result = await runQuery(`SELECT * FROM ${tableName} LIMIT 100`);
+        if (result.error) {
+            setQueryResult({ error: result.message });
+        }
         setCondition('preview');
     };
 
@@ -1114,6 +1121,30 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         setIsModalOpen(false);
     };
 
+    const expandDuplicateKeys = (jsonStringArray) => {
+        return jsonStringArray.map((item) => {
+            const matches = [];
+            const regex = /"([^"]+)":\s*("[^"]*"|\d+|null|true|false)/g;
+            let match;
+
+            while ((match = regex.exec(item)) !== null) {
+                matches.push([match[1], match[2].replace(/^"|"$/g, "")]);
+            }
+
+            const expandedRow = {};
+            let keyCounters = {};
+
+            matches.forEach(([key, value]) => {
+                const count = keyCounters[key] || 0;
+                const newKey = count === 0 ? key : `${key}_${count}`;
+                expandedRow[newKey] = value;
+                keyCounters[key] = count + 1;
+            });
+
+            return expandedRow;
+        });
+    };
+
     const runQuery = async (sqlQuery) => {
         if (!sqlQuery || sqlQuery.trim() === "") {
             setQueryResult({ error: "No table connections. Please check." });
@@ -1128,13 +1159,16 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             if (result) {
                 if (result.error) {
                     setQueryResult({ error: result.message });
+                    return result;
                 } else {
-                    const parsedResult = result.map((item) => JSON.parse(item));
+                    // const parsedResult = result.map((item) => JSON.parse(item));
+                    const parsedResult = expandDuplicateKeys(result);
                     if (Array.isArray(parsedResult) && parsedResult.length > 0) {
                         setQueryResult(<RenderTableForApi data={parsedResult} />);
                     } else {
                         setQueryResult("There is no data to display.");
                     }
+                    return parsedResult;
                 }
             } else {
                 setQueryResult({ error: 'Failed to run query or received empty response.' });
@@ -1213,8 +1247,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                         URL.revokeObjectURL(url);
 
                     } catch (error) {
-                        console.error('Error during export:', error);
-                        alert('An error occurred while exporting data.');
+                        setPopupMessage('Error during export:', error);
                     }
                 }
             });
@@ -1302,6 +1335,14 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         const [selectedRows, setSelectedRows] = useState({});
         const [tooltip, setTooltip] = useState({ visible: false, message: '', position: { x: 0, y: 0 } });
 
+        useEffect(() => {
+            if (JSON.stringify(dqData) !== JSON.stringify(data)) {
+                setDQData(data);
+            }
+        }, [data]);
+
+        const processedData = useMemo(() => dqData, [dqData]);
+
         const handleCheckboxChange = (rowId) => {
             setSelectedRows((prevSelectedRows) => {
                 const newSelectedRows = {
@@ -1353,6 +1394,8 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 accessorKey: 'Status',
                 header: 'Status',
                 size: 80,
+                enableSorting: false,
+                enableColumnActions: false,
                 Cell: ({ cell, row }) => renderStatus(cell.getValue(), row.original.errorMessage),
             },
             { accessorKey: 'Name', header: 'Name', muiTableHeadCellProps: { align: 'center' } },
@@ -1476,32 +1519,45 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                         style={{
                             position: 'absolute',
                             top: '10px',
-                            left: '80px',
+                            left: '85px',
                             zIndex: 100,
                         }}
-                        onClick={handleDataQualityButtonClick}
-                    >
-                        Register
-                    </button>
-                    <button
-                        className='btn-primary'
-                        style={{
-                            position: 'absolute',
-                            top: '10px',
-                            left: '180px',
-                            zIndex: 100,
-                        }}
-                    onClick={removeDQ}
+                        onClick={removeDQ}
                     >
                         Remove
                     </button>
-                    <MaterialReactTable
+                    {/* <MaterialReactTable
                         columns={dqColumns}
-                        data={dqData}
+                        // data={dqData}
+                        data={processedData}
                         enableSorting
                         enableColumnFilters
                         onPaginationChange={setPagination}
+                        // onPaginationChange={(newPagination) => {
+                        //     setPagination(newPagination);
+                        // }}
                         state={{ pagination }}
+                        initialState={{
+                            density: 'compact',
+                            pagination: { pageSize: 30, pageIndex: 0 }
+                        }}
+                    /> */}
+                    <MaterialReactTable
+                        columns={dqColumns}
+                        data={processedData}
+                        enableSorting
+                        enableGlobalFilter={false}
+                        enableColumnFilters={false}
+                        state={{
+                            pagination,
+                            sorting,
+                            // columnFilters,
+                            // globalFilter,
+                        }}
+                        onPaginationChange={setPagination}
+                        onSortingChange={setSorting}
+                        // onColumnFiltersChange={setColumnFilters}
+                        // onGlobalFilterChange={setGlobalFilter}
                         initialState={{
                             density: 'compact',
                             pagination: { pageSize: 30, pageIndex: 0 }
@@ -1520,7 +1576,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         apiFunction(name, table, validRecord, limit)
             .then((result) => {
                 if (result.error) {
-                    alert(`Error fetching data: ${result.message}`);
+                    setPopupMessage(`Error fetching data: ${result.message}`);
                 } else {
                     try {
                         const parsedData = result.map((item) =>
@@ -1543,7 +1599,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             })
             .catch((error) => {
                 console.error('Error fetching data:', error);
-                alert(`Failed to fetch data: ${error.message}`);
+                setPopupMessage(`Failed to fetch data: ${error.message}`);
             })
             .finally(() => {
                 setLoading(false);
@@ -1630,7 +1686,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         setRulesData({ ...rulesData, columns: updatedColumns });
     };
 
-    const renderResults = (position) => {
+    const renderResults = useMemo(() => {
         if (loading) {
             return <div>Fetching data...</div>;
         }
@@ -1656,8 +1712,10 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 return renderRulesTable();
             }
         }
-    };
-
+    }, [loading, queryResult, viewMode, condition, dqResults, pagination, sorting,
+        // columnFilters,
+        // globalFilter,
+    ]);
 
     const compileUSL = async (name = "noname", ddlQuery, isDeploy = true) => {
         try {
@@ -1833,12 +1891,12 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                         <div className="tab-content">
                             {viewMode === 'dq' && (
                                 <div>
-                                    {renderResults(position)}
+                                    {renderResults}
                                 </div>
                             )}
                             {viewMode === 'output' && (
                                 <div>
-                                    {renderResults(position)}
+                                    {renderResults}
                                 </div>
                             )}
                         </div>
@@ -1873,6 +1931,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                             onClose={handleCloseDQListPopup}
                             table={activateTargetTable}
                             setPopupMessage={setPopupMessage}
+                            updateUSLInfo={updateUSLInfo}
                         />
                     )}
 

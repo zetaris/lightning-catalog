@@ -1,3 +1,9 @@
+html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
 .header {
   display: inline-block;
   width: 100%;
@@ -7,7 +13,7 @@
 
 .navigation {
   display: inline-block;
-  overflow-y: auto; /* Enable vertical scrolling */
+  overflow-y: auto;
   width: 15%;
   height: 94vh;
   flex-shrink: 0;

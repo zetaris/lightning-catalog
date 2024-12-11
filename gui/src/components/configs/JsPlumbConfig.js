@@ -862,14 +862,14 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
         popupMenu.classList.add('hidden');
       };
 
-      // const listDataQualityOption = document.createElement('div');
-      // listDataQualityOption.className = 'popup-menu-option';
-      // listDataQualityOption.innerText = 'Data Quality List';
-      // listDataQualityOption.onclick = (e) => {
-      //   e.stopPropagation();
-      //   handleListDQClick(selectedTable);
-      //   popupMenu.classList.add('hidden');
-      // };
+      const listDataQualityOption = document.createElement('div');
+      listDataQualityOption.className = 'popup-menu-option';
+      listDataQualityOption.innerText = 'Data Quality List';
+      listDataQualityOption.onclick = (e) => {
+        e.stopPropagation();
+        handleListDQClick(selectedTable);
+        popupMenu.classList.add('hidden');
+      };
 
       // const dataQualityOption = document.createElement('div');
       // dataQualityOption.className = 'popup-menu-option';
@@ -900,7 +900,7 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
 
       popupMenu.appendChild(activateQueryOption);
       popupMenu.appendChild(previewOption);
-      // popupMenu.appendChild(listDataQualityOption);
+      popupMenu.appendChild(listDataQualityOption);
       // popupMenu.appendChild(dataQualityOption);
       // popupMenu.appendChild(tableInfoOption);
       popupMenu.appendChild(deleteOption);
@@ -1081,35 +1081,71 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
 };
 
 // Function to remove a specific table
-const removeTable = (tableId, jsPlumbInstance) => {
+// const removeTable = (tableId, jsPlumbInstance) => {
+//   // Remove the connections and endpoints related to this table
+//   if (jsPlumbInstance) {
+//     // Remove all connections related to the endpoints of this table
+//     const endpoints = jsPlumbInstance.getEndpoints(tableId);
+//     if (endpoints) {
+//       endpoints.forEach(endpoint => {
+//         jsPlumbInstance.deleteEndpoint(endpoint);
+//       });
+//     }
+
+//     // Remove the element from jsPlumb
+//     jsPlumbInstance.remove(tableId);
+//   }
+
+//   // Remove the element from the DOM
+//   const tableElement = document.getElementById(tableId);
+//   if (tableElement) {
+//     tableElement.remove();
+//   }
+
+//   // Assuming you want to remove the table and its related connections from localStorage
+//   let savedTables = JSON.parse(localStorage.getItem('savedTables')) || [];
+//   const actualUuid = tableId.replace(/^table-/, '');
+//   savedTables = savedTables.filter(table => {
+//     return table.uuid !== actualUuid;
+//   });
+//   localStorage.setItem('savedTables', JSON.stringify(savedTables));
+//   localStorage.removeItem(tableId)
+
+//   let connections = JSON.parse(localStorage.getItem('connections')) || [];
+//   connections = connections.filter(conn => conn.sourceId !== tableId && conn.targetId !== tableId);
+//   localStorage.setItem('connections', JSON.stringify(connections));
+// };
+
+const removeTable = async (tableId, jsPlumbInstance) => {
+  const confirmed = await showConfirmationPopup("Are you sure you want to delete this table?");
+  
+  if (!confirmed) {
+      return; // Exit if user canceled
+  }
+
   // Remove the connections and endpoints related to this table
   if (jsPlumbInstance) {
-    // Remove all connections related to the endpoints of this table
-    const endpoints = jsPlumbInstance.getEndpoints(tableId);
-    if (endpoints) {
-      endpoints.forEach(endpoint => {
-        jsPlumbInstance.deleteEndpoint(endpoint);
-      });
-    }
-
-    // Remove the element from jsPlumb
-    jsPlumbInstance.remove(tableId);
+      const endpoints = jsPlumbInstance.getEndpoints(tableId);
+      if (endpoints) {
+          endpoints.forEach(endpoint => {
+              jsPlumbInstance.deleteEndpoint(endpoint);
+          });
+      }
+      jsPlumbInstance.remove(tableId);
   }
 
   // Remove the element from the DOM
   const tableElement = document.getElementById(tableId);
   if (tableElement) {
-    tableElement.remove();
+      tableElement.remove();
   }
 
-  // Assuming you want to remove the table and its related connections from localStorage
+  // Remove table and its connections from localStorage
   let savedTables = JSON.parse(localStorage.getItem('savedTables')) || [];
   const actualUuid = tableId.replace(/^table-/, '');
-  savedTables = savedTables.filter(table => {
-    return table.uuid !== actualUuid;
-  });
+  savedTables = savedTables.filter(table => table.uuid !== actualUuid);
   localStorage.setItem('savedTables', JSON.stringify(savedTables));
-  localStorage.removeItem(tableId)
+  localStorage.removeItem(tableId);
 
   let connections = JSON.parse(localStorage.getItem('connections')) || [];
   connections = connections.filter(conn => conn.sourceId !== tableId && conn.targetId !== tableId);
@@ -1382,4 +1418,38 @@ const adjustOffsetForZoom = (container, scaleFactor, setOffset) => {
       return { x: newOffsetX, y: newOffsetY };
     });
   }
+};
+
+const showConfirmationPopup = (message) => {
+  return new Promise((resolve) => {
+      const popup = document.createElement('div');
+      popup.className = 'popup-overlay';
+      popup.innerHTML = `
+          <div class="popup">
+              <p class="semibold-text">${message}</p>
+              <div class="popup-buttons">
+                  <button id="confirm-btn" class="btn-primary">Confirm</button>
+                  <button id="cancel-btn" class="btn-secondary">Cancel</button>
+              </div>
+          </div>
+      `;
+
+      document.body.appendChild(popup);
+
+      // Style for buttons container
+      const popupButtons = popup.querySelector('.popup-buttons');
+      popupButtons.style.display = 'flex';
+      popupButtons.style.justifyContent = 'flex-end';
+      popupButtons.style.gap = '10px'; // Adds spacing between buttons
+
+      popup.querySelector('#confirm-btn').onclick = () => {
+          resolve(true); // User confirmed
+          document.body.removeChild(popup);
+      };
+
+      popup.querySelector('#cancel-btn').onclick = () => {
+          resolve(false); // User canceled
+          document.body.removeChild(popup);
+      };
+  });
 };
