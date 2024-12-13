@@ -10,9 +10,17 @@ const DataQualityListPopup = ({ onClose, table, setPopupMessage, updateUSLInfo }
     const [ruleName, setRuleName] = useState('');
     const [ruleExpression, setRuleExpression] = useState('');
 
+    const getFullPath = (table) => {
+        if (!table.namespace || !Array.isArray(table.namespace) || table.namespace.length === 0) {
+            return table.name;
+        }
+        return [...table.namespace, table.name].join('.');
+    };
+
     useEffect(() => {
         const fetchData = async () => {
-            const listDQQuery = `LIST DQ USL ${table.name.split('.').slice(0, -1).join('.')}`;
+            const fullPath = getFullPath(table);
+            const listDQQuery = `LIST DQ USL ${fullPath.split('.').slice(0, -1).join('.')}`;
             const listDQResult = await fetchApi(listDQQuery);
 
             if (!listDQResult) {
@@ -31,7 +39,8 @@ const DataQualityListPopup = ({ onClose, table, setPopupMessage, updateUSLInfo }
     }, [table.name, setPopupMessage]);
 
     const handleDelete = async (result) => {
-        const runDQQuery = `REMOVE DQ ${result.name} TABLE ${table.name}`;
+        const fullPath = getFullPath(table);
+        const runDQQuery = `REMOVE DQ ${result.name} TABLE ${fullPath}`;
 
         try {
             const removeDQResult = await fetchApi(runDQQuery);
@@ -53,7 +62,8 @@ const DataQualityListPopup = ({ onClose, table, setPopupMessage, updateUSLInfo }
             return;
         }
 
-        const query = `REGISTER DQ ${ruleName} TABLE ${table.name} AS ${ruleExpression};`;
+        const fullPath = getFullPath(table);
+        const query = `REGISTER DQ ${ruleName} TABLE ${fullPath} AS ${ruleExpression};`;
 
         try {
             const response = await fetchApi(query);
@@ -94,7 +104,7 @@ const DataQualityListPopup = ({ onClose, table, setPopupMessage, updateUSLInfo }
                                         <td>{result.name}</td>
                                         <td>{result.type}</td>
                                         <td>{result.expression || "N/A"}</td>
-                                        <td style={{textAlign: 'center'}}>
+                                        <td style={{ textAlign: 'center' }}>
                                             {result.type === "Custom Data Quality" && (
                                                 <XmarkIcon
                                                     className="action-x-button"
@@ -117,7 +127,15 @@ const DataQualityListPopup = ({ onClose, table, setPopupMessage, updateUSLInfo }
                             </tbody>
                         </table>
                     ) : (
-                        <p>Loading data quality annotations...</p>
+                        <div style={{ textAlign: "center" }}>
+                            <p>No data quality annotations available.</p>
+                            <button
+                                className="btn-primary"
+                                onClick={() => setShowAddPopup(true)}
+                            >
+                                Add DQ
+                            </button>
+                        </div>
                     )}
                 </div>
                 <div className="popup-buttons">

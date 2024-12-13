@@ -158,7 +158,7 @@ ace.define("ace/mode/custom_sql", ["require", "exports", "ace/mode/sql", "ace/mo
 
 let fuse;
 let pathKeywords = {};
-let currentSuggestions = [];
+export let currentSuggestions = [];
 export const initSuggestions = () => {
   currentSuggestions = [];
 }
@@ -202,43 +202,43 @@ export const getContext = (editorInstance) => {
   const context = { type: null, path: null, tableAlias: null, tablePath: null, insideFunction: false, session, cursorRow, beforeCursor };
 
   const patterns = {
-    "LIGHTNING": /LIGHTNING\.(\w+(?:\.\w+)*)/ig,
-    "FROM": /FROM\s+([\w\.]+)(?:\s+AS\s+(\w+))?/ig,
-    "SELECT": /SELECT\s+([^FROM]+)/ig,
+    "LIGHTNING": /\bLIGHTNING\b(?:\.(\w+(?:\.\w+)*))?/ig,
+    "SELECT": /SELECT\s+(.*?)(?=\bFROM\b|$)/ig,
+    "FROM": /FROM\s+([\w]+(?:\.[\w]+)*)(?:\s+AS\s+(\w+))?/ig,
     "WHERE": /WHERE\s+([^FROM]+)/ig
   };
 
   const matches = [];
 
-  // Search before cursor
   for (const [type, regex] of Object.entries(patterns)) {
     let match;
     while ((match = regex.exec(beforeCursor)) !== null) {
       const matchRow = beforeCursor.slice(0, match.index).split('\n').length - 1;
       const matchColumn = match.index - beforeCursor.lastIndexOf('\n', match.index) - 1;
-      matches.push({
-        type,
-        match,
-        row: matchRow,
-        column: matchColumn,
-        distance: Math.abs(cursorRow - matchRow) * 100 + Math.abs(cursorColumn - matchColumn),
-      });
+      let distance = Math.abs(cursorRow - matchRow) * 100 + Math.abs(cursorColumn - matchColumn);
+
+      if (["SELECT", "FROM", "WHERE"].includes(type)) {
+        distance = distance - (match[0].length || 0);
+        if (distance < 0) distance = 0;
+      }
+
+      matches.push({ type, match, row: matchRow, column: matchColumn, distance });
     }
   }
 
-  // Search after cursor
   for (const [type, regex] of Object.entries(patterns)) {
     let match;
     while ((match = regex.exec(afterCursor)) !== null) {
       const matchRow = cursorRow + afterCursor.slice(0, match.index).split('\n').length - 1;
       const matchColumn = match.index - afterCursor.lastIndexOf('\n', match.index) - 1;
-      matches.push({
-        type,
-        match,
-        row: matchRow,
-        column: matchColumn,
-        distance: Math.abs(cursorRow - matchRow) * 100 + Math.abs(cursorColumn - matchColumn),
-      });
+      let distance = Math.abs(cursorRow - matchRow) * 100 + Math.abs(cursorColumn - matchColumn);
+
+      if (["SELECT", "FROM", "WHERE"].includes(type)) {
+        distance = distance - (match[0].length || 0);
+        if (distance < 0) distance = 0;
+      }
+
+      matches.push({ type, match, row: matchRow, column: matchColumn, distance });
     }
   }
 
@@ -254,7 +254,8 @@ export const getContext = (editorInstance) => {
   switch (closestMatch.type) {
     case "LIGHTNING":
       context.type = "LIGHTNING";
-      context.path = `lightning.${closestMatch.match[1]}`;
+      const matchedPath = closestMatch.match[1];
+      context.path = matchedPath ? `lightning.${matchedPath}` : "lightning";
       break;
     case "FROM":
       context.type = "FROM";
@@ -265,23 +266,16 @@ export const getContext = (editorInstance) => {
       context.type = "SELECT";
       const selectedColumns = closestMatch.match[1].trim();
 
-      const selectAliasMatches = [...selectedColumns.matchAll(/(\w+)\./g)];
+      const selectAliasMatches = [...selectedColumns.matchAll(/(\w+)\./gi)];
+      let lastSelectAliasMatch = selectAliasMatches.length > 0
+        ? selectAliasMatches[selectAliasMatches.length - 1][1]
+        : null;
 
-      const uniqueAliasMatches = [];
-      const seenAliases = new Set();
+      const tokens = selectedColumns.split(/[, ]+/).filter(t => t.length > 0);
+      const lastToken = tokens[tokens.length - 1];
 
-      for (let i = 0; i < selectAliasMatches.length; i++) {
-        const alias = selectAliasMatches[i][1];
-        if (!seenAliases.has(alias)) {
-          uniqueAliasMatches.push(selectAliasMatches[i]);
-          seenAliases.add(alias);
-        }
-      }
-
-      let lastSelectAliasMatch = uniqueAliasMatches.length > 0 ? uniqueAliasMatches[uniqueAliasMatches.length - 1][1] : null;
-
-      if (tableAliases[selectedColumns]) {
-        lastSelectAliasMatch = selectedColumns;
+      if (lastToken && tableAliases[lastToken] && lastToken !== lastSelectAliasMatch) {
+        lastSelectAliasMatch = lastToken;
       }
 
       if (lastSelectAliasMatch) {
@@ -296,16 +290,32 @@ export const getContext = (editorInstance) => {
     case "WHERE":
       context.type = "WHERE";
       const whereConditions = closestMatch.match[1];
-      const whereAliasMatches = [...whereConditions.matchAll(/(\w+)\./g)];
-      let lastWhereAliasMatch = whereAliasMatches.length > 0 ? whereAliasMatches[whereAliasMatches.length - 1][1] : null;
 
-      if (tableAliases[whereConditions]) {
-        lastWhereAliasMatch = whereConditions;
+      const cleanedConditions = whereConditions
+        .split(/\s*(GROUP\s+BY|HAVING|WHERE)\s+/i)[0]
+        .trim();
+
+      const whereAliasMatches = [...cleanedConditions.matchAll(/(\w+)\./g)];
+
+      const lastWord = whereConditions.trim().split(/\s+/).pop();
+
+      const sqlKeywords = ['WHERE', 'GROUP', 'BY', 'HAVING', 'SELECT', 'FROM', 'AND', 'OR', 'ON', 'WHE', 'G'];
+      const whereAliasList = [
+        ...whereAliasMatches.map(match => match[1]),
+        lastWord
+      ].filter(word => !sqlKeywords.includes(word.toUpperCase()));
+
+      let lastWhereAliasMatch = whereAliasList.length > 0
+        ? whereAliasList[whereAliasList.length - 1]
+        : null;
+
+      if (tableAliases[cleanedConditions]) {
+        lastWhereAliasMatch = cleanedConditions;
       }
 
       if (lastWhereAliasMatch) {
         context.tableAlias = tableAliases[lastWhereAliasMatch] || null;
-      } else if(Object.keys(tableAliases).length === 0) {
+      } else if (Object.keys(tableAliases).length === 0) {
         const fromMatches = [...beforeCursor.matchAll(/FROM\s+([\w\.]+)(?:\s+AS\s+(\w+))?/ig)];
         const lastFromMatch = fromMatches[fromMatches.length - 1];
         if (lastFromMatch) {
@@ -371,28 +381,65 @@ export const fetchColumns = async (tablePath) => {
   }
 };
 
+// export const customSQLCompleter = {
+//   getCompletions: (editor, session, pos, prefix, callback) => {
+//     const { keywords, lightning, dataTypes, builtIn } = sqlKeywords;
+
+//     const suggestions = currentSuggestions.length > 0
+//       ? currentSuggestions.map((suggestion) => ({
+//         caption: suggestion,
+//         value: suggestion,
+//         meta: 'suggestion',
+//         score: 1000
+//       }))
+//       : [
+//         ...keywords.map((kw) => ({ caption: kw, value: kw, meta: "keyword" })),
+//         ...lightning.map((lt) => ({ caption: lt, value: lt, meta: "lightning" })),
+//         ...dataTypes.map((dt) => ({ caption: dt, value: dt, meta: "dataType" })),
+//         ...builtIn.map((ct) => ({ caption: ct, value: ct, meta: "builtIn" })),
+//       ];
+
+//     callback(null, suggestions);
+//   },
+// };
+
 export const customSQLCompleter = {
   getCompletions: (editor, session, pos, prefix, callback) => {
     const { keywords, lightning, dataTypes, builtIn } = sqlKeywords;
+    const onlyShowSuggestions = globalStateMachine?.onlyShowSuggestions;
+    const suggestionsFromServer = currentSuggestions;
 
-    const suggestions = currentSuggestions.length > 0
-      ? currentSuggestions.map((suggestion) => ({
+    let suggestions;
+    if (onlyShowSuggestions && suggestionsFromServer.length > 0) {
+      suggestions = suggestionsFromServer.map((suggestion) => ({
         caption: suggestion,
         value: suggestion,
         meta: 'suggestion',
         score: 1000
-      }))
-      : [
+      }));
+    } else {
+      const keywordSuggestions = [
         ...keywords.map((kw) => ({ caption: kw, value: kw, meta: "keyword" })),
         ...lightning.map((lt) => ({ caption: lt, value: lt, meta: "lightning" })),
         ...dataTypes.map((dt) => ({ caption: dt, value: dt, meta: "dataType" })),
         ...builtIn.map((ct) => ({ caption: ct, value: ct, meta: "builtIn" })),
       ];
 
+      const dynamicSuggestions = suggestionsFromServer.map((suggestion) => ({
+        caption: suggestion,
+        value: suggestion,
+        meta: 'suggestion',
+        score: 1000
+      }));
+
+      suggestions = [...keywordSuggestions, ...dynamicSuggestions];
+    }
+
     callback(null, suggestions);
   },
 };
 
+let globalStateMachine;
 export const setupAceEditor = (editor) => {
   if (!editor) return;
 
@@ -409,6 +456,7 @@ export const setupAceEditor = (editor) => {
   let lastAction = null;
   let debounceTimer = null;
   const stateMachine = new StateMachine();
+  globalStateMachine = stateMachine;
 
   editor.getSession().on("change", (delta) => {
     const { action, lines } = delta;
@@ -418,7 +466,7 @@ export const setupAceEditor = (editor) => {
 
     if (action === "insert") {
       const insertedText = lines.join('');
-      
+
       let eventType = null;
       if (insertedText === ".") {
         eventType = 'DOT_TYPED';
@@ -438,11 +486,11 @@ export const setupAceEditor = (editor) => {
               }
             });
         }, 100);
-        return; // CHAR_TYPED return
+        return;
       } else {
         eventType = 'CLAUSE_CHANGED';
       }
-    
+
       // DOT_TYPED, SPACE_TYPED, BRACKET_TYPED, CLAUSE_CHANGED
       if (eventType) {
         stateMachine.transition({ type: eventType }, context).then(() => {
@@ -452,7 +500,7 @@ export const setupAceEditor = (editor) => {
           }
         });
       }
-    }    
+    }
 
     if (action === 'remove') {
       stateMachine.clearSuggestions();

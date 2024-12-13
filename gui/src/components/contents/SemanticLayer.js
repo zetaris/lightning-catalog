@@ -19,6 +19,15 @@ import DataQualityListPopup from './components/DataQualityListPopup.js';
 import ActivePopup from './components/ActivatePopup.js';
 
 function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIsLoading, previewTableName, isMouseLoading }) {
+    const [refreshKey, setRefreshKey] = useState(0);
+    const refreshComponent = () => {
+        setRefreshKey(prevKey => prevKey + 1);
+    };
+
+    useEffect(() => {
+        reFreshScreen();
+    }, [refreshKey]);
+
     const jsPlumbRef = useRef(null);
     const jsPlumbInstanceRef = useRef(null);
     const [condition, setCondition] = useState('');
@@ -444,9 +453,11 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                     const ddl = semanticLayerInfo[0].ddl;
                     const parsedDDLResult = await compileUSL(name, ddl, true);
                     if (parsedDDLResult) {
-                        window.location.reload();
+                        // window.location.reload();
+                        deleteAllTables();
                         const { savedTables, savedConnections, rulesData } = getSettingDataFromJson(parsedDDLResult);
-                        reFreshScreen()
+                        reFreshScreen();
+                        handleOptimizeView(jsPlumbRef.current, zoomLevel, setZoomLevel, setOffset);
                         // restoreFromTablesAndConnections(savedTables, savedConnections);
                         // window.location.reload();
                     }
@@ -456,17 +467,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             };
 
             fetchAndParseDDL();
-            const savedZoomLevel = localStorage.getItem('zoomLevel');
-            const savedOffsetX = localStorage.getItem('offsetX');
-            const savedOffsetY = localStorage.getItem('offsetY');
-
-            if (savedZoomLevel) {
-                setZoomLevel(parseFloat(savedZoomLevel));
-            }
-
-            if (savedOffsetX && savedOffsetY) {
-                setOffset({ x: parseFloat(savedOffsetX), y: parseFloat(savedOffsetY) });
-            }
+            handleOptimizeView(jsPlumbRef.current, zoomLevel, setZoomLevel, setOffset);
         }
         setIsLoading(false);
     }, [semanticLayerInfo]);
@@ -510,7 +511,8 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
     useEffect(() => {
         const fetchUSLContent = async () => {
             // clearJsPlumbAndLocalStorage();
-            window.location.reload();
+            // window.location.reload();
+            deleteAllTables();
             const { savedTables, savedConnections, rulesData } = getSettingDataFromJson(uslNamebyClick);
             reFreshScreen()
             // restoreFromTablesAndConnections(savedTables, savedConnections);
@@ -524,17 +526,18 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             setIsLoading(true);
             fetchUSLContent();
             setIsLoading(false);
-            const savedZoomLevel = localStorage.getItem('zoomLevel');
-            const savedOffsetX = localStorage.getItem('offsetX');
-            const savedOffsetY = localStorage.getItem('offsetY');
+            handleOptimizeView(jsPlumbRef.current, zoomLevel, setZoomLevel, setOffset);
+            // const savedZoomLevel = localStorage.getItem('zoomLevel');
+            // const savedOffsetX = localStorage.getItem('offsetX');
+            // const savedOffsetY = localStorage.getItem('offsetY');
 
-            if (savedZoomLevel) {
-                setZoomLevel(parseFloat(savedZoomLevel));
-            }
+            // if (savedZoomLevel) {
+            //     setZoomLevel(parseFloat(savedZoomLevel));
+            // }
 
-            if (savedOffsetX && savedOffsetY) {
-                setOffset({ x: parseFloat(savedOffsetX), y: parseFloat(savedOffsetY) });
-            }
+            // if (savedOffsetX && savedOffsetY) {
+            //     setOffset({ x: parseFloat(savedOffsetX), y: parseFloat(savedOffsetY) });
+            // }
         }
     }, [uslNamebyClick]);
 
@@ -654,105 +657,152 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
 
 
     const reFreshScreen = () => {
-        let savedTables = JSON.parse(localStorage.getItem('savedTables')) || [];
-        let savedConnections = JSON.parse(localStorage.getItem('connections')) || [];
+        const savedTables = JSON.parse(localStorage.getItem('savedTables')) || [];
+        const savedConnections = JSON.parse(localStorage.getItem('connections')) || [];
 
-        if (savedTables && savedTables.length > 0) {
-            setUslName(savedTables[0].name.split('.').slice(0, -1).join('.'));
+        if (savedTables.length > 0) {
+            const firstTableName = savedTables[0]?.name?.split('.')?.slice(0, -1)?.join('.');
+            if (firstTableName) {
+                setUslName(firstTableName);
+            } else {
+                // console.error('The table name is incorrect:', savedTables[0]);
+            }
         }
 
         if (!jsPlumbInstanceRef.current && jsPlumbRef.current) {
-            jsPlumbInstanceRef.current = initializeJsPlumb(jsPlumbRef.current, [], openModal, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleListDQClick);
+            jsPlumbInstanceRef.current = initializeJsPlumb(
+                jsPlumbRef.current,
+                [],
+                openModal,
+                handlePreViewButtonClick,
+                handleTableInfoClick,
+                handleActivateTableClick,
+                handleActivateQueryClick,
+                handleDataQualityButtonClick,
+                handleTableDoubleClick,
+                handleListDQClick
+            );
         }
 
         if (savedTables.length > 0 && jsPlumbInstanceRef.current) {
             const activatedTableNames = [];
+
             savedTables.forEach((table) => {
-                setupTableForSelectedTable(jsPlumbRef.current, table, jsPlumbInstanceRef.current, table.uuid, false, handlePreViewButtonClick, handleTableInfoClick, handleActivateTableClick, handleActivateQueryClick, handleDataQualityButtonClick, handleTableDoubleClick, handleListDQClick);
+                if (!table || !table.desc) {
+                    // console.warn('Invalid table data:', table);
+                    return;
+                }
+
+                setupTableForSelectedTable(
+                    jsPlumbRef.current,
+                    table,
+                    jsPlumbInstanceRef.current,
+                    table.uuid,
+                    false,
+                    handlePreViewButtonClick,
+                    handleTableInfoClick,
+                    handleActivateTableClick,
+                    handleActivateQueryClick,
+                    handleDataQualityButtonClick,
+                    handleTableDoubleClick,
+                    handleListDQClick
+                );
 
                 if (table.isActivated) {
                     activatedTableNames.push(table.name);
                 }
 
-                // Add tooltips to referenced columns
                 table.desc.forEach((col) => {
                     if (col.foreignKey) {
                         const refTableNames = col.foreignKey.refTable;
                         const refColumnNames = col.foreignKey.refColumns;
 
-                        // Ensure both refTableNames and refColumnNames have the same length
-                        if (Array.isArray(refTableNames) && Array.isArray(refColumnNames) && refTableNames.length === refColumnNames.length) {
+                        if (
+                            Array.isArray(refTableNames) &&
+                            Array.isArray(refColumnNames) &&
+                            refTableNames.length === refColumnNames.length
+                        ) {
                             refTableNames.forEach((refTableName, index) => {
                                 const refColumnName = refColumnNames[index];
+                                const targetTable = savedTables.find((t) => t.name === refTableName);
 
-                                // Find the target table and column
-                                const targetTable = savedTables.find(t => t.name === refTableName);
                                 if (targetTable) {
-                                    const targetColumn = targetTable.desc.find(c => c.col_name === refColumnName);
-                                    if (targetColumn) {
-                                        // Add tooltip to the referenced column
+                                    const targetColumn = targetTable.desc.find((c) => c.col_name === refColumnName);
+
+                                    if (targetColumn && targetColumn.element) {
                                         const tooltipData = `References: ${table.name}.${col.col_name}`;
-                                        addForeignKeyIconToColumn(
-                                            targetColumn.element, // Ensure targetColumn includes an `element` property linked to DOM
-                                            tooltipData,
-                                            `foreignKey(${col.col_name})`
-                                        );
+                                        addForeignKeyIconToColumn(targetColumn.element, tooltipData, `foreignKey(${col.col_name})`);
+                                    } else {
+                                        // console.error('There is no target column:', refTableName, refColumnName);
                                     }
+                                } else {
+                                    // console.error('There is no target table:', refTableName);
                                 }
                             });
                         } else {
-                            console.error('Mismatch in lengths of refTable and refColumns for column:', col.col_name);
+                            // console.error('The lengths of refTable and refColumns do not match:', col.col_name);
                         }
                     }
                 });
             });
+
             setActivateTables(activatedTableNames);
 
             requestAnimationFrame(() => {
-                if (savedConnections.length > 0) {
-                    savedConnections.forEach(({ sourceId, targetId, relationship, relationship_type }, index) => {
-                        const optimalEndpoints = getOptimalEndpointPosition(sourceId, targetId);
-                        connectEndpoints(jsPlumbInstanceRef.current, optimalEndpoints.sourceId, optimalEndpoints.targetId, relationship, relationship_type, false);
-                        const { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn } = getRowInfo(optimalEndpoints.sourceId, optimalEndpoints.targetId);
-                        // connectEndpoints(jsPlumbInstanceRef.current, sourceId, targetId, relationship, relationship_type, false);
-                        // const { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn } = getRowInfo(sourceId, targetId);
+                savedConnections.forEach(({ sourceId, targetId, relationship, relationship_type }) => {
+                    const optimalEndpoints = getOptimalEndpointPosition(sourceId, targetId);
 
-                        const sourceColumnName = sourceColumn.querySelector('td')?.innerText || '';
-                        const targetColumnName = targetColumn.querySelector('td')?.innerText || '';
-                        const sourceColumnClass = sourceColumn.children[0].classList[0];
-                        const constraints = getColumnConstraint(sourceColumnClass);
+                    if (optimalEndpoints?.sourceId && optimalEndpoints?.targetId) {
+                        connectEndpoints(
+                            jsPlumbInstanceRef.current,
+                            optimalEndpoints.sourceId,
+                            optimalEndpoints.targetId,
+                            relationship,
+                            relationship_type,
+                            false
+                        );
 
-                        let tooltipData;
-                        if (constraints) {
-                            tooltipData = constraints.map((constraint) => {
-                                const reference = constraint.references ? `(${constraint.references})` : '';
-                                return reference ? `${constraint.type}: ${reference}` : `${constraint.type}`;
-                            }).join(', ');
+                        const { sourceColumn, targetColumn } = getRowInfo(optimalEndpoints.sourceId, optimalEndpoints.targetId);
+
+                        if (sourceColumn && targetColumn) {
+                            const sourceColumnName = sourceColumn.querySelector('td')?.innerText || '';
+                            const targetColumnName = targetColumn.querySelector('td')?.innerText || '';
+                            const sourceColumnClass = sourceColumn.children[0]?.classList[0];
+                            const constraints = getColumnConstraint(sourceColumnClass);
+
+                            let tooltipData;
+                            if (constraints) {
+                                tooltipData = constraints
+                                    .map((constraint) => {
+                                        const reference = constraint.references ? `(${constraint.references})` : '';
+                                        return reference ? `${constraint.type}: ${reference}` : `${constraint.type}`;
+                                    })
+                                    .join(', ');
+                            }
+
+                            const targetForeignKeyText = `foreignKey(${targetColumnName})`;
+
+                            const newTooltipData = tooltipData
+                                ? `${tooltipData}, ${targetForeignKeyText}`
+                                : targetForeignKeyText;
+
+                            if (relationship === 'fk') {
+                                const existingTooltipData = sourceColumn.getAttribute('data-tooltip') || '';
+                                const combinedTooltipArray = [
+                                    ...new Set([...existingTooltipData.split(', '), ...newTooltipData.split(', ')].filter(Boolean)),
+                                ];
+                                const combinedTooltipData = combinedTooltipArray.join(', ');
+
+                                sourceColumn.setAttribute('data-tooltip', combinedTooltipData);
+                                addForeignKeyIconToColumn(sourceColumn, combinedTooltipData, tooltipData);
+                            }
+                        } else {
+                            // console.error('There are no source or target columns:', sourceId, targetId);
                         }
-
-                        const targetForeignKeyText = `foreignKey(${targetColumnName})`;
-
-                        const newTooltipData = tooltipData
-                            ? `${tooltipData}, ${targetForeignKeyText}`
-                            : targetForeignKeyText;
-
-                        if (relationship === 'fk') {
-                            const existingTooltipData = sourceColumn.getAttribute('data-tooltip') || '';
-
-                            // Split existing tooltip data into an array and remove duplicates
-                            const combinedTooltipArray = [
-                                ...new Set([...existingTooltipData.split(', '), ...newTooltipData.split(', ')].filter(Boolean)),
-                            ];
-
-                            // Rejoin the array into a string
-                            const combinedTooltipData = combinedTooltipArray.join(', ');
-
-                            sourceColumn.setAttribute('data-tooltip', combinedTooltipData);
-
-                            addForeignKeyIconToColumn(sourceColumn, combinedTooltipData, tooltipData);
-                        }
-                    });
-                }
+                    } else {
+                        // console.error('The endpoint is invalid:', sourceId, targetId);
+                    }
+                });
 
                 jsPlumbInstanceRef.current.recalculateOffsets(jsPlumbRef.current);
             });
