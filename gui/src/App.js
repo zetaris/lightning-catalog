@@ -33,6 +33,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [previewTableName, setPreviewTableName] = useState(null);
   const [isMouseLoading, setIsMouseLoading] = useState(false);
+  const [navErrorMsg, setNavErrorMsg] = useState('');
 
   const handleSetView = (newView) => {
     setView(newView);
@@ -84,6 +85,7 @@ function App() {
                   setPreviewTableName={setPreviewTableName}
                   setIsLoading={setIsLoading}
                   setIsMouseLoading={setIsMouseLoading}
+                  setNavErrorMsg={setNavErrorMsg}
                 />
               </div>
 
@@ -122,6 +124,7 @@ function App() {
                   setIsLoading={setIsLoading}
                   previewTableName={previewTableName}
                   isMouseLoading={isMouseLoading}
+                  navErrorMsg={navErrorMsg}
                 />
               </div>
             </>

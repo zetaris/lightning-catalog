@@ -18,15 +18,13 @@ import DataQualityPopup from './components/DataQualityPopup.js';
 import DataQualityListPopup from './components/DataQualityListPopup.js';
 import ActivePopup from './components/ActivatePopup.js';
 
-function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIsLoading, previewTableName, isMouseLoading }) {
-    const [refreshKey, setRefreshKey] = useState(0);
-    const refreshComponent = () => {
-        setRefreshKey(prevKey => prevKey + 1);
-    };
-
+function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIsLoading, previewTableName, isMouseLoading, navErrorMsg }) {
     useEffect(() => {
-        reFreshScreen();
-    }, [refreshKey]);
+        if(sessionStorage.getItem('selectedTab')==='semanticLayer'){
+            setViewMode('output');
+            setQueryResult({ error: navErrorMsg});
+        }
+    }, [navErrorMsg])
 
     const jsPlumbRef = useRef(null);
     const jsPlumbInstanceRef = useRef(null);
@@ -217,7 +215,9 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
 
     const removeDQ = async () => {
         if (!selectedRowData || selectedRowData.length === 0) {
-            setPopupMessage("Please select DQ item to delete");
+            // setPopupMessage("Please select DQ item to delete");
+            setViewMode('output');
+            setQueryResult({ error:"Please select DQ item to delete"});
             return;
         }
 
@@ -254,7 +254,9 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
 
         if (failedToRemove.length > 0) {
             const errorMessages = failedToRemove.map(item => `${item.Name}: ${item.message}`).join("\n");
-            setPopupMessage(`Failed to delete the following DQ items : ${errorMessages}`);
+            // setPopupMessage(`Failed to delete the following DQ items : ${errorMessages}`);
+            setViewMode('output');
+            setQueryResult({ error:`Failed to delete the following DQ items : ${errorMessages}`});
         }
     };
 
@@ -325,14 +327,18 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         const endIndex = query.expression.toUpperCase().indexOf(asKeyword);
 
         if (startIndex === -1 || endIndex === -1) {
-            setPopupMessage("Invalid query expression: Required keywords not found.");
+            // setPopupMessage("Invalid query expression: Required keywords not found.");
+            setViewMode('output');
+            setQueryResult({ error:"Invalid query expression: Required keywords not found."});
             return;
         }
 
         const table = query.expression.substring(startIndex, endIndex).trim();
         const queryIndex = query.expression.toUpperCase().indexOf('SELECT');
         if (queryIndex === -1) {
-            setPopupMessage("Invalid query expression: SELECT statement not found.");
+            // setPopupMessage("Invalid query expression: SELECT statement not found.");
+            setViewMode('output');
+            setQueryResult({ error:"Invalid query expression: SELECT statement not found."});
             return;
         }
 
@@ -371,11 +377,15 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                     return updatedTables;
                 });
             } else {
-                setPopupMessage(result.message);
+                // setPopupMessage(result.message);
+                setViewMode('output');
+                setQueryResult({ error: result.message});
                 updateActivatedTables(false);
             }
         } catch (error) {
-            setPopupMessage("Error : ", error);
+            // setPopupMessage("Error : ", error);
+            setViewMode('output');
+            setQueryResult({ error: error});
             updateActivatedTables(false);
         }
 
@@ -492,7 +502,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                         if (Array.isArray(parsedResult) && parsedResult.length > 0) {
                             setQueryResult(<RenderTableForApi data={parsedResult} />);
                         } else {
-                            setQueryResult("There is no data to display.");
+                            setQueryResult({ error:"There is no data to display."});
                         }
                     }
                 } else {
@@ -990,7 +1000,9 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             ddlJson = JSON.parse(ddlText);
             ddlJson = JSON.parse(ddlJson.json);
         } catch (e) {
-            setPopupMessage(`Invalid DDL JSON format: ${e}`);
+            // setPopupMessage();
+            setViewMode('output');
+            setQueryResult({ error: `Invalid DDL JSON format: ${e}`});
             return null;
         }
 
@@ -1297,7 +1309,9 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                         URL.revokeObjectURL(url);
 
                     } catch (error) {
-                        setPopupMessage('Error during export:', error);
+                        // setPopupMessage();
+                        setViewMode('output');
+                        setQueryResult({ error: error});
                     }
                 }
             });
@@ -1626,7 +1640,9 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         apiFunction(name, table, validRecord, limit)
             .then((result) => {
                 if (result.error) {
-                    setPopupMessage(`Error fetching data: ${result.message}`);
+                    // setPopupMessage();
+                    setViewMode('output');
+                    setQueryResult({ error:`Error fetching data: ${result.message}`});
                 } else {
                     try {
                         const parsedData = result.map((item) =>
@@ -1648,8 +1664,10 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 }
             })
             .catch((error) => {
-                console.error('Error fetching data:', error);
-                setPopupMessage(`Failed to fetch data: ${error.message}`);
+                // console.error('Error fetching data:', error);
+                // setPopupMessage(`Failed to fetch data: ${error.message}`);
+                setViewMode('output');
+                setQueryResult({ error:`Failed to fetch data: ${error.message}`});
             })
             .finally(() => {
                 setLoading(false);
@@ -1786,13 +1804,17 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
 
             if (response.error) {
                 // console.log(response.message)
-                setPopupMessage(`Failed to compile USL: ${response.message}`);
+                // setPopupMessage(`Failed to compile USL: ${response.message}`);
+                setViewMode('output');
+                setQueryResult({ error:`Failed to compile USL: ${response.message}`});
             } else {
                 // setPopupMessage('USL compiled successfully');
                 return response;
             }
         } catch (error) {
-            setPopupMessage(`Error in compileUSL:, ${error}`);
+            // setPopupMessage(`Error in compileUSL:, ${error}`);
+            setViewMode('output');
+            setQueryResult({ error: `Error in compileUSL:, ${error}`});
         }
     };
 
