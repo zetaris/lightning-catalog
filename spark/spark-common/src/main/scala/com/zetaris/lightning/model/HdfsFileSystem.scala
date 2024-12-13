@@ -39,9 +39,15 @@ object HdfsFileSystem {
       path
     }
 
-    val index = withProtocol.lastIndexOf("/")
-    if (index > 0) {
-      (withProtocol.substring(0, index + 1), withProtocol.substring(index + 1))
+    val index = withProtocol.indexOf("://")
+    if (index < 0) {
+      throw new RuntimeException(s"wrong path : $withProtocol")
+    }
+
+    val parentIndex = withProtocol.indexOf("/", index + 3)
+
+    if (parentIndex > 0) {
+      (withProtocol.substring(0, parentIndex + 1), withProtocol.substring(parentIndex + 1))
     } else {
       (withProtocol, "")
     }
@@ -62,6 +68,8 @@ class HdfsFileSystem(properties: Map[String, String], rootUrl: String) {
     try {
       val targetPath = new Path(rootUrl, folderPath)
       fs.exists(targetPath)
+    } catch {
+      case _: Throwable => false
     } finally {
       fs.close()
     }
@@ -99,7 +107,7 @@ class HdfsFileSystem(properties: Map[String, String], rootUrl: String) {
       val targetPath = new Path(rootUrl, parent)
       fs.listStatus(targetPath).filter(_.isDirectory).map(_.getPath.getName)
     } catch {
-      case _: FileNotFoundException => Seq.empty[String]
+      case _: Throwable => Seq.empty[String]
     } finally {
       fs.close()
     }
@@ -116,7 +124,7 @@ class HdfsFileSystem(properties: Map[String, String], rootUrl: String) {
       val targetPath = new Path(rootUrl, parent)
       fs.listStatus(targetPath).filter(_.isFile).map(_.getPath.getName)
     } catch {
-      case _: FileNotFoundException => Seq.empty[String]
+      case _: Throwable => Seq.empty[String]
     } finally  {
       fs.close()
     }

@@ -35,7 +35,6 @@ It leverages Apache Spark as the primary compute engine.
 
 ## Online Documentation
 
-* The latest documentation is available on the [project web page](https://www.zetaris.com/lightning-opensource).
 * GitHub online [documentation](https://github.com/zetaris/lightning-catalog/tree/master/doc/doc).
 
 ## Collaboration

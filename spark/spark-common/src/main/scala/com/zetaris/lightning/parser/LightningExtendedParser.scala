@@ -227,7 +227,7 @@ class LightningExtendedParser(delegate: ParserInterface) extends ParserInterface
       val parsedPlan = delegate.parsePlan(sqlText)
       parsedPlan match {
         // Support UPDATE statement for unstructure data tag
-        case UpdateTable(UnresolvedLightningTable(aliasedTable), assignments, condition) => ???
+        //case UpdateTable(UnresolvedLightningTable(aliasedTable), assignments, condition) => ???
         case other => other
       }
 
