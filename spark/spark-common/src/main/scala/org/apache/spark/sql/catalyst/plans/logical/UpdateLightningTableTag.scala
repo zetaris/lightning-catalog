@@ -21,14 +21,32 @@
 
 package org.apache.spark.sql.catalyst.plans.logical
 
-import org.apache.spark.sql.catalyst.analysis.AssignmentUtils
-import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.catalyst.expressions.{Attribute, Expression}
+import org.apache.spark.sql.catalyst.util.CharVarcharUtils
+import org.apache.spark.sql.types.DataType
 
 case class UpdateLightningTableTag(table: LogicalPlan,
                               assignments: Seq[Assignment],
                               condition: Option[Expression],
                               rewritePlan: Option[LogicalPlan] = None) extends Command with SupportsSubquery {
-  lazy val aligned: Boolean = AssignmentUtils.aligned(table.output, assignments)
+  def aligned(attrs: Seq[Attribute], assignments: Seq[Assignment]): Boolean = {
+    if (attrs.size != assignments.size) {
+      return false
+    }
+
+    attrs.zip(assignments).forall { case (attr, assignment) =>
+      val attrType = CharVarcharUtils.getRawType(attr.metadata).getOrElse(attr.dataType)
+      val isMatchingAssignment = assignment.key match {
+        case key: Attribute if conf.resolver(key.name, attr.name) => true
+        case _ => false
+      }
+      isMatchingAssignment &&
+        DataType.equalsIgnoreCompatibleNullability(assignment.value.dataType, attrType) &&
+        (attr.nullable || !assignment.value.nullable)
+    }
+  }
+
+  lazy val aligned: Boolean = aligned(table.output, assignments)
 
   override def children: Seq[LogicalPlan] = if (rewritePlan.isDefined) {
     table :: rewritePlan.get :: Nil
