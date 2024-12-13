@@ -295,6 +295,8 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 );
               }
 
+              console.log(icons)
+
               return {
                 // name: column.name,
                 name: (
@@ -502,7 +504,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   };
 
   const drawUSL = async (node) => {
-    setIsLoading(true);
+    sessionStorage.setItem('selectedTab', 'semanticLayer');
     const fullPath = node.fullPath;
     const dbname = fullPath.split('.').pop();
     const path = fullPath.split('.').slice(0, -1).join('.');
@@ -515,12 +517,11 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
       setSelectedUSL(uslData.name)
       localStorage.setItem(dbname, JSON.stringify(uslData));
-      updateTreeViewAndActivateButtons(uslData);
+      // updateTreeViewAndActivateButtons(uslData);
 
       setUslNamebyClick(result);
+      setIsLoading(true);
       setView('semanticLayer');
-      sessionStorage.setItem('selectedTab', 'semanticLayer');
-
       setHasTableChild(true);
     } catch (error) {
       console.error('Error fetching USL file content:', error);
@@ -590,6 +591,10 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   };
 
   const handleMinusClick = async (event, node) => {
+    if(node.name === 'lightning.datasource' || node.name === 'lightning.metastore'){
+      node.fullPath = node.name;
+    }
+
     event.stopPropagation();
 
     const query = `DROP NAMESPACE ${node.fullPath}`;
@@ -621,6 +626,10 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   };
 
   const handleInputKeyDown = async (event, node) => {
+    if(node.name === 'lightning.datasource' || node.name === 'lightning.metastore'){
+      node.fullPath = node.name;
+    }
+
     if (event.key === 'Escape') {
       setActiveInputNode(null);
     } else if (event.key === 'Enter') {
@@ -715,7 +724,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 </button>
               )}
 
-              {node.type === 'namespace' && (
+              {(node.type === 'namespace' || node.name === 'lightning.datasource' || node.name === 'lightning.metastore') && (
                 <div style={{ marginLeft: '10px', display: 'flex', alignItems: 'center' }}>
                   <PlusIcon
                     onClick={(event) => handlePlusClick(event, node)}
@@ -793,8 +802,8 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
         }}
       >
         {({ position, separatorProps }) => (
-          <div className="guideline" style={{ display: 'flex', flexDirection: 'column', overflowY: 'auto' }}>
-            <div style={{ height: `${position - reSizingOffset}px`, overflowY: 'auto', padding: '0 30px', paddingTop: '20px' }}>
+          <div className="guideline" style={{ display: 'flex', flexDirection: 'column', overflowY: 'hidden', height: '100%' }}>
+            <div style={{ height: `${position}px`, overflowY: 'auto', padding: '0 30px', paddingTop: '20px' }}>
               {/* Data Sources Tree */}
               <div className="nav-tab bold-text">Data Sources</div>
               <SimpleTreeView className="tree-view"
@@ -832,7 +841,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
               />
             </div>
 
-            <div style={{ flexGrow: 1, overflowY: 'auto', paddingRight: '30px', paddingLeft: '30px', paddingBottom: '50px' }}>
+            <div style={{ flexGrow: 1, overflowY: 'auto', paddingRight: '30px', paddingLeft: '30px', paddingBottom: '50px', height: `calc(100% - ${position}px + 30px)`, }}>
               {/* Semantic Layer Tree */}
               <div className="nav-tab bold-text" style={{ display: 'flex', alignItems: 'center' }}>
                 Semantic Layer

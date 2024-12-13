@@ -20,11 +20,9 @@ const ActivatePopup = ({ onClose, onSubmit, table }) => {
         const matchedTable = savedTableData.find((t) => t.name === table.name);
 
         if (matchedTable && matchedTable.activateQuery) {
-            console.log("Matched table activateQuery:", matchedTable.activateQuery);
             setDataSource(matchedTable.activateQuery);
         } else if (table.activateQuery) {
             try {
-                console.log("Table activateQuery:", table.activateQuery);
                 const parsed = JSON.parse(table.activateQuery);
                 setDataSource(parsed.query || table.activateQuery);
             } catch (error) {

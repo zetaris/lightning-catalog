@@ -1,4 +1,4 @@
-import { fetchColumns, fetchTablesOrNamespaces, extractFromToWhere, extractSelectFromToWhere, analyzingFrom, tableAliases, getContext, initSuggestions } from './editorConfig';
+import { fetchColumns, fetchTablesOrNamespaces, extractFromToWhere, extractSelectFromToWhere, analyzingFrom, tableAliases, getContext, initSuggestions, currentSuggestions as globalCurrentSuggestions } from './editorConfig';
 import sqlKeywords from '../../utils/sql_keywords.json';
 
 
@@ -7,24 +7,30 @@ export class StateMachine {
         this.currentState = 'INITIAL';
         this.currentSuggestions = [];
         this.tableAliases = {};
+        this.onlyShowSuggestions = false;
     }
 
     async transition(event, context) {
 
         switch (event.type) {
             case 'CLAUSE_CHANGED':
-                this.handleClauseChanged(context);
+                this.onlyShowSuggestions = false;
+                this.handleClauseChanged(context); 
                 break;
             case 'DOT_TYPED':
-                await this.handleDotTyped(context);
+                this.onlyShowSuggestions = true;
+                await this.handleDotTyped(context); 
                 break;
             case 'SPACE_TYPED':
+                this.onlyShowSuggestions = true;
                 await this.handleSpaceTyped(context);
                 break;
             case 'BRACKET_TYPED':
+                this.onlyShowSuggestions = true;
                 await this.handleBracketTyped(context);
                 break;
             case 'CHAR_TYPED':
+                this.onlyShowSuggestions = false;
                 await this.handleCharTyped(context);
                 break;
             default:
@@ -106,25 +112,21 @@ export class StateMachine {
     }
 
     async handleCharTyped(context) {
-    
-        if (!context.tableAlias && !context.tablePath) {
+
+        if (!context.tableAlias && !context.tablePath && context.type !== "LIGHTNING") {
             this.currentSuggestions = [];
             initSuggestions();
         }
-    
+
         const newContext = getContext(context.editor);
-    
         const userInput = newContext.beforeCursor.trim().split(/\s+/).pop().toLowerCase();
-    
-        const isKeywordAlreadySuggested = this.currentSuggestions.some((suggestion) =>
+
+        const isKeywordAlreadySuggested = Array.isArray(this.currentSuggestions) && this.currentSuggestions.some((suggestion) =>
             suggestion.toLowerCase().startsWith(userInput)
         );
-    
-        if (isKeywordAlreadySuggested) {
-            // console.log(`Skipping server call for input: ${userInput}`);
-            return;
-        }
-    
+
+        if (isKeywordAlreadySuggested) { return; }
+
         if ((this.currentState === 'SELECT' || this.currentState === 'WHERE') && (newContext.tableAlias || newContext.tablePath)) {
             const queryPath = newContext.tableAlias
                 ? (tableAliases[newContext.tableAlias] || newContext.tableAlias)
@@ -133,24 +135,28 @@ export class StateMachine {
                 await this.fetchColumnsForContext({ tablePath: queryPath });
             }
         }
-    
-        const matchedSuggestions = this.currentSuggestions.filter((suggestion) =>
+
+        const matchedSuggestions = Array.isArray(this.currentSuggestions) && this.currentSuggestions.filter((suggestion) =>
             suggestion.toLowerCase().startsWith(userInput)
         );
-
+      
         if (matchedSuggestions.length === 0) {
-            initSuggestions();
-            const { keywords, lightning, dataTypes, builtIn } = sqlKeywords;
-            this.currentSuggestions = [
-                ...this.currentSuggestions,
-                ...keywords,
-                ...lightning,
-                ...dataTypes,
-                ...builtIn,
-            ];
-            context.editor.execCommand('startAutocomplete');
+          context.editor.execCommand('startAutocomplete');
         }
-    }    
+
+        // if (matchedSuggestions.length === 0) {
+        //     initSuggestions();
+        //     const { keywords, lightning, dataTypes, builtIn } = sqlKeywords;
+        //     this.currentSuggestions = [
+        //         ...this.currentSuggestions,
+        //         ...keywords,
+        //         ...lightning,
+        //         ...dataTypes,
+        //         ...builtIn,
+        //     ];
+        //     context.editor.execCommand('startAutocomplete');
+        // }
+    }
 
     async fetchColumnsForContext(context) {
         const queryPath = context.tableAlias || context.tablePath;

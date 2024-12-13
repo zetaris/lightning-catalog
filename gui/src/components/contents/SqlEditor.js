@@ -222,14 +222,16 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
 
                 if (result?.error) {
                     // setPopupMessage(`Error executing query: "${query}". Error: ${result.message}`);
-                    addPopupMessage(`Error executing query: "${query}". Error: ${result.message}`);
+                    dispatch(setQueryResult(`Error executing query: "${query}". Error: ${result.message}`));
+                    // addPopupMessage(`Error executing query: "${query}". Error: ${result.message}`);
                 } else {
                     const parsedResult = expandDuplicateKeys(result);
                     dispatch(setQueryResult(parsedResult));
                 }
             } catch (error) {
                 // setPopupMessage(`Unexpected error executing query: "${query}". Error: ${error.message}`);
-                addPopupMessage(`Unexpected error executing query: "${query}". Error: ${error.message}`);
+                // addPopupMessage(`Unexpected error executing query: "${query}". Error: ${error.message}`);
+                dispatch(setQueryResult(`Unexpected error executing query: "${query}". Error: ${error.message}`));
             }
         }
 

@@ -200,21 +200,83 @@ const removeConnectionFromLocalStorage = (sourceId, targetId) => {
   }
 };
 
+// export function getRowInfo(sourceId, targetId) {
+//   const sourceTableId = sourceId.split('-col-')[0];
+//   const targetTableId = targetId.split('-col-')[0];
+//   const sourceColumnIndex = sourceId.match(/-col-(\d+)-/)[1];
+//   const targetColumnIndex = targetId.match(/-col-(\d+)-/)[1];
+
+//   const sourceTable = document.getElementById(sourceTableId);
+//   const targetTable = document.getElementById(targetTableId);
+
+//   const sourceColumn = sourceTable.querySelectorAll('tr')[sourceColumnIndex];
+//   const targetColumn = targetTable.querySelectorAll('tr')[targetColumnIndex];
+
+//   if (!sourceColumn || !targetColumn) {
+//     console.error('Source or target column not found:', sourceId, targetId);
+//     return {};
+//   }
+
+//   // Return as an object
+//   return { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn };
+// }
+
 export function getRowInfo(sourceId, targetId) {
-  const sourceTableId = sourceId.split('-col-')[0];
-  const targetTableId = targetId.split('-col-')[0];
-  const sourceColumnIndex = sourceId.match(/-col-(\d+)-/)[1];
-  const targetColumnIndex = targetId.match(/-col-(\d+)-/)[1];
+  try {
+    const sourceTableId = sourceId.split('-col-')[0];
+    const targetTableId = targetId.split('-col-')[0];
 
-  const sourceTable = document.getElementById(sourceTableId);
-  const targetTable = document.getElementById(targetTableId);
+    const sourceColumnMatch = sourceId.match(/-col-(\d+)-/);
+    const targetColumnMatch = targetId.match(/-col-(\d+)-/);
 
-  const sourceColumn = sourceTable.querySelectorAll('tr')[sourceColumnIndex];
-  const targetColumn = targetTable.querySelectorAll('tr')[targetColumnIndex];
+    if (!sourceColumnMatch || !targetColumnMatch) {
+      // console.error('Invalid sourceId or targetId format:', sourceId, targetId);
+      return {};
+    }
 
-  // Return as an object
-  return { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn };
+    const sourceColumnIndex = parseInt(sourceColumnMatch[1], 10);
+    const targetColumnIndex = parseInt(targetColumnMatch[1], 10);
+
+    const sourceTable = document.getElementById(sourceTableId);
+    const targetTable = document.getElementById(targetTableId);
+
+    if (!sourceTable || !targetTable) {
+      // console.error('Source or target table not found:', sourceTableId, targetTableId);
+      return {};
+    }
+
+    const sourceColumns = sourceTable.querySelectorAll('tr');
+    const targetColumns = targetTable.querySelectorAll('tr');
+
+    if (
+      sourceColumnIndex >= sourceColumns.length ||
+      targetColumnIndex >= targetColumns.length
+    ) {
+      // console.error(
+      //   'Invalid column index:',
+      //   { sourceColumnIndex, targetColumnIndex },
+      //   'Max indices:',
+      //   { source: sourceColumns.length - 1, target: targetColumns.length - 1 }
+      // );
+      return {};
+    }
+
+    const sourceColumn = sourceColumns[sourceColumnIndex];
+    const targetColumn = targetColumns[targetColumnIndex];
+
+    if (!sourceColumn || !targetColumn) {
+      // console.error('Source or target column not found:', sourceId, targetId);
+      return {};
+    }
+
+    // Return as an object
+    return { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn };
+  } catch (error) {
+    // console.error('Error in getRowInfo:', error);
+    return {};
+  }
 }
+
 
 export function getColumnConstraint(fullPath) {
   const tablePath = fullPath.split('.').slice(0, -1).join('.');
@@ -470,6 +532,16 @@ export function addForeignKeyIconToColumn(columnElement, combinedTooltipData, to
 
 export const connectEndpoints = (jsPlumbInstance, sourceId, targetId, relationship, relationship_type = 'many_to_many', isSaveConnection = true) => {
   const { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn } = getRowInfo(sourceId, targetId);
+
+  if (!sourceColumn || !sourceColumn.children || sourceColumn.children.length === 0) {
+    // console.error("Source column children not found or invalid:", sourceColumn);
+    return;
+  }
+
+  if (!targetColumn || !targetColumn.children || targetColumn.children.length === 0) {
+    // console.error("Target column children not found or invalid:", targetColumn);
+    return;
+  }
 
   const sourceColumnClass = sourceColumn.children[0].classList[0];
   const targetColumnClass = targetColumn.children[0].classList[0];
@@ -1118,26 +1190,26 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
 
 const removeTable = async (tableId, jsPlumbInstance) => {
   const confirmed = await showConfirmationPopup("Are you sure you want to delete this table?");
-  
+
   if (!confirmed) {
-      return; // Exit if user canceled
+    return; // Exit if user canceled
   }
 
   // Remove the connections and endpoints related to this table
   if (jsPlumbInstance) {
-      const endpoints = jsPlumbInstance.getEndpoints(tableId);
-      if (endpoints) {
-          endpoints.forEach(endpoint => {
-              jsPlumbInstance.deleteEndpoint(endpoint);
-          });
-      }
-      jsPlumbInstance.remove(tableId);
+    const endpoints = jsPlumbInstance.getEndpoints(tableId);
+    if (endpoints) {
+      endpoints.forEach(endpoint => {
+        jsPlumbInstance.deleteEndpoint(endpoint);
+      });
+    }
+    jsPlumbInstance.remove(tableId);
   }
 
   // Remove the element from the DOM
   const tableElement = document.getElementById(tableId);
   if (tableElement) {
-      tableElement.remove();
+    tableElement.remove();
   }
 
   // Remove table and its connections from localStorage
@@ -1220,7 +1292,7 @@ export const getOptimalEndpointPosition = (sourceId, targetId) => {
       targetId: optimalEndpoints.targetId
     };
   } else {
-    console.error("Unable to retrieve bounding box for one or more endpoint elements.");
+    // console.error("Unable to retrieve bounding box for one or more endpoint elements.");
     return { sourceId, targetId };
   }
 };
@@ -1279,31 +1351,74 @@ const makeTableDraggable = (tableElement, jsPlumbInstance, container) => {
   }
 };
 
+// const addEndpoint = (jsPlumbInstance, elementId, anchorPosition, config = {}) => {
+//   const endpoint = jsPlumbInstance.addEndpoint(elementId, {
+//     anchor: anchorPosition,
+//     isSource: true,
+//     isTarget: true,
+//     maxConnections: -1,
+//     endpoint: ['Dot', { radius: 6 }],
+//     paintStyle: { fill: 'gray', radius: 6 },
+//     hoverPaintStyle: { fill: 'red', radius: 8 },
+//     ...config,
+//   });
+
+//   const endpointCanvas = endpoint.canvas || endpoint.endpoint.canvas;
+//   if (endpointCanvas) {
+//     endpointCanvas.style.cursor = 'default';
+
+//     endpointCanvas.addEventListener('mouseenter', () => {
+//       endpoint.setPaintStyle({ fill: 'red', radius: 8 });
+//       endpointCanvas.style.cursor = 'pointer';
+//     });
+
+//     endpointCanvas.addEventListener('mouseleave', () => {
+//       endpoint.setPaintStyle({ fill: 'gray', radius: 6 });
+//       endpointCanvas.style.cursor = 'default';
+//     });
+//   }
+// };
+
 const addEndpoint = (jsPlumbInstance, elementId, anchorPosition, config = {}) => {
-  const endpoint = jsPlumbInstance.addEndpoint(elementId, {
-    anchor: anchorPosition,
-    isSource: true,
-    isTarget: true,
-    maxConnections: -1,
-    endpoint: ['Dot', { radius: 6 }],
-    paintStyle: { fill: 'gray', radius: 6 },
-    hoverPaintStyle: { fill: 'red', radius: 8 },
-    ...config,
-  });
+  try {
+    const element = document.getElementById(elementId);
+    if (!element) {
+      // console.error('Element not found for addEndpoint:', elementId);
+      return null;
+    }
 
-  const endpointCanvas = endpoint.canvas || endpoint.endpoint.canvas;
-  if (endpointCanvas) {
-    endpointCanvas.style.cursor = 'default';
-
-    endpointCanvas.addEventListener('mouseenter', () => {
-      endpoint.setPaintStyle({ fill: 'red', radius: 8 });
-      endpointCanvas.style.cursor = 'pointer';
+    const endpoint = jsPlumbInstance.addEndpoint(elementId, {
+      anchor: anchorPosition,
+      isSource: true,
+      isTarget: true,
+      maxConnections: -1,
+      endpoint: ['Dot', { radius: 6 }],
+      paintStyle: { fill: 'gray', radius: 6 },
+      hoverPaintStyle: { fill: 'red', radius: 8 },
+      ...config,
     });
 
-    endpointCanvas.addEventListener('mouseleave', () => {
-      endpoint.setPaintStyle({ fill: 'gray', radius: 6 });
+    const endpointCanvas = endpoint.canvas || endpoint.endpoint?.canvas;
+    if (endpointCanvas) {
       endpointCanvas.style.cursor = 'default';
-    });
+
+      endpointCanvas.addEventListener('mouseenter', () => {
+        endpoint.setPaintStyle({ fill: 'red', radius: 8 });
+        endpointCanvas.style.cursor = 'pointer';
+      });
+
+      endpointCanvas.addEventListener('mouseleave', () => {
+        endpoint.setPaintStyle({ fill: 'gray', radius: 6 });
+        endpointCanvas.style.cursor = 'default';
+      });
+    } else {
+      // console.warn('Endpoint canvas not found for element:', elementId);
+    }
+
+    return endpoint;
+  } catch (error) {
+    // console.error('Error in addEndpoint:', error);
+    return null;
   }
 };
 
@@ -1422,9 +1537,9 @@ const adjustOffsetForZoom = (container, scaleFactor, setOffset) => {
 
 const showConfirmationPopup = (message) => {
   return new Promise((resolve) => {
-      const popup = document.createElement('div');
-      popup.className = 'popup-overlay';
-      popup.innerHTML = `
+    const popup = document.createElement('div');
+    popup.className = 'popup-overlay';
+    popup.innerHTML = `
           <div class="popup">
               <p class="semibold-text">${message}</p>
               <div class="popup-buttons">
@@ -1434,22 +1549,22 @@ const showConfirmationPopup = (message) => {
           </div>
       `;
 
-      document.body.appendChild(popup);
+    document.body.appendChild(popup);
 
-      // Style for buttons container
-      const popupButtons = popup.querySelector('.popup-buttons');
-      popupButtons.style.display = 'flex';
-      popupButtons.style.justifyContent = 'flex-end';
-      popupButtons.style.gap = '10px'; // Adds spacing between buttons
+    // Style for buttons container
+    const popupButtons = popup.querySelector('.popup-buttons');
+    popupButtons.style.display = 'flex';
+    popupButtons.style.justifyContent = 'flex-end';
+    popupButtons.style.gap = '10px'; // Adds spacing between buttons
 
-      popup.querySelector('#confirm-btn').onclick = () => {
-          resolve(true); // User confirmed
-          document.body.removeChild(popup);
-      };
+    popup.querySelector('#confirm-btn').onclick = () => {
+      resolve(true); // User confirmed
+      document.body.removeChild(popup);
+    };
 
-      popup.querySelector('#cancel-btn').onclick = () => {
-          resolve(false); // User canceled
-          document.body.removeChild(popup);
-      };
+    popup.querySelector('#cancel-btn').onclick = () => {
+      resolve(false); // User canceled
+      document.body.removeChild(popup);
+    };
   });
 };
