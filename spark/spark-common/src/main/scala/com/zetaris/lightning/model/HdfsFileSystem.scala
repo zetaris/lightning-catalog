@@ -68,6 +68,8 @@ class HdfsFileSystem(properties: Map[String, String], rootUrl: String) {
     try {
       val targetPath = new Path(rootUrl, folderPath)
       fs.exists(targetPath)
+    } catch {
+      case _: Throwable => false
     } finally {
       fs.close()
     }
