@@ -10,7 +10,7 @@ import { queryBookContents, queryBookColumns } from '../configs/editorConfig';
 import { useDispatch, useSelector } from 'react-redux';
 import { setQueryResult, addQueryToHistory } from '../../store/querySlice';
 
-function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
+function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading, navErrorMsg }) {
     const dispatch = useDispatch();
     const queryResult = useSelector((state) => state.query.queryResult);
     const queryHistory = useSelector((state) => state.query.queryHistory);
@@ -55,6 +55,12 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
     useEffect(() => {
         isMouseLoading ? document.body.style.cursor = "wait" : document.body.style.cursor = "default";
     }, [isMouseLoading])
+
+    useEffect(() => {
+        if(sessionStorage.getItem('selectedTab')==='sqlEditor'){
+            setQueryResult({ error: navErrorMsg })
+        }
+    }, [navErrorMsg])
 
     useEffect(() => {
         const storedEditors = localStorage.getItem('editors');
@@ -222,7 +228,7 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
 
                 if (result?.error) {
                     // setPopupMessage(`Error executing query: "${query}". Error: ${result.message}`);
-                    dispatch(setQueryResult(`Error executing query: "${query}". Error: ${result.message}`));
+                    dispatch(setQueryResult({ error: result.message }));
                     // addPopupMessage(`Error executing query: "${query}". Error: ${result.message}`);
                 } else {
                     const parsedResult = expandDuplicateKeys(result);
@@ -231,7 +237,7 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
             } catch (error) {
                 // setPopupMessage(`Unexpected error executing query: "${query}". Error: ${error.message}`);
                 // addPopupMessage(`Unexpected error executing query: "${query}". Error: ${error.message}`);
-                dispatch(setQueryResult(`Unexpected error executing query: "${query}". Error: ${error.message}`));
+                dispatch(setQueryResult({ error: error.message }));
             }
         }
 
@@ -319,8 +325,6 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
 
         if (!queryResult) return <div>No result available</div>;
         if (queryResult.error) return <div>Error: {queryResult.error}</div>;
-
-        console.log(queryResult)
 
         return <RenderTableForApi data={queryResult} />;
     };
@@ -428,7 +432,7 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading }) {
         if (response.error) {
             console.error("Failed to save SQL:", response.message);
         } else {
-            console.log("SQL saved successfully:", response.message);
+            // console.log("SQL saved successfully:", response.message);
             // setPopupMessage("The file has been successfully saved in the env/ligt-model folder.");
         }
     };
