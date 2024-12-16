@@ -277,9 +277,10 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   };
 
   const renderTreeFromUSL = (uslData) => {
-    const { namespace, name, tables } = uslData;
+    const { namespace, name, tables, subUsl = [] } = uslData;
 
-    const treeItems = tables.map((table) => ({
+    // Process tables
+    const tableItems = tables.map((table) => ({
       name: table.name,
       fullPath: `${namespace.join('.')}.${name}.${table.name}`,
       type: 'table',
@@ -296,7 +297,15 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       })),
     }));
 
-    return treeItems;
+    // Process sub-USLs
+    const subUslItems = subUsl.map((subUslItem) => ({
+      name: subUslItem.name,
+      fullPath: `${namespace.join('.')}.${name}.${subUslItem.name}`,
+      type: 'usl',
+      children: renderTreeFromUSL(subUslItem),
+    }));
+
+    return [...tableItems, ...subUslItems];
   };
 
   const handleTreeItemClick = async (node) => {
@@ -339,55 +348,57 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
           storedData = JSON.parse(localStorage.getItem(uslName));
         }
 
-        if (storedData?.name === uslName && uslName) {
-          const table = storedData.tables.find((tbl) => tbl.name === node.name);
-          if (table) {
-            const tableChildren = table.columnSpecs.map((column) => {
-              const icons = [];
-              if (column.primaryKey) {
-                icons.push(
-                  <PkIcon key={`pk-${column.name}`} style={{ width: '16px', height: '16px', marginLeft: '4px' }} />
-                );
-              }
-              if (column.foreignKey) {
-                icons.push(
-                  <LinkIcon key={`fk-${column.name}`} style={{ width: '16px', height: '16px', marginLeft: '4px' }} />
-                );
-              }
-              if (column.notNull) {
-                icons.push(
-                  <NNIcon key={`nn-${column.name}`} style={{ width: '16px', height: '16px', marginLeft: '4px' }} />
-                );
-              }
+        if (storedData?.name === uslName) {
+          // Process tables in the current USL
+          const semanticLayerChildren = storedData.tables.map((table) => ({
+            name: table.name,
+            fullPath: `${storedData.namespace.join('.')}.${storedData.name}.${table.name}`,
+            type: 'table',
+            activateQuery: table.activateQuery,
+            children: table.columnSpecs.map((column) => ({
+              name: column.name,
+              fullPath: `${storedData.namespace.join('.')}.${storedData.name}.${table.name}.${column.name}`,
+              type: 'column',
+              dataTypeElement: (
+                <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
+                  ({column.dataType.replace(/"/g, '')})
+                </span>
+              ),
+            })),
+          }));
 
-              return {
-                // name: column.name,
-                name: (
-                  <span style={{ display: 'flex', alignItems: 'center' }}>
-                    <span style={{ marginRight: '8px', fill: '#888', display: 'flex', alignItems: 'center' }}>{icons}</span>
-                    <span>{column.name}</span>
-                  </span>
-                ),
-                fullPath: `${node.fullPath}.${column.name}`,
+          // Process sub-USLs
+          const subUslChildren = storedData.subUsl?.map((subUsl) => ({
+            name: subUsl.name,
+            fullPath: `${storedData.namespace.join('.')}.${storedData.name}.${subUsl.name}`,
+            type: 'usl',
+            children: subUsl.tables.map((table) => ({
+              name: table.name,
+              fullPath: `${subUsl.namespace.join('.')}.${subUsl.name}.${table.name}`,
+              type: 'table',
+              activateQuery: table.activateQuery,
+              children: table.columnSpecs.map((column) => ({
+                name: column.name,
+                fullPath: `${subUsl.namespace.join('.')}.${subUsl.name}.${table.name}.${column.name}`,
                 type: 'column',
                 dataTypeElement: (
-                  <span style={{ display: 'flex', alignItems: 'center', marginLeft: '10px' }}>
-                    <span style={{ fontSize: '0.8em', color: '#888' }}>
-                      ({column.dataType.replace(/"/g, '')})
-                    </span>
+                  <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
+                    ({column.dataType.replace(/"/g, '')})
                   </span>
                 ),
-              };
-            });
+              })),
+            })),
+          })) || [];
 
-            node.children = tableChildren;
+          // Combine tables and sub-USLs into children
+          const combinedChildren = [...semanticLayerChildren, ...subUslChildren];
 
-            setSemanticLayerFiles((prevData) =>
-              updateNodeChildren(prevData, node.name, tableChildren)
-            );
+          // Update tree
+          setSemanticLayerFiles((prevData) =>
+            updateNodeChildren(prevData, node.name, combinedChildren)
+          );
 
-            return;
-          }
+          return;
         }
 
         // if (node.fullPath.toLowerCase().includes('metastore') && hasTableChild && node.type !== 'table') {
@@ -436,7 +447,6 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
         if (storedData && node.fullPath.toLowerCase().includes('metastore')) {
 
           if (storedData) {
-            // console.log(`Loading ${node.name} data from localStorage.`);
             const uslData = JSON.parse(storedData);
 
             const semanticLayerChildren = uslData.tables.map((table) => ({
@@ -482,7 +492,31 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
               }),
             }));
 
-            setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, semanticLayerChildren));
+            const subUslChildren = uslData.subUsl?.map((subUsl) => ({
+              name: subUsl.name,
+              fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${subUsl.name}`,
+              type: 'usl',
+              children: subUsl.tables.map((table) => ({
+                name: table.name,
+                fullPath: `${subUsl.namespace.join('.')}.${subUsl.name}.${table.name}`,
+                type: 'table',
+                activateQuery: table.activateQuery,
+                children: table.columnSpecs.map((column) => ({
+                  name: column.name,
+                  fullPath: `${subUsl.namespace.join('.')}.${subUsl.name}.${table.name}.${column.name}`,
+                  type: 'column',
+                  dataTypeElement: (
+                    <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
+                      ({column.dataType.replace(/"/g, '')})
+                    </span>
+                  ),
+                })),
+              })),
+            })) || [];
+
+            const combinedChildren = [...semanticLayerChildren, ...subUslChildren];
+
+            setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, combinedChildren));
 
             uslData.tables.forEach((table) => {
               if (table.activateQuery) {
@@ -493,7 +527,20 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 });
               }
             });
+
+            uslData.subUsl?.forEach((subUsl) => {
+              subUsl.tables.forEach((table) => {
+                if (table.activateQuery) {
+                  setPreviewableTables((prev) => {
+                    const newSet = new Set(prev);
+                    newSet.add(`${subUsl.namespace.join('.')}.${subUsl.name}.${table.name}`);
+                    return newSet;
+                  });
+                }
+              });
+            });
           }
+
         } else {
           let childNodes = await fetchChildNodes(node, node.fullPath?.toLowerCase().includes('metastore') || node.name?.toLowerCase().includes('metastore') || false);
 
@@ -504,7 +551,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       }
     } catch (error) {
       // setPopupMessage(`Failed to load Tree View. Please try again.`);
-      setNavErrorMsg(`Failed to load Tree View. Please try again.`);
+      // setNavErrorMsg(`Failed to load Tree View. Please try again.`);
     } finally {
       stopLoading(node.uniqueId);
     }
@@ -546,6 +593,31 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     });
   };
 
+  // const drawUSL = async (node) => {
+  //   sessionStorage.setItem('selectedTab', 'semanticLayer');
+  //   const fullPath = node.fullPath;
+  //   const dbname = fullPath.split('.').pop();
+  //   const path = fullPath.split('.').slice(0, -1).join('.');
+
+  //   let query = `LOAD USL ${dbname} NAMESPACE ${path}`;
+  //   try {
+  //     setIsLoading(true);
+  //     const result = await fetchApi(query);
+  //     const uslData = JSON.parse(JSON.parse(result).json);
+
+  //     setSelectedUSL(uslData.name)
+  //     localStorage.setItem(dbname, JSON.stringify(uslData));
+  //     // updateTreeViewAndActivateButtons(uslData);
+
+  //     setUslNamebyClick(result);
+  //     setIsLoading(true);
+  //     setView('semanticLayer');
+  //     setHasTableChild(true);
+  //   } catch (error) {
+  //     // console.error('Error fetching USL file content:', error);
+  //   }
+  // };
+
   const drawUSL = async (node) => {
     sessionStorage.setItem('selectedTab', 'semanticLayer');
     const fullPath = node.fullPath;
@@ -558,16 +630,46 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       const result = await fetchApi(query);
       const uslData = JSON.parse(JSON.parse(result).json);
 
-      setSelectedUSL(uslData.name)
+      const subNamespacesQuery = `SHOW NAMESPACES OR TABLES IN ${fullPath}`;
+      const namespacesResult = await fetchApi(subNamespacesQuery);
+
+      if (namespacesResult) {
+        const parsedNamespaces = namespacesResult.map((ns) => JSON.parse(ns));
+        const subUslNamespaces = parsedNamespaces.filter((ns) => ns.type === 'usl');
+
+        const uniqueNamespaces = Array.from(
+          new Map(
+            subUslNamespaces.map((ns) => [`${ns.name}-${ns.type}`, ns])
+          ).values()
+        );
+
+        const subUslData = [];
+        for (const subUsl of uniqueNamespaces) {
+          const subUslFullPath = `${fullPath}.${subUsl.name}`;
+          const subUslDbName = subUsl.name;
+          const subUslQuery = `LOAD USL ${subUslDbName} NAMESPACE ${fullPath}`;
+
+          try {
+            const subUslResult = await fetchApi(subUslQuery);
+            const parsedSubUsl = JSON.parse(JSON.parse(subUslResult).json);
+            subUslData.push(parsedSubUsl);
+          } catch (subError) {
+            console.error(`Failed to load sub USL: ${subUslFullPath}`, subError);
+          }
+        }
+
+        uslData.subUsl = subUslData;
+      }
+
+      setSelectedUSL(uslData.name);
       localStorage.setItem(dbname, JSON.stringify(uslData));
-      // updateTreeViewAndActivateButtons(uslData);
 
       setUslNamebyClick(result);
       setIsLoading(true);
       setView('semanticLayer');
       setHasTableChild(true);
     } catch (error) {
-      // console.error('Error fetching USL file content:', error);
+      console.error('Error fetching USL file content:', error);
     }
   };
 
