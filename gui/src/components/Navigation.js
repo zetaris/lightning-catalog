@@ -111,13 +111,9 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       return;
     }
     
-    let selectedUSLPath;
+    let selectedUSLPath = "lightning.mestatore.usldb";
     if (selectedTreeItem) {
       selectedUSLPath = selectedTreeItem.fullPath;
-  
-      if (!selectedUSLPath.startsWith('lightning.metastore')) {
-        selectedUSLPath = null;
-      }
     }
   
     onGenerateDDL(ddlName, ddlCode, selectedUSLPath);
@@ -132,13 +128,15 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       children: null,
       uniqueId: selectedUSLPath+"."+ddlName,
     };
-  
-    setSemanticLayerFiles((prevData) => {
-      const targetNodeName = selectedTreeItem ? selectedTreeItem.name : 'usldb';
-      return updateNodeChildren(prevData, targetNodeName, [newNode]);
-    });
-  
-    setExpandedNodeIds((prev) => [...new Set([...prev, newNode.uniqueId])]);
+
+    if(selectedTreeItem){
+      setSemanticLayerFiles((prevData) => {
+        const targetNodeName = selectedTreeItem.name;
+        return updateNodeChildren(prevData, targetNodeName, [newNode]);
+      });
+
+      setExpandedNodeIds((prev) => [...new Set([...prev, newNode.uniqueId])]);
+    }
   
     setShowPopup(false);
     setView('semanticLayer');
