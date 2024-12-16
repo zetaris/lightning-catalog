@@ -27,16 +27,16 @@ And then, Lighting Catalog can compile DDLs into JSON representation, deploy it 
 ![Load ERD](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/usl-main.png)
 
 ## Deploy(Activate) table
-![Load ERD](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/activate-table.png)
+![Deploy](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/activate-table.png)
 
 ## Run query over activated table
-![Load ERD](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/preview-table.png)
+![Running query](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/preview-table.png)
 
 ## Register Data Quality
-![Load ERD](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/register-dq.png)
+![Register DQ](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/register-dq.png)
 
 ## Run Data Quality
-![Load ERD](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/run-dq.png)
+![Run DQ](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/run-dq.png)
 
 ## Export Invalid(valid) records
-![Load ERD](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/export-invalid-records.png)
+![Export (in)valid records](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/export-invalid-records.png)

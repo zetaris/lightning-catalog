@@ -60,21 +60,23 @@ Json
 Avro
 ```
 
-## ver 0.2, December xx, 2024
+## ver 0.2, December 16, 2024
 ### Introduction:
 Welcome to the latest release of our software! Version 0.2 brings more features for data engineers, scientist and developers to run data catalog on top of Apache Spark.
 
 ### Key Highlights:
 Supporting new UI, more data sources, unified semantic layer, and data quality.
 
-### New Features:
+### Defects fix :
+* can't ingest data sources in azure blob
+
+### Improvements :
 * Run metastore over hdfs, blob storage(s3, azure blob)
-  
+
+### New Features:
 * New UI: UI allows to navigate data sources, running SQL, render ERD and run Data Quality check.
 
 * Unstructured Data source(pdf, image, video, text)
-
-* Combining unstructured data source with custom schema
 
 * Unified Semantic Layer
 
@@ -82,7 +84,7 @@ Supporting new UI, more data sources, unified semantic layer, and data quality.
 
 * Business Data Quality
 
-* added data sources:
+* new data sources:
 ```bash
 pdf
 image
