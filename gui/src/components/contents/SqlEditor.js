@@ -58,7 +58,7 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading, navErro
 
     useEffect(() => {
         if(sessionStorage.getItem('selectedTab')==='sqlEditor'){
-            setQueryResult({ error: navErrorMsg })
+            dispatch(setQueryResult({ error: navErrorMsg }));
         }
     }, [navErrorMsg])
 
@@ -260,6 +260,7 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading, navErro
     }, [runQuery]);
 
     const normalizeData = (data) => {
+
         const allKeys = new Set();
         data.forEach((row) => {
             Object.keys(row).forEach((key) => allKeys.add(key));
@@ -277,6 +278,12 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading, navErro
     };
 
     const RenderTableForApi = ({ data }) => {
+        if (!Array.isArray(data)) {
+            // console.log(data)
+            // console.error("Expected an array, but received:", data);
+            return [];
+        }
+        
         if (!data || data.length === 0) {
             return <div>No data available</div>;
         }
@@ -489,7 +496,7 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading, navErro
                                 <button className="btn-primary" onClick={() => setShowHistory(!showHistory)}>
                                     {showHistory ? 'Hide History' : 'Show History'}
                                 </button>
-                                <button className="btn-primary" onClick={openQueryBook}>Query Book</button>
+                                {/* <button className="btn-primary" onClick={openQueryBook}>Query Book</button> */}
                             </div>
                         </div>
                         <div className="seperator-content"></div>

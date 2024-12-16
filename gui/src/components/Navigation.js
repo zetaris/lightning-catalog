@@ -197,7 +197,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     }
 
     const result = await fetchApi(query);
-    if (!Array.isArray(result) || result.length === 0){
+    if (!Array.isArray(result) || result.length === 0) {
       return [];
     }
 
@@ -485,7 +485,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     }
   };
 
-  const fetchChildNodes = async (node, isMetastore=false) => {
+  const fetchChildNodes = async (node, isMetastore = false) => {
     const childNodes = await fetchDatasources(node.fullPath || node.name);
     if (isMetastore) {
       setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, childNodes));
@@ -645,12 +645,19 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
         return;
       }
 
+      const isValidNamespace = /^[a-zA-Z0-9_]+$/.test(namespaceName);
+      if (!isValidNamespace) {
+        setNavErrorMsg(`Namespace name can only contain letters, numbers, and underscores.`);
+        return;
+      }
+
       const query = `CREATE NAMESPACE ${node.fullPath}.${namespaceName}`;
 
       try {
         const response = await fetchApi(query);
         if (response.error) {
           // setPopupMessage(`Error creating namespace: ${response.message}`);
+          console.log(response.message)
           setNavErrorMsg(`Error creating namespace: ${response.message}`);
         } else {
           setInputValue('');

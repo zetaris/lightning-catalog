@@ -20,9 +20,9 @@ import ActivePopup from './components/ActivatePopup.js';
 
 function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIsLoading, previewTableName, isMouseLoading, navErrorMsg }) {
     useEffect(() => {
-        if(sessionStorage.getItem('selectedTab')==='semanticLayer'){
+        if (sessionStorage.getItem('selectedTab') === 'semanticLayer') {
             setViewMode('output');
-            setQueryResult({ error: navErrorMsg});
+            setQueryResult({ error: navErrorMsg });
         }
     }, [navErrorMsg])
 
@@ -104,6 +104,8 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
 
     const loadDQ = async () => {
         setCondition('');
+        setQueryResult('');
+
         const savedTables = JSON.parse(localStorage.getItem("savedTables"));
         const processedNamespaces = new Set();
         const dqResults = [];
@@ -217,7 +219,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         if (!selectedRowData || selectedRowData.length === 0) {
             // setPopupMessage("Please select DQ item to delete");
             setViewMode('output');
-            setQueryResult({ error:"Please select DQ item to delete"});
+            setQueryResult({ error: "Please select DQ item to delete" });
             return;
         }
 
@@ -256,7 +258,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             const errorMessages = failedToRemove.map(item => `${item.Name}: ${item.message}`).join("\n");
             // setPopupMessage(`Failed to delete the following DQ items : ${errorMessages}`);
             setViewMode('output');
-            setQueryResult({ error:`Failed to delete the following DQ items : ${errorMessages}`});
+            setQueryResult({ error: `Failed to delete the following DQ items : ${errorMessages}` });
         }
     };
 
@@ -329,7 +331,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         if (startIndex === -1 || endIndex === -1) {
             // setPopupMessage("Invalid query expression: Required keywords not found.");
             setViewMode('output');
-            setQueryResult({ error:"Invalid query expression: Required keywords not found."});
+            setQueryResult({ error: "Invalid query expression: Required keywords not found." });
             return;
         }
 
@@ -338,7 +340,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         if (queryIndex === -1) {
             // setPopupMessage("Invalid query expression: SELECT statement not found.");
             setViewMode('output');
-            setQueryResult({ error:"Invalid query expression: SELECT statement not found."});
+            setQueryResult({ error: "Invalid query expression: SELECT statement not found." });
             return;
         }
 
@@ -379,13 +381,13 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
             } else {
                 // setPopupMessage(result.message);
                 setViewMode('output');
-                setQueryResult({ error: result.message});
+                setQueryResult({ error: result.message });
                 updateActivatedTables(false);
             }
         } catch (error) {
             // setPopupMessage("Error : ", error);
             setViewMode('output');
-            setQueryResult({ error: error});
+            setQueryResult({ error: error });
             updateActivatedTables(false);
         }
 
@@ -502,7 +504,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                         if (Array.isArray(parsedResult) && parsedResult.length > 0) {
                             setQueryResult(<RenderTableForApi data={parsedResult} />);
                         } else {
-                            setQueryResult({ error:"There is no data to display."});
+                            setQueryResult({ error: "There is no data to display." });
                         }
                     }
                 } else {
@@ -1002,7 +1004,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         } catch (e) {
             // setPopupMessage();
             setViewMode('output');
-            setQueryResult({ error: `Invalid DDL JSON format: ${e}`});
+            setQueryResult({ error: `Invalid DDL JSON format: ${e}` });
             return null;
         }
 
@@ -1279,6 +1281,12 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
     };
 
     const RenderTableForApi = ({ data, outputTabInfo }) => {
+        if (!Array.isArray(data)) {
+            // console.log(data)
+            // console.error("Expected an array, but received:", data);
+            return [];
+        }
+
         if (!data || data.length === 0) {
             return <div>No data available</div>;
         }
@@ -1311,7 +1319,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                     } catch (error) {
                         // setPopupMessage();
                         setViewMode('output');
-                        setQueryResult({ error: error});
+                        setQueryResult({ error: error });
                     }
                 }
             });
@@ -1642,7 +1650,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 if (result.error) {
                     // setPopupMessage();
                     setViewMode('output');
-                    setQueryResult({ error:`Error fetching data: ${result.message}`});
+                    setQueryResult({ error: `Error fetching data: ${result.message}` });
                 } else {
                     try {
                         const parsedData = result.map((item) =>
@@ -1667,7 +1675,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 // console.error('Error fetching data:', error);
                 // setPopupMessage(`Failed to fetch data: ${error.message}`);
                 setViewMode('output');
-                setQueryResult({ error:`Failed to fetch data: ${error.message}`});
+                setQueryResult({ error: `Failed to fetch data: ${error.message}` });
             })
             .finally(() => {
                 setLoading(false);
@@ -1806,7 +1814,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 // console.log(response.message)
                 // setPopupMessage(`Failed to compile USL: ${response.message}`);
                 setViewMode('output');
-                setQueryResult({ error:`Failed to compile USL: ${response.message}`});
+                setQueryResult({ error: `Failed to compile USL: ${response.message}` });
             } else {
                 // setPopupMessage('USL compiled successfully');
                 return response;
@@ -1814,7 +1822,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         } catch (error) {
             // setPopupMessage(`Error in compileUSL:, ${error}`);
             setViewMode('output');
-            setQueryResult({ error: `Error in compileUSL:, ${error}`});
+            setQueryResult({ error: `Error in compileUSL:, ${error}` });
         }
     };
 
@@ -1862,6 +1870,20 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         setViewMode('output')
         setCondition('preview')
     }
+
+    const clickDQTab = () => {
+        setViewMode('dq');
+        if (navErrorMsg !== '') {
+            setQueryResult('');
+        }
+    };
+
+    const clickOutputTab = () => {
+        setViewMode('output')
+        if (navErrorMsg !== '') {
+            setQueryResult({ error: navErrorMsg });
+        }
+    };
 
     return (
         <Resizable
@@ -1947,13 +1969,15 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                         <div className="tabs">
                             <button
                                 className={`tab-button ${viewMode === 'dq' ? 'active' : ''}`}
-                                onClick={() => setViewMode('dq')}
+                                // onClick={() => setViewMode('dq')}
+                                onClick={() => clickDQTab()}
                             >
                                 Data Quality
                             </button>
                             <button
                                 className={`tab-button ${viewMode === 'output' ? 'active' : ''}`}
-                                onClick={() => setViewMode('output')}
+                                // onClick={() => setViewMode('output')}
+                                onClick={() => clickOutputTab()}
                             >
                                 Output
                             </button>
