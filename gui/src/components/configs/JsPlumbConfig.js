@@ -130,7 +130,15 @@ const saveConnectionToLocalStorage = (sourceId, targetId, relationship, relation
 
 const removeConnectionFromLocalStorage = (sourceId, targetId) => {
   let connections = JSON.parse(localStorage.getItem('connections')) || [];
-  connections = connections.filter((conn) => !(conn.sourceId === sourceId && conn.targetId === targetId));
+  connections = connections.filter((conn) => {
+    const normalizedSourceId = conn.sourceId.replace(/-(right|left)$/, '');
+    const normalizedTargetId = conn.targetId.replace(/-(right|left)$/, '');
+    const normalizedGivenSourceId = sourceId.replace(/-(right|left)$/, '');
+    const normalizedGivenTargetId = targetId.replace(/-(right|left)$/, '');
+
+    return !(normalizedSourceId === normalizedGivenSourceId && normalizedTargetId === normalizedGivenTargetId);
+  });
+
   localStorage.setItem('connections', JSON.stringify(connections));
 
   const savedTables = JSON.parse(localStorage.getItem('savedTables')) || [];
@@ -174,7 +182,8 @@ const removeConnectionFromLocalStorage = (sourceId, targetId) => {
       }
     }
 
-    const sourceColumnElement = document.getElementById(`${sourceId}`);
+    const normalizedSourceId = sourceId.replace(/-(right|left)$/, '')+"-left";
+    const sourceColumnElement = document.getElementById(`${normalizedSourceId}`);
     if (sourceColumnElement) {
       const iconContainer = sourceColumnElement.querySelector('.icon-container');
       if (iconContainer) {
