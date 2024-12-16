@@ -37,6 +37,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   const [currentFullPaths, setCurrentFullPaths] = useState([]);
   const [popupMessage, setPopupMessage] = useState(null);
   const [loadingNodeIds, setLoadingNodeIds] = useState(new Set());
+  const [selectedTreeItem, setSelectedTreeItem] = useState(null);
 
   const closePopup = () => setPopupMessage(null);
 
@@ -74,11 +75,26 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   const handleGenerateClick = () => {
     if (!ddlName.trim()) {
       // setPopupMessage('Semantic Layer Name cannot be empty. Please enter a valid name.');
-      setNavErrorMsg('Semantic Layer Name cannot be empty. Please enter a valid name.');
+      setPopupMessage('Semantic Layer Name cannot be empty. Please enter a valid name.');
       return;
     }
 
-    onGenerateDDL(ddlName, ddlCode);
+    const isValidNamespace = /^[a-zA-Z0-9_]+$/.test(ddlName);
+    if (!isValidNamespace) {
+      setPopupMessage(`DDL name can only contain letters, numbers, and underscores.`);
+      return;
+    }
+
+    let selectedUSLPath;
+    if (selectedTreeItem) {
+      selectedUSLPath = selectedTreeItem.fullPath;
+
+      if (!selectedUSLPath.startsWith('lightning.metastore')) {
+        selectedUSLPath = null;
+      }
+    }
+
+    onGenerateDDL(ddlName, ddlCode, selectedUSLPath);
     setShowPopup(false);
     setView('semanticLayer');
   };
@@ -184,9 +200,35 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
   const fetchedPaths = new Set();
 
+  // const fetchDatasources = async (fullPath) => {
+  //   if (fetchedPaths.has(fullPath)) {
+  //     // console.log(`Already fetched: ${fullPath}`);
+  //     return [];
+  //   }
+  //   fetchedPaths.add(fullPath);
+
+  //   let query;
+  //   if (fullPath.toLowerCase().includes('datasource') || fullPath.toLowerCase().includes('metastore')) {
+  //     query = `SHOW NAMESPACES OR TABLES IN ${fullPath};`;
+  //   }
+
+  //   const result = await fetchApi(query);
+  //   if (!Array.isArray(result) || result.length === 0) {
+  //     return [];
+  //   }
+
+  //   const fetchedData = result.map((item) => JSON.parse(item)).map((parsedItem) => ({
+  //     name: parsedItem.name,
+  //     fullPath: `${fullPath}.${parsedItem.name}`,
+  //     type: parsedItem.type,
+  //     children: null,
+  //   }));
+
+  //   return fetchedData;
+  // };
+
   const fetchDatasources = async (fullPath) => {
     if (fetchedPaths.has(fullPath)) {
-      // console.log(`Already fetched: ${fullPath}`);
       return [];
     }
     fetchedPaths.add(fullPath);
@@ -201,14 +243,25 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       return [];
     }
 
-    const fetchedData = result.map((item) => JSON.parse(item)).map((parsedItem) => ({
-      name: parsedItem.name,
-      fullPath: `${fullPath}.${parsedItem.name}`,
-      type: parsedItem.type,
-      children: null,
-    }));
+    // Remove duplicates based on 'name' and 'type'
+    const uniqueData = [];
+    const seenItems = new Set();
 
-    return fetchedData;
+    result.forEach((item) => {
+      const parsedItem = JSON.parse(item);
+      const key = `${parsedItem.name}-${parsedItem.type}`;
+      if (!seenItems.has(key)) {
+        seenItems.add(key);
+        uniqueData.push({
+          name: parsedItem.name,
+          fullPath: `${fullPath}.${parsedItem.name}`,
+          type: parsedItem.type,
+          children: null,
+        });
+      }
+    });
+
+    return uniqueData;
   };
 
 
@@ -247,6 +300,13 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   };
 
   const handleTreeItemClick = async (node) => {
+    setSelectedTreeItem({
+      name: node.name,
+      fullPath: node.fullPath,
+      type: node.type,
+      uniqueId: node.uniqueId,
+    });
+
     if (node.type === 'column') {
       return;
     }
@@ -271,7 +331,8 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
         let storedData;
 
         if (node.fullPath.toLowerCase().includes('metastore')) {
-          uslName = node.fullPath.match(/usldb\.([^.]+)/)[1];
+          // uslName = node.fullPath.match(/usldb\.([^.]+)/)[1];
+          uslName = node.fullPath.match(/usldb(?:\.[^.]+)*\.([^.]+)\.[^.]+$/)[1];
         }
 
         if (uslName) {
@@ -329,9 +390,14 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
           }
         }
 
-        if (node.fullPath.toLowerCase().includes('metastore') && hasTableChild) {
+        // if (node.fullPath.toLowerCase().includes('metastore') && hasTableChild && node.type !== 'table') {
+        if (node.fullPath.toLowerCase().includes('metastore') && hasTableChild && storedData) {
           // console.log('Skipping getTableDesc');
           return;
+        }
+
+        if (!storedData && node.fullPath.toLowerCase().startsWith('metastore')) {
+          node.fullPath = "lightning." + node.fullPath;
         }
 
         const tableDetails = await getTableDesc(node.fullPath);
@@ -427,47 +493,6 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 });
               }
             });
-          } else {
-            const dbname = node.fullPath.split('.').pop();
-            const path = node.fullPath.split('.').slice(0, -1).join('.');
-
-            try {
-              const query = `LOAD USL ${dbname} NAMESPACE ${path}`;
-              const result = await fetchApi(query);
-              const uslData = JSON.parse(JSON.parse(result).json);
-
-              localStorage.setItem(node.name, JSON.stringify(uslData));
-
-              const semanticLayerChildren = uslData.tables.map((table) => ({
-                name: table.name,
-                fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${table.name}`,
-                type: 'table',
-                children: table.columnSpecs.map((column) => ({
-                  name: column.name,
-                  fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${table.name}.${column.name}`,
-                  type: 'column',
-                  dataTypeElement: (
-                    <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
-                      ({column.dataType.replace(/"/g, '')})
-                    </span>
-                  ),
-                })),
-              }));
-
-              setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, semanticLayerChildren));
-
-              uslData.tables.forEach((table) => {
-                if (table.activateQuery) {
-                  setPreviewableTables((prev) => {
-                    const newSet = new Set(prev);
-                    newSet.add(`${uslData.namespace.join('.')}.${uslData.name}.${table.name}`);
-                    return newSet;
-                  });
-                }
-              });
-            } catch (error) {
-              console.error(`Error loading USL for ${node.name}:`, error);
-            }
           }
         } else {
           let childNodes = await fetchChildNodes(node, node.fullPath?.toLowerCase().includes('metastore') || node.name?.toLowerCase().includes('metastore') || false);
@@ -496,10 +521,23 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     return childNodes;
   };
 
+  // const updateNodeChildren = (nodes, nodeName, children) => {
+  //   return nodes.map((node) => {
+  //     if (node.name === nodeName) {
+  //       return { ...node, children, hasTableChild: children.some((child) => child.type === 'table') };
+  //     }
+  //     if (node.children) {
+  //       return { ...node, children: updateNodeChildren(node.children, nodeName, children) };
+  //     }
+  //     return node;
+  //   });
+  // };
+
   const updateNodeChildren = (nodes, nodeName, children) => {
     return nodes.map((node) => {
       if (node.name === nodeName) {
-        return { ...node, children, hasTableChild: children.some((child) => child.type === 'table') };
+        const allChildrenAreTables = children.every((child) => child.type === 'table');
+        return { ...node, children, hasTableChild: allChildrenAreTables };
       }
       if (node.children) {
         return { ...node, children: updateNodeChildren(node.children, nodeName, children) };
@@ -529,7 +567,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       setView('semanticLayer');
       setHasTableChild(true);
     } catch (error) {
-      console.error('Error fetching USL file content:', error);
+      // console.error('Error fetching USL file content:', error);
     }
   };
 
@@ -651,13 +689,18 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
         return;
       }
 
+      // const exestingName = localStorage.getItem(semanticLayerInfo[0].name);
+      // console.log(exestingName)
+      // if (exestingName) {
+
+      // }
+
       const query = `CREATE NAMESPACE ${node.fullPath}.${namespaceName}`;
 
       try {
         const response = await fetchApi(query);
         if (response.error) {
           // setPopupMessage(`Error creating namespace: ${response.message}`);
-          console.log(response.message)
           setNavErrorMsg(`Error creating namespace: ${response.message}`);
         } else {
           setInputValue('');

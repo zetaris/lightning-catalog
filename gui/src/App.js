@@ -34,6 +34,7 @@ function App() {
   const [previewTableName, setPreviewTableName] = useState(null);
   const [isMouseLoading, setIsMouseLoading] = useState(false);
   const [navErrorMsg, setNavErrorMsg] = useState('');
+  const [selectedUslName, setSelectedUslName] = useState('');
 
   const handleSetView = (newView) => {
     setView(newView);
@@ -48,8 +49,8 @@ function App() {
     setSelectedTable({ name, desc });
   };
 
-  const onGenerateDDL = (name, ddlCode) => {
-    const newLayer = { name, ddl: ddlCode };
+  const onGenerateDDL = (name, ddlCode, selectedUSLPath) => {
+    const newLayer = { name, ddl: ddlCode, selectedUSLPath};
     setSemanticLayerInfo([newLayer]);
     toggleRefreshNav();
   };
@@ -125,6 +126,7 @@ function App() {
                   previewTableName={previewTableName}
                   isMouseLoading={isMouseLoading}
                   navErrorMsg={navErrorMsg}
+                  setNavErrorMsg={setNavErrorMsg}
                 />
               </div>
             </>

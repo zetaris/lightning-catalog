@@ -10,7 +10,7 @@ import { queryBookContents, queryBookColumns } from '../configs/editorConfig';
 import { useDispatch, useSelector } from 'react-redux';
 import { setQueryResult, addQueryToHistory } from '../../store/querySlice';
 
-function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading, navErrorMsg }) {
+function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading, navErrorMsg, setNavErrorMsg }) {
     const dispatch = useDispatch();
     const queryResult = useSelector((state) => state.query.queryResult);
     const queryHistory = useSelector((state) => state.query.queryHistory);
@@ -283,7 +283,7 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading, navErro
             // console.error("Expected an array, but received:", data);
             return [];
         }
-        
+
         if (!data || data.length === 0) {
             return <div>No data available</div>;
         }
