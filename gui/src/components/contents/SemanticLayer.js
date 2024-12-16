@@ -469,6 +469,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                     const name = semanticLayerInfo[0].name;
                     const ddl = semanticLayerInfo[0].ddl;
                     const selectedUSLPath = semanticLayerInfo[0].selectedUSLPath;
+                    console.log(selectedUSLPath)
                     const parsedDDLResult = await compileUSL(name, ddl, selectedUSLPath, true);
                     if (parsedDDLResult) {
                         // window.location.reload();

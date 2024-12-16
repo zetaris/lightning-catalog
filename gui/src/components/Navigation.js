@@ -72,29 +72,74 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     }
   ]);
 
-  const handleGenerateClick = () => {
+  // const handleGenerateClick = () => {
+  //   if (!ddlName.trim()) {
+  //     // setPopupMessage('Semantic Layer Name cannot be empty. Please enter a valid name.');
+  //     setPopupMessage('Semantic Layer Name cannot be empty. Please enter a valid name.');
+  //     return;
+  //   }
+
+  //   const isValidNamespace = /^[a-zA-Z0-9_]+$/.test(ddlName);
+  //   if (!isValidNamespace) {
+  //     setPopupMessage(`DDL name can only contain letters, numbers, and underscores.`);
+  //     return;
+  //   }
+    
+  //   let selectedUSLPath;
+  //   if (selectedTreeItem) {
+  //     selectedUSLPath = selectedTreeItem.fullPath;
+
+  //     if (!selectedUSLPath.startsWith('lightning.metastore')) {
+  //       selectedUSLPath = null;
+  //     }
+  //   }
+
+  //   onGenerateDDL(ddlName, ddlCode, selectedUSLPath);
+  //   setShowPopup(false);
+  //   setView('semanticLayer');
+  // };
+
+  const handleGenerateClick = async () => {
     if (!ddlName.trim()) {
-      // setPopupMessage('Semantic Layer Name cannot be empty. Please enter a valid name.');
       setPopupMessage('Semantic Layer Name cannot be empty. Please enter a valid name.');
       return;
     }
-
+  
     const isValidNamespace = /^[a-zA-Z0-9_]+$/.test(ddlName);
     if (!isValidNamespace) {
       setPopupMessage(`DDL name can only contain letters, numbers, and underscores.`);
       return;
     }
-
+    
     let selectedUSLPath;
     if (selectedTreeItem) {
       selectedUSLPath = selectedTreeItem.fullPath;
-
+  
       if (!selectedUSLPath.startsWith('lightning.metastore')) {
         selectedUSLPath = null;
       }
     }
-
+  
     onGenerateDDL(ddlName, ddlCode, selectedUSLPath);
+  
+    const basePath = selectedUSLPath || 'lightning.metastore.usldb';
+    const newPath = `${basePath}.${ddlName}`;
+  
+    const newNode = {
+      name: ddlName,
+      fullPath: newPath,
+      type: 'usl',
+      children: null,
+      uniqueId: selectedUSLPath+"."+ddlName,
+    };
+  
+    setSemanticLayerFiles((prevData) => {
+      const targetNodeName = selectedTreeItem ? selectedTreeItem.name : 'usldb';
+      return updateNodeChildren(prevData, targetNodeName, [newNode]);
+    });
+  
+    setExpandedNodeIds((prev) => [...new Set([...prev, newNode.uniqueId])]);
+  
     setShowPopup(false);
     setView('semanticLayer');
   };
@@ -227,7 +272,23 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   //   return fetchedData;
   // };
 
+  const removeDuplicates = (items, keyGenerator) => {
+    const seen = new Set();
+    return items.filter((item) => {
+      const key = keyGenerator(item);
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+  };
+
   const fetchDatasources = async (fullPath) => {
+    if (fullPath.startsWith('metastore')) {
+      fullPath = 'lightning.' + fullPath;
+    }
+
     if (fetchedPaths.has(fullPath)) {
       return [];
     }
@@ -244,22 +305,19 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     }
 
     // Remove duplicates based on 'name' and 'type'
-    const uniqueData = [];
-    const seenItems = new Set();
-
-    result.forEach((item) => {
-      const parsedItem = JSON.parse(item);
-      const key = `${parsedItem.name}-${parsedItem.type}`;
-      if (!seenItems.has(key)) {
-        seenItems.add(key);
-        uniqueData.push({
+    const uniqueData = removeDuplicates(
+      result.map((item) => {
+        const parsedItem = JSON.parse(item);
+        return {
           name: parsedItem.name,
           fullPath: `${fullPath}.${parsedItem.name}`,
           type: parsedItem.type,
           children: null,
-        });
-      }
-    });
+          uniqueId: `${fullPath}.${parsedItem.name}`
+        };
+      }),
+      (item) => `${item.name}-${item.type}`
+    );
 
     return uniqueData;
   };
@@ -284,25 +342,15 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       name: table.name,
       fullPath: `${namespace.join('.')}.${name}.${table.name}`,
       type: 'table',
-      activateQuery: table.activateQuery,
-      children: table.columnSpecs.map((column) => ({
-        name: column.name,
-        fullPath: `${namespace.join('.')}.${name}.${table.name}.${column.name}`,
-        type: 'column',
-        dataTypeElement: (
-          <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
-            ({column.dataType})
-          </span>
-        ),
-      })),
+      children: null, // Table columns are loaded dynamically
     }));
 
-    // Process sub-USLs
+    // Process sub-USLs (store only name and namespace)
     const subUslItems = subUsl.map((subUslItem) => ({
       name: subUslItem.name,
-      fullPath: `${namespace.join('.')}.${name}.${subUslItem.name}`,
+      fullPath: subUslItem.namespace,
       type: 'usl',
-      children: renderTreeFromUSL(subUslItem),
+      children: null, // Sub-USL details are loaded dynamically
     }));
 
     return [...tableItems, ...subUslItems];
@@ -341,74 +389,63 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
         if (node.fullPath.toLowerCase().includes('metastore')) {
           // uslName = node.fullPath.match(/usldb\.([^.]+)/)[1];
-          uslName = node.fullPath.match(/usldb(?:\.[^.]+)*\.([^.]+)\.[^.]+$/)[1];
+          uslName = node.fullPath.match(/usldb(?:\.[^.]+)*\.([^.]+)\.[^.]+$/)?.[1];
         }
 
         if (uslName) {
           storedData = JSON.parse(localStorage.getItem(uslName));
         }
 
-        if (storedData?.name === uslName) {
-          // Process tables in the current USL
-          const semanticLayerChildren = storedData.tables.map((table) => ({
-            name: table.name,
-            fullPath: `${storedData.namespace.join('.')}.${storedData.name}.${table.name}`,
-            type: 'table',
-            activateQuery: table.activateQuery,
-            children: table.columnSpecs.map((column) => ({
-              name: column.name,
-              fullPath: `${storedData.namespace.join('.')}.${storedData.name}.${table.name}.${column.name}`,
-              type: 'column',
-              dataTypeElement: (
-                <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
-                  ({column.dataType.replace(/"/g, '')})
-                </span>
-              ),
-            })),
-          }));
-
-          // Process sub-USLs
-          const subUslChildren = storedData.subUsl?.map((subUsl) => ({
-            name: subUsl.name,
-            fullPath: `${storedData.namespace.join('.')}.${storedData.name}.${subUsl.name}`,
-            type: 'usl',
-            children: subUsl.tables.map((table) => ({
-              name: table.name,
-              fullPath: `${subUsl.namespace.join('.')}.${subUsl.name}.${table.name}`,
-              type: 'table',
-              activateQuery: table.activateQuery,
-              children: table.columnSpecs.map((column) => ({
-                name: column.name,
-                fullPath: `${subUsl.namespace.join('.')}.${subUsl.name}.${table.name}.${column.name}`,
+        if (storedData?.name === uslName && uslName && node.type === 'table') {
+          const selectedTable = storedData.tables.find(table => table.name === node.name);
+          
+          if (selectedTable) {
+            const columnChildren = selectedTable.columnSpecs.map((column) => {
+              const icons = [];
+              if (column.primaryKey) {
+                icons.push(
+                  <PkIcon key={`pk-${column.name}`} style={{ width: '16px', height: '16px', marginLeft: '4px' }} />
+                );
+              }
+              if (column.foreignKey) {
+                icons.push(
+                  <LinkIcon key={`fk-${column.name}`} style={{ width: '16px', height: '16px', marginLeft: '4px' }} />
+                );
+              }
+              if (column.notNull) {
+                icons.push(
+                  <NNIcon key={`nn-${column.name}`} style={{ width: '16px', height: '16px', marginLeft: '4px' }} />
+                );
+              }
+        
+              return {
+                name: (
+                  <span style={{ display: 'flex', alignItems: 'center' }}>
+                    <span style={{ marginRight: '8px', fill: '#888', display: 'flex', alignItems: 'center' }}>{icons}</span>
+                    <span>{column.name}</span>
+                  </span>
+                ),
+                fullPath: `${storedData.namespace.join('.')}.${storedData.name}.${selectedTable.name}.${column.name}`,
                 type: 'column',
+                uniqueId: `${storedData.namespace.join('.')}.${storedData.name}.${selectedTable.name}.${column.name}`,
                 dataTypeElement: (
                   <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
                     ({column.dataType.replace(/"/g, '')})
                   </span>
                 ),
-              })),
-            })),
-          })) || [];
-
-          // Combine tables and sub-USLs into children
-          const combinedChildren = [...semanticLayerChildren, ...subUslChildren];
-
-          // Update tree
-          setSemanticLayerFiles((prevData) =>
-            updateNodeChildren(prevData, node.name, combinedChildren)
-          );
-
+              };
+            });
+        
+            setSemanticLayerFiles((prevData) =>
+              updateNodeChildren(prevData, node.name, columnChildren)
+            );
+          }
           return;
         }
 
-        // if (node.fullPath.toLowerCase().includes('metastore') && hasTableChild && node.type !== 'table') {
         if (node.fullPath.toLowerCase().includes('metastore') && hasTableChild && storedData) {
           // console.log('Skipping getTableDesc');
           return;
-        }
-
-        if (!storedData && node.fullPath.toLowerCase().startsWith('metastore')) {
-          node.fullPath = "lightning." + node.fullPath;
         }
 
         const tableDetails = await getTableDesc(node.fullPath);
@@ -448,7 +485,8 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
           if (storedData) {
             const uslData = JSON.parse(storedData);
-
+          
+            // Process tables
             const semanticLayerChildren = uslData.tables.map((table) => ({
               name: table.name,
               fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${table.name}`,
@@ -471,7 +509,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                     <NNIcon key={`nn-${column.name}`} style={{ width: '16px', height: '16px', marginLeft: '4px' }} />
                   );
                 }
-
+          
                 return {
                   name: (
                     <span style={{ display: 'flex', alignItems: 'center' }}>
@@ -491,33 +529,22 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 };
               }),
             }));
-
+          
+            // Process sub-USLs
             const subUslChildren = uslData.subUsl?.map((subUsl) => ({
               name: subUsl.name,
               fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${subUsl.name}`,
               type: 'usl',
-              children: subUsl.tables.map((table) => ({
-                name: table.name,
-                fullPath: `${subUsl.namespace.join('.')}.${subUsl.name}.${table.name}`,
-                type: 'table',
-                activateQuery: table.activateQuery,
-                children: table.columnSpecs.map((column) => ({
-                  name: column.name,
-                  fullPath: `${subUsl.namespace.join('.')}.${subUsl.name}.${table.name}.${column.name}`,
-                  type: 'column',
-                  dataTypeElement: (
-                    <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
-                      ({column.dataType.replace(/"/g, '')})
-                    </span>
-                  ),
-                })),
-              })),
+              children: null,
             })) || [];
-
+          
+            // Combine tables and sub-USLs
             const combinedChildren = [...semanticLayerChildren, ...subUslChildren];
-
+          
+            // Update tree with combined children
             setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, combinedChildren));
-
+          
+            // Set previewable tables
             uslData.tables.forEach((table) => {
               if (table.activateQuery) {
                 setPreviewableTables((prev) => {
@@ -527,20 +554,57 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 });
               }
             });
-
+          
+            // Add sub-USLs to previewable tables if needed
             uslData.subUsl?.forEach((subUsl) => {
-              subUsl.tables.forEach((table) => {
+              setPreviewableTables((prev) => {
+                const newSet = new Set(prev);
+                newSet.add(`${uslData.namespace.join('.')}.${uslData.name}.${subUsl.name}`);
+                return newSet;
+              });
+            });
+          } else {
+            const dbname = node.fullPath.split('.').pop();
+            const path = node.fullPath.split('.').slice(0, -1).join('.');
+
+            try {
+              const query = `LOAD USL ${dbname} NAMESPACE ${path}`;
+              const result = await fetchApi(query);
+              const uslData = JSON.parse(JSON.parse(result).json);
+
+              localStorage.setItem(node.name, JSON.stringify(uslData));
+
+              const semanticLayerChildren = uslData.tables.map((table) => ({
+                name: table.name,
+                fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${table.name}`,
+                type: 'table',
+                children: table.columnSpecs.map((column) => ({
+                  name: column.name,
+                  fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${table.name}.${column.name}`,
+                  type: 'column',
+                  dataTypeElement: (
+                    <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
+                      ({column.dataType.replace(/"/g, '')})
+                    </span>
+                  ),
+                })),
+              }));
+
+              setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, semanticLayerChildren));
+
+              uslData.tables.forEach((table) => {
                 if (table.activateQuery) {
                   setPreviewableTables((prev) => {
                     const newSet = new Set(prev);
-                    newSet.add(`${subUsl.namespace.join('.')}.${subUsl.name}.${table.name}`);
+                    newSet.add(`${uslData.namespace.join('.')}.${uslData.name}.${table.name}`);
                     return newSet;
                   });
                 }
               });
-            });
+            } catch (error) {
+              console.error(`Error loading USL for ${node.name}:`, error);
+            }
           }
-
         } else {
           let childNodes = await fetchChildNodes(node, node.fullPath?.toLowerCase().includes('metastore') || node.name?.toLowerCase().includes('metastore') || false);
 
@@ -551,7 +615,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       }
     } catch (error) {
       // setPopupMessage(`Failed to load Tree View. Please try again.`);
-      // setNavErrorMsg(`Failed to load Tree View. Please try again.`);
+      setNavErrorMsg(`Failed to load Tree View. Please try again.`);
     } finally {
       stopLoading(node.uniqueId);
     }
@@ -580,14 +644,18 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   //   });
   // };
 
-  const updateNodeChildren = (nodes, nodeName, children) => {
+  const updateNodeChildren = (nodes, nodeName, newChildren) => {
     return nodes.map((node) => {
       if (node.name === nodeName) {
-        const allChildrenAreTables = children.every((child) => child.type === 'table');
-        return { ...node, children, hasTableChild: allChildrenAreTables };
+        if (node.type === 'table') {
+          return { ...node, children: newChildren };
+        }
+        const combinedChildren = [...(node.children || []), ...newChildren];
+        const uniqueChildren = removeDuplicates(combinedChildren, (child) => `${child.name}-${child.type}`);
+        return { ...node, children: uniqueChildren };
       }
       if (node.children) {
-        return { ...node, children: updateNodeChildren(node.children, nodeName, children) };
+        return { ...node, children: updateNodeChildren(node.children, nodeName, newChildren) };
       }
       return node;
     });
@@ -620,11 +688,14 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
   const drawUSL = async (node) => {
     sessionStorage.setItem('selectedTab', 'semanticLayer');
-    const fullPath = node.fullPath;
+    let fullPath = node.fullPath;
+    if (fullPath.startsWith('metastore')) {
+      fullPath = 'lightning.' + fullPath;
+    }
     const dbname = fullPath.split('.').pop();
     const path = fullPath.split('.').slice(0, -1).join('.');
 
-    let query = `LOAD USL ${dbname} NAMESPACE ${path}`;
+    const query = `LOAD USL ${dbname} NAMESPACE ${path}`;
     try {
       setIsLoading(true);
       const result = await fetchApi(query);
@@ -637,39 +708,35 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
         const parsedNamespaces = namespacesResult.map((ns) => JSON.parse(ns));
         const subUslNamespaces = parsedNamespaces.filter((ns) => ns.type === 'usl');
 
-        const uniqueNamespaces = Array.from(
-          new Map(
-            subUslNamespaces.map((ns) => [`${ns.name}-${ns.type}`, ns])
-          ).values()
-        );
+        const removeDuplicates = (items, keyGenerator) => {
+          const seen = new Set();
+          return items.filter((item) => {
+            const key = keyGenerator(item);
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+        };
 
-        const subUslData = [];
-        for (const subUsl of uniqueNamespaces) {
-          const subUslFullPath = `${fullPath}.${subUsl.name}`;
-          const subUslDbName = subUsl.name;
-          const subUslQuery = `LOAD USL ${subUslDbName} NAMESPACE ${fullPath}`;
+        const uniqueSubUslData = removeDuplicates(subUslNamespaces, (ns) => `${ns.name}-${ns.type}`)
+          .map((ns) => ({
+            name: ns.name,
+            namespace: `${fullPath}.${ns.name}`,
+          }));
 
-          try {
-            const subUslResult = await fetchApi(subUslQuery);
-            const parsedSubUsl = JSON.parse(JSON.parse(subUslResult).json);
-            subUslData.push(parsedSubUsl);
-          } catch (subError) {
-            console.error(`Failed to load sub USL: ${subUslFullPath}`, subError);
-          }
-        }
-
-        uslData.subUsl = subUslData;
+        uslData.subUsl = uniqueSubUslData;
       }
 
       setSelectedUSL(uslData.name);
       localStorage.setItem(dbname, JSON.stringify(uslData));
 
       setUslNamebyClick(result);
-      setIsLoading(true);
+      setIsLoading(false);
       setView('semanticLayer');
       setHasTableChild(true);
     } catch (error) {
       console.error('Error fetching USL file content:', error);
+      setIsLoading(false);
     }
   };
 
@@ -828,15 +895,18 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     }
 
     return nodes.map((node, index) => {
-      const currentPath = node.fullPath || (parentPath ? `${parentPath}.${node.name}` : node.name);
-      const uniqueId = `${currentPath}-${index + 1}`;
+      let currentPath = node.fullPath || (parentPath ? `${parentPath}.${node.name}` : node.name);
+
+      if (currentPath.startsWith('metastore')) {
+        currentPath = 'lightning.' + currentPath;
+      }
+      const uniqueId = `${currentPath}`;
       const Icon = node.type === 'table' ? TableIcon : FolderIcon;
       const hasTableChildResult = Array.isArray(node.children)
         ? node.children.some((child) => child.type === 'table')
         : false;
 
       setHasTableChild(hasTableChildResult);
-
       node.uniqueId = uniqueId;
 
       return (
@@ -872,7 +942,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 </button>
               )}
 
-              {hasTableChildResult && isSemanticLayer && (
+              {hasTableChildResult && isSemanticLayer && node.type !== 'table' && (
                 <button
                   className="btn-table-add"
                   onClick={(event) => {
