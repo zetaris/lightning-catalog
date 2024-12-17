@@ -9,7 +9,7 @@ import 'ace-builds/src-noconflict/mode-sql';
 import 'ace-builds/src-noconflict/theme-monokai';
 import 'ace-builds/src-noconflict/ext-language_tools';
 
-function Content({ view, toggleRefreshNav, selectedTable, semanticLayerInfo, uslNamebyClick, setIsLoading, previewTableName, isMouseLoading, navErrorMsg, setNavErrorMsg }) {
+function Content({ view, toggleRefreshNav, selectedTable, semanticLayerInfo, uslNamebyClick, setIsLoading, previewTableName, isMouseLoading, navErrorMsg, setNavErrorMsg, setPreviewableTables }) {
   
   // Load editor configurations once the component is mounted
   useEffect(() => {
@@ -23,7 +23,7 @@ function Content({ view, toggleRefreshNav, selectedTable, semanticLayerInfo, usl
         <SqlEditor toggleRefreshNav={toggleRefreshNav} previewTableName={previewTableName} isMouseLoading={isMouseLoading} navErrorMsg={navErrorMsg} setNavErrorMsg={setNavErrorMsg} />
       )}
       {view === 'semanticLayer' && (
-        <SemanticLayer selectedTable={selectedTable} semanticLayerInfo={semanticLayerInfo} uslNamebyClick={uslNamebyClick} setIsLoading={setIsLoading} previewTableName={previewTableName} isMouseLoading={isMouseLoading} navErrorMsg={navErrorMsg} setNavErrorMsg={setNavErrorMsg} />
+        <SemanticLayer selectedTable={selectedTable} semanticLayerInfo={semanticLayerInfo} uslNamebyClick={uslNamebyClick} setIsLoading={setIsLoading} previewTableName={previewTableName} isMouseLoading={isMouseLoading} navErrorMsg={navErrorMsg} setNavErrorMsg={setNavErrorMsg} setPreviewableTables={setPreviewableTables} />
       )}
       {view === 'documentation' && window.open('https://github.com/zetaris/lightning-catalog/tree/master/doc', '_blank')}
     </div>
