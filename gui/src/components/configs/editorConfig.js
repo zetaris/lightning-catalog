@@ -205,7 +205,9 @@ export const getContext = (editorInstance) => {
     "LIGHTNING": /\bLIGHTNING\b(?:\.(\w+(?:\.\w+)*))?/ig,
     "SELECT": /SELECT\s+(.*?)(?=\bFROM\b|$)/ig,
     "FROM": /FROM\s+([\w]+(?:\.[\w]+)*)(?:\s+AS\s+(\w+))?/ig,
-    "WHERE": /WHERE\s+([^FROM]+)/ig
+    "WHERE": /WHERE\s+([^FROM]+)/ig,
+    "GROUP BY": /GROUP\s+BY\s+([^FROM]+)/ig,
+    "HAVING": /HAVING\s+([^FROM]+)/ig
   };
 
   const matches = [];
@@ -288,8 +290,13 @@ export const getContext = (editorInstance) => {
       }
       break;
     case "WHERE":
+    case "GROUP BY":
+    case "HAVING":
       context.type = "WHERE";
       const whereConditions = closestMatch.match[1];
+
+      // console.log(closestMatch)
+      // console.log(whereConditions)
 
       const cleanedConditions = whereConditions
         .split(/\s*(GROUP\s+BY|HAVING|WHERE)\s+/i)[0]
@@ -297,7 +304,7 @@ export const getContext = (editorInstance) => {
 
       const whereAliasMatches = [...cleanedConditions.matchAll(/(\w+)\./g)];
 
-      const lastWord = whereConditions.trim().split(/\s+/).pop();
+      const lastWord = whereConditions.trim().split(/\s+/).pop().replace(/\.$/, '');
 
       const sqlKeywords = ['WHERE', 'GROUP', 'BY', 'HAVING', 'SELECT', 'FROM', 'AND', 'OR', 'ON', 'WHE', 'G'];
       const whereAliasList = [
@@ -312,6 +319,10 @@ export const getContext = (editorInstance) => {
       if (tableAliases[cleanedConditions]) {
         lastWhereAliasMatch = cleanedConditions;
       }
+
+      // console.log(tableAliases)
+      // console.log(cleanedConditions)
+      // console.log(lastWhereAliasMatch)
 
       if (lastWhereAliasMatch) {
         context.tableAlias = tableAliases[lastWhereAliasMatch] || null;
@@ -380,28 +391,6 @@ export const fetchColumns = async (tablePath) => {
   } catch (error) {
   }
 };
-
-// export const customSQLCompleter = {
-//   getCompletions: (editor, session, pos, prefix, callback) => {
-//     const { keywords, lightning, dataTypes, builtIn } = sqlKeywords;
-
-//     const suggestions = currentSuggestions.length > 0
-//       ? currentSuggestions.map((suggestion) => ({
-//         caption: suggestion,
-//         value: suggestion,
-//         meta: 'suggestion',
-//         score: 1000
-//       }))
-//       : [
-//         ...keywords.map((kw) => ({ caption: kw, value: kw, meta: "keyword" })),
-//         ...lightning.map((lt) => ({ caption: lt, value: lt, meta: "lightning" })),
-//         ...dataTypes.map((dt) => ({ caption: dt, value: dt, meta: "dataType" })),
-//         ...builtIn.map((ct) => ({ caption: ct, value: ct, meta: "builtIn" })),
-//       ];
-
-//     callback(null, suggestions);
-//   },
-// };
 
 export const customSQLCompleter = {
   getCompletions: (editor, session, pos, prefix, callback) => {
@@ -578,6 +567,62 @@ export const editorOptions = {
   enableSnippets: false,
   showLineNumbers: true,
   tabSize: 2,
+};
+
+export const tablePathSet = new Set();
+
+export const fetchPathData = async (path) => {
+  try {
+    if (path === "lightning" || path === "lightning.") {
+      currentSuggestions = ["datasource", "metastore"];
+      return currentSuggestions;
+    }
+
+    if (tablePathSet.has(path)) {
+      const query = `DESC ${path};`;
+      const response = await fetchApi(query);
+      if (response) {
+        const results = response.map((item) => JSON.parse(item));
+        currentSuggestions = results.map((result) => result.col_name || '');
+        return currentSuggestions;
+      }
+    }
+
+    const query = `SHOW NAMESPACES OR TABLES IN ${path};`;
+    const response = await fetchApi(query);
+
+    if (!response?.length || response.message?.startsWith("[SCHEMA_NOT_FOUND]") || response.message?.includes("doesn't support list namespaces")) {
+      const descResponse = await fetchColumns(path);
+
+      if (descResponse) {
+        tablePathSet.add(path);
+      }
+
+      return currentSuggestions;
+    } else {
+      const results = response.map((item) => JSON.parse(item));
+
+      results.forEach(result => {
+        if (result.type === 'table') {
+          tablePathSet.add(`${path}.${result.name}`);
+        }
+      });
+
+      currentSuggestions = results.map((result) => result.name || '');
+      return currentSuggestions;
+    }
+  } catch (error) {
+    // console.error('Error in fetchPathData:', error);
+    return [];
+  }
+};
+
+export const clearTablePathSet = () => {
+  tablePathSet.clear();
+};
+
+export const removeTablePath = (path) => {
+  tablePathSet.delete(path);
 };
 
 export const queryBookContents = [

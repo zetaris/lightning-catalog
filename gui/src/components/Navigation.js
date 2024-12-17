@@ -18,7 +18,7 @@ import { ReactComponent as LinkIcon } from '../assets/images/link-solid.svg';
 import SetSemanticLayerModal from './SetSemanticLayerModal';
 import Resizable from 'react-resizable-layout';
 
-const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, setPreviewTableName, setIsLoading, setIsMouseLoading, setNavErrorMsg }) => {
+const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, setPreviewTableName, setIsLoading, setIsMouseLoading, setNavErrorMsg, previewableTables, setPreviewableTables }) => {
 
   const reSizingOffset = 115;
   const resizingRef = useRef(false);
@@ -31,7 +31,6 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   });
   const [activeInputNode, setActiveInputNode] = useState(null);
   const [inputValue, setInputValue] = useState('');
-  const [previewableTables, setPreviewableTables] = useState(new Set());
   const [hasTableChild, setHasTableChild] = useState(null);
   const [selectedUSL, setSelectedUSL] = useState('');
   const [currentFullPaths, setCurrentFullPaths] = useState([]);
@@ -84,7 +83,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   //     setPopupMessage(`DDL name can only contain letters, numbers, and underscores.`);
   //     return;
   //   }
-    
+
   //   let selectedUSLPath;
   //   if (selectedTreeItem) {
   //     selectedUSLPath = selectedTreeItem.fullPath;
@@ -104,40 +103,61 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       setPopupMessage('Semantic Layer Name cannot be empty. Please enter a valid name.');
       return;
     }
-  
+
     const isValidNamespace = /^[a-zA-Z0-9_]+$/.test(ddlName);
     if (!isValidNamespace) {
       setPopupMessage(`DDL name can only contain letters, numbers, and underscores.`);
       return;
     }
-    
-    let selectedUSLPath = "lightning.mestatore.usldb";
+
+    if (ddlCode === '') {
+      setPopupMessage(`DDL Code cannot be empty. Please enter a valid Code.`);
+      return;
+    }
+
+    let selectedUSLPath;
     if (selectedTreeItem) {
       selectedUSLPath = selectedTreeItem.fullPath;
+    }else{
+      setNavErrorMsg(`Please select the correct namespace.`);
     }
-  
+
     onGenerateDDL(ddlName, ddlCode, selectedUSLPath);
-  
-    const basePath = selectedUSLPath || 'lightning.metastore.usldb';
+
+    const basePath = selectedUSLPath || 'lightning.metastore';
     const newPath = `${basePath}.${ddlName}`;
-  
+
     const newNode = {
       name: ddlName,
       fullPath: newPath,
       type: 'usl',
       children: null,
-      uniqueId: selectedUSLPath+"."+ddlName,
+      uniqueId: `${newPath}-${Date.now()}`,
     };
 
-    if(selectedTreeItem){
-      setSemanticLayerFiles((prevData) => {
-        const targetNodeName = selectedTreeItem.name;
-        return updateNodeChildren(prevData, targetNodeName, [newNode]);
-      });
+    setSemanticLayerFiles((prevData) => {
+      const updateNestedNode = (nodes, pathParts, index = 0) => {
+        return nodes.map(node => {
+          if (node.name === pathParts[index]) {
+            if (index === pathParts.length - 1) {
+              return {
+                ...node,
+                children: [...(node.children || []), newNode]
+              };
+            }
+            return {
+              ...node,
+              children: updateNestedNode(node.children || [], pathParts, index + 1)
+            };
+          }
+          return node;
+        });
+      };
 
-      setExpandedNodeIds((prev) => [...new Set([...prev, newNode.uniqueId])]);
-    }
-  
+      const pathParts = basePath.split('.');
+      return updateNestedNode(prevData, pathParts);
+    });
+
     setShowPopup(false);
     setView('semanticLayer');
   };
@@ -192,7 +212,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       for (const nodeId of expandedNodeIds) {
         const node = findNodeById(dataSources, nodeId) || findNodeById(semanticLayerFiles, nodeId);
         if (node && !node.children) {
-          await handleTreeItemClick(node);
+          await handleTreeItemClick(node, false);
         }
       }
     };
@@ -354,13 +374,16 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     return [...tableItems, ...subUslItems];
   };
 
-  const handleTreeItemClick = async (node) => {
-    setSelectedTreeItem({
-      name: node.name,
-      fullPath: node.fullPath,
-      type: node.type,
-      uniqueId: node.uniqueId,
-    });
+  const handleTreeItemClick = async (node, isSetSelectedTree = true) => {
+
+    if(isSetSelectedTree){
+      setSelectedTreeItem({
+        name: node.name,
+        fullPath: node.fullPath,
+        type: node.type,
+        uniqueId: node.uniqueId,
+      });
+    }
 
     if (node.type === 'column') {
       return;
@@ -387,7 +410,8 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
         if (node.fullPath.toLowerCase().includes('metastore')) {
           // uslName = node.fullPath.match(/usldb\.([^.]+)/)[1];
-          uslName = node.fullPath.match(/usldb(?:\.[^.]+)*\.([^.]+)\.[^.]+$/)?.[1];
+          // uslName = node.fullPath.match(/default(?:\.[^.]+)*\.([^.]+)\.[^.]+$/)?.[1];
+          uslName = node.fullPath.split('.').slice(-2, -1)[0];
         }
 
         if (uslName) {
@@ -396,7 +420,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
         if (storedData?.name === uslName && uslName && node.type === 'table') {
           const selectedTable = storedData.tables.find(table => table.name === node.name);
-          
+
           if (selectedTable) {
             const columnChildren = selectedTable.columnSpecs.map((column) => {
               const icons = [];
@@ -415,7 +439,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                   <NNIcon key={`nn-${column.name}`} style={{ width: '16px', height: '16px', marginLeft: '4px' }} />
                 );
               }
-        
+
               return {
                 name: (
                   <span style={{ display: 'flex', alignItems: 'center' }}>
@@ -433,7 +457,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 ),
               };
             });
-        
+
             setSemanticLayerFiles((prevData) =>
               updateNodeChildren(prevData, node.name, columnChildren)
             );
@@ -483,7 +507,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
           if (storedData) {
             const uslData = JSON.parse(storedData);
-          
+
             // Process tables
             const semanticLayerChildren = uslData.tables.map((table) => ({
               name: table.name,
@@ -507,7 +531,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                     <NNIcon key={`nn-${column.name}`} style={{ width: '16px', height: '16px', marginLeft: '4px' }} />
                   );
                 }
-          
+
                 return {
                   name: (
                     <span style={{ display: 'flex', alignItems: 'center' }}>
@@ -527,7 +551,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 };
               }),
             }));
-          
+
             // Process sub-USLs
             const subUslChildren = uslData.subUsl?.map((subUsl) => ({
               name: subUsl.name,
@@ -535,13 +559,13 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
               type: 'usl',
               children: null,
             })) || [];
-          
+
             // Combine tables and sub-USLs
             const combinedChildren = [...semanticLayerChildren, ...subUslChildren];
-          
+
             // Update tree with combined children
             setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, combinedChildren));
-          
+
             // Set previewable tables
             uslData.tables.forEach((table) => {
               if (table.activateQuery) {
@@ -552,7 +576,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 });
               }
             });
-          
+
             // Add sub-USLs to previewable tables if needed
             uslData.subUsl?.forEach((subUsl) => {
               setPreviewableTables((prev) => {
@@ -782,7 +806,12 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     } else if (fullPath.toLowerCase().includes('metastore')) {
       setView('semanticLayer');
       sessionStorage.setItem('selectedTab', 'semanticLayer');
-      setPreviewTableName("lightning." + fullPath);
+      if(fullPath.startsWith("metastore")){
+        setPreviewTableName("lightning." + fullPath);
+      }else{
+        setPreviewTableName(fullPath);
+      }
+      
     }
   };
 
@@ -803,6 +832,10 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   const handleMinusClick = async (event, node) => {
     if (node.name === 'lightning.datasource' || node.name === 'lightning.metastore') {
       node.fullPath = node.name;
+    }
+
+    if(node.fullPath.startsWith("metastore")){
+      node.fullPath = "lightning."+node.fullPath;
     }
 
     event.stopPropagation();
@@ -1073,10 +1106,16 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
               {/* Semantic Layer Tree */}
               <div className="nav-tab bold-text" style={{ display: 'flex', alignItems: 'center' }}>
                 Semantic Layer
-                <CirclePlus
+                {/* <CirclePlus
                   onClick={() => setShowPopup(true)}
                   style={{ height: '20px', width: '20px', fill: '#27A7D2', cursor: 'pointer', marginLeft: '10px' }}
-                />
+                /> */}
+                {selectedTreeItem !== null && selectedTreeItem?.fullPath && selectedTreeItem.fullPath.split('.').length > 2 && selectedTreeItem.type !== 'table' && selectedTreeItem.fullPath.toLowerCase().includes('metastore') && (
+                  <CirclePlus
+                    onClick={() => setShowPopup(true)}
+                    style={{ height: '20px', width: '20px', fill: '#27A7D2', cursor: 'pointer', marginLeft: '10px' }}
+                  />
+                )}
               </div>
               <SimpleTreeView className="tree-view"
                 expandedItems={expandedNodeIds}

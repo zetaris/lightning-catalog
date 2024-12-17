@@ -24,6 +24,21 @@ const LoadingIndicator = () => (
   </div>
 );
 
+const StorageInitializer = () => {
+  useEffect(() => {
+    const isFirstLoad = sessionStorage.getItem('isFirstLoad');
+
+    if (!isFirstLoad) {
+      localStorage.clear();
+      sessionStorage.clear();
+      
+      sessionStorage.setItem('isFirstLoad', 'true');
+    }
+  }, []);
+
+  return null;
+};
+
 function App() {
   const [view, setView] = useState('');
   const [refreshNav, setRefreshNav] = useState(false);
@@ -35,6 +50,7 @@ function App() {
   const [isMouseLoading, setIsMouseLoading] = useState(false);
   const [navErrorMsg, setNavErrorMsg] = useState('');
   const [selectedUslName, setSelectedUslName] = useState('');
+  const [previewableTables, setPreviewableTables] = useState(new Set());
 
   const handleSetView = (newView) => {
     setView(newView);
@@ -67,6 +83,7 @@ function App() {
 
   return (
     <div>
+      <StorageInitializer />
       {isLoading && <LoadingIndicator />}
 
       <div className="header">
@@ -87,6 +104,8 @@ function App() {
                   setIsLoading={setIsLoading}
                   setIsMouseLoading={setIsMouseLoading}
                   setNavErrorMsg={setNavErrorMsg}
+                  previewableTables={previewableTables}
+                  setPreviewableTables={setPreviewableTables}
                 />
               </div>
 
@@ -127,6 +146,7 @@ function App() {
                   isMouseLoading={isMouseLoading}
                   navErrorMsg={navErrorMsg}
                   setNavErrorMsg={setNavErrorMsg}
+                  setPreviewableTables={setPreviewableTables}
                 />
               </div>
             </>

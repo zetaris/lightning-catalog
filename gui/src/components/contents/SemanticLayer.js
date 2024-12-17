@@ -18,7 +18,7 @@ import DataQualityPopup from './components/DataQualityPopup.js';
 import DataQualityListPopup from './components/DataQualityListPopup.js';
 import ActivePopup from './components/ActivatePopup.js';
 
-function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIsLoading, previewTableName, isMouseLoading, navErrorMsg, setNavErrorMsg }) {
+function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIsLoading, previewTableName, isMouseLoading, navErrorMsg, setNavErrorMsg, setPreviewableTables }) {
     useEffect(() => {
         if (sessionStorage.getItem('selectedTab') === 'semanticLayer') {
             setViewMode('output');
@@ -29,7 +29,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                 return prevQueryResult;
             });
         }
-    }, [navErrorMsg]);    
+    }, [navErrorMsg]);
 
     const jsPlumbRef = useRef(null);
     const jsPlumbInstanceRef = useRef(null);
@@ -377,6 +377,8 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                     }
                 }
 
+                setPreviewableTables((prev) => new Set(prev).add(table));
+
                 updateUSLInfo();
                 setActivateTables((prevTables) => {
                     const updatedTables = [...prevTables, table];
@@ -392,7 +394,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         } catch (error) {
             // setPopupMessage("Error : ", error);
             setViewMode('output');
-            setQueryResult({ error: error });
+            setQueryResult({ error: error.message });
             updateActivatedTables(false);
         }
 
@@ -1801,34 +1803,34 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
 
     const compileUSL = async (name = "noname", ddlQuery, selectedUSLPath, isDeploy = true) => {
         try {
+
+            let createNamespaceQuery;
+            let namespaceResponse;
             // First, run the query to create the namespace if it doesn't exist
-            let createNamespaceQuery = "CREATE NAMESPACE IF NOT EXISTS lightning.metastore.usldb;";
-            let namespaceResponse = await fetchApi(createNamespaceQuery);
+            // let createNamespaceQuery = "CREATE NAMESPACE IF NOT EXISTS lightning.metastore.usldb;";
+            // let namespaceResponse = await fetchApi(createNamespaceQuery);
 
-            if (namespaceResponse.error) {
-                console.error('Failed to create namespace:', namespaceResponse.message);
-                return; // If namespace creation fails, stop further execution
-            }
+            // if (namespaceResponse.error) {
+            //     console.error('Failed to create namespace:', namespaceResponse.message);
+            //     return; // If namespace creation fails, stop further execution
+            // }
 
-            if(selectedUSLPath){
-                createNamespaceQuery = `CREATE NAMESPACE IF NOT EXISTS ${selectedUSLPath}.${name};`;   
-            }else{
-                createNamespaceQuery = `CREATE NAMESPACE IF NOT EXISTS lightning.metastore.usldb.${name};`;   
+            if (selectedUSLPath) {
+                createNamespaceQuery = `CREATE NAMESPACE IF NOT EXISTS ${selectedUSLPath}.${name};`;
+            } else {
+                setNavErrorMsg(`Please select the correct namespace.`);
+                return;
             }
 
             namespaceResponse = await fetchApi(createNamespaceQuery);
 
             if (namespaceResponse.error) {
-                console.error('Failed to create namespace:', namespaceResponse.message);
-                return; // If namespace creation fails, stop further execution
+                setPopupMessage('Failed to create namespace:', namespaceResponse.message);
+                return;
             }
 
             // Create the USL query
-            let uslQuery = `COMPILE USL IF NOT EXISTS ${name} DEPLOY NAMESPACE lightning.metastore.usldb DDL ${ddlQuery}`;
-
-            if(selectedUSLPath){
-                uslQuery = `COMPILE USL IF NOT EXISTS ${name} DEPLOY NAMESPACE ${selectedUSLPath} DDL ${ddlQuery}`;
-            }
+            let uslQuery = `COMPILE USL IF NOT EXISTS ${name} DEPLOY NAMESPACE ${selectedUSLPath} DDL ${ddlQuery}`;
 
             // Call the API to compile the USL
             const response = await fetchApi(uslQuery);
@@ -1993,7 +1995,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                             <button
                                 className={`tab-button ${viewMode === 'output' ? 'active' : ''}`}
                                 onClick={() => setViewMode('output')}
-                                // onClick={() => clickOutputTab()}
+                            // onClick={() => clickOutputTab()}
                             >
                                 Output
                             </button>
