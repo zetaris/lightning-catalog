@@ -26,7 +26,7 @@ import com.zetaris.lightning.execution.command.ShowDataQualityResult
 import org.apache.spark.sql.SparkSession
 import org.slf4j.LoggerFactory
 
-import java.io.{BufferedWriter, OutputStream, OutputStreamWriter}
+import java.io.{BufferedWriter, OutputStream, OutputStreamWriter, PrintWriter, StringWriter}
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import scala.util.{Failure, Success, Try}
@@ -70,10 +70,13 @@ class LightningResource {
     } match {
       case Failure(e) =>
         LOGGER.error("Spark error occurred", e)
+        val sw = new StringWriter()
+        val pw = new PrintWriter(sw)
+        e.printStackTrace(pw)
 
         val errorResponse = s"""{
           "error": "Spark execution error",
-          "message": "${e.getMessage}"
+          "message": "${sw.toString}"
         }"""
 
         Response.status(Response.Status.INTERNAL_SERVER_ERROR)
@@ -124,10 +127,13 @@ class LightningResource {
     } match {
       case Failure(e) =>
         LOGGER.error("Spark error occurred", e)
+        val sw = new StringWriter()
+        val pw = new PrintWriter(sw)
+        e.printStackTrace(pw)
 
         val errorResponse = s"""{
           "error": "Spark execution error",
-          "message": "${e.getMessage}"
+          "message": "${sw.toString}"
         }"""
 
         Response.status(Response.Status.INTERNAL_SERVER_ERROR)
@@ -170,10 +176,13 @@ class LightningResource {
     } match {
       case Failure(e) =>
         LOGGER.error("Spark error occurred", e)
+        val sw = new StringWriter()
+        val pw = new PrintWriter(sw)
+        e.printStackTrace(pw)
 
         val errorResponse = s"""{
           "error": "Spark execution error",
-          "message": "${e.getMessage}"
+          "message": "${sw.toString}"
         }"""
 
         Response.status(Response.Status.INTERNAL_SERVER_ERROR)
