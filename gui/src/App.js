@@ -140,6 +140,7 @@ function App() {
                   toggleRefreshNav={toggleRefreshNav}
                   selectedTable={selectedTable}
                   semanticLayerInfo={semanticLayerInfo}
+                  setSemanticLayerInfo={setSemanticLayerInfo}
                   uslNamebyClick={uslNamebyClick}
                   setIsLoading={setIsLoading}
                   previewTableName={previewTableName}

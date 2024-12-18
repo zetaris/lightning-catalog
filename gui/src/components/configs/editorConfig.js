@@ -205,8 +205,8 @@ export const getContext = (editorInstance) => {
     "LIGHTNING": /\bLIGHTNING\b(?:\.(\w+(?:\.\w+)*))?/ig,
     "SELECT": /SELECT\s+(.*?)(?=\bFROM\b|$)/ig,
     "FROM": /FROM\s+([\w]+(?:\.[\w]+)*)(?:\s+AS\s+(\w+))?/ig,
-    // "WHERE": /WHERE\s+([^FROM]+)/ig,
-    "WHERE": /WHERE\s+([^\n]+)/ig,
+    "WHERE": /WHERE\s+([^FROM]+)/ig,
+    // "WHERE": /WHERE\s+([^\n]+)/ig,
     // "WHERE": /WHERE\s+(.+)(?=\s+(?:SELECT|$))/ig,
     "GROUP BY": /GROUP\s+BY\s+([^FROM]+)/ig,
     "HAVING": /HAVING\s+([^FROM]+)/ig
