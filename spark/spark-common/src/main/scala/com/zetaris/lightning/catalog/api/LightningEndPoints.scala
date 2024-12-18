@@ -68,22 +68,14 @@ class LightningResource {
         }
       }
     } match {
-      case Failure(e) =>
-        LOGGER.error("Spark error occurred", e)
-        val sw = new StringWriter()
-        val pw = new PrintWriter(sw)
-        e.printStackTrace(pw)
-
-        val errorResponse = s"""{
-          "error": "Spark execution error",
-          "message": "${sw.toString}"
-        }"""
-
-        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-          .entity(errorResponse)
-          .build()
+      case Failure(e) => buildErrorMessage(e)
       case Success(stream) =>
-        Response.ok(stream).build()
+        Try {
+          Response.ok(stream).build()
+        } match {
+          case Failure(e) => buildErrorMessage(e)
+          case Success(stream) => stream
+        }
     }
   }
 
@@ -125,22 +117,14 @@ class LightningResource {
         }
       }
     } match {
-      case Failure(e) =>
-        LOGGER.error("Spark error occurred", e)
-        val sw = new StringWriter()
-        val pw = new PrintWriter(sw)
-        e.printStackTrace(pw)
-
-        val errorResponse = s"""{
-          "error": "Spark execution error",
-          "message": "${sw.toString}"
-        }"""
-
-        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-          .entity(errorResponse)
-          .build()
+      case Failure(e) => buildErrorMessage(e)
       case Success(stream) =>
-        Response.ok(stream).build()
+        Try {
+          Response.ok(stream).build()
+        } match {
+          case Failure(e) => buildErrorMessage(e)
+          case Success(stream) => stream
+        }
     }
   }
 
@@ -174,23 +158,31 @@ class LightningResource {
         }
       }
     } match {
-      case Failure(e) =>
-        LOGGER.error("Spark error occurred", e)
-        val sw = new StringWriter()
-        val pw = new PrintWriter(sw)
-        e.printStackTrace(pw)
+      case Failure(e) => buildErrorMessage(e)
+      case Success(stream) =>
+        Try {
+          Response.ok(stream).build()
+        } match {
+          case Failure(e) => buildErrorMessage(e)
+          case Success(stream) => stream
+        }
+    }
+  }
 
-        val errorResponse = s"""{
+  def buildErrorMessage(th: Throwable): Response = {
+    val sw = new StringWriter()
+    val pw = new PrintWriter(sw)
+    th.printStackTrace(pw)
+
+    val errorResponse = s"""{
           "error": "Spark execution error",
           "message": "${sw.toString}"
         }"""
 
-        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-          .entity(errorResponse)
-          .build()
-      case Success(stream) =>
-        Response.ok(stream).build()
-    }
+    Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+      .entity(errorResponse)
+      .build()
+
   }
 
 }
