@@ -1,9 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Editor from './contents/components/Editor';
 import './SetSemanticLayerModal.css';
 
 const SetSemanticLayerModal = ({ showPopup, setShowPopup, ddlName, setDdlName, ddlCode, setDdlCode, handleGenerateClick }) => {
   const [dragOver, setDragOver] = useState(false);
+
+  useEffect(() => {
+    if (showPopup) {
+      setDdlName('');
+      setDdlCode('');
+    }
+  }, [showPopup, setDdlName, setDdlCode]);
 
   const handleFileRead = (file) => {
     const reader = new FileReader();

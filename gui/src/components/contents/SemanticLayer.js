@@ -101,7 +101,8 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         try {
             const parsedDslData = JSON.parse(JSON.parse(uslData).json);
 
-            localStorage.setItem(dbname, JSON.stringify(parsedDslData));
+            // localStorage.setItem(dbname, JSON.stringify(parsedDslData));
+            localStorage.setItem(uslName, JSON.stringify(parsedDslData));
         } catch {
 
         }
@@ -274,7 +275,8 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
     const handleListDQClick = async (table) => {
 
         const uslInfoKey = table.name.split('.').slice(-2, -1)[0];
-        const uslInfo = JSON.parse(localStorage.getItem(uslInfoKey));
+        // const uslInfo = JSON.parse(localStorage.getItem(uslInfoKey));
+        const uslInfo = JSON.parse(localStorage.getItem(table.name));
 
         if (uslInfo && Array.isArray(uslInfo.tables)) {
             const tableName = table.name.split('.').pop();
@@ -1594,7 +1596,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                     >
                         Run
                     </button>
-                    <button
+                    {/* <button
                         className='btn-primary'
                         style={{
                             position: 'absolute',
@@ -1605,7 +1607,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
                         onClick={removeDQ}
                     >
                         Remove
-                    </button>
+                    </button> */}
                     {/* <MaterialReactTable
                         columns={dqColumns}
                         // data={dqData}

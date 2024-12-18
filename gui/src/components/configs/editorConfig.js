@@ -205,7 +205,9 @@ export const getContext = (editorInstance) => {
     "LIGHTNING": /\bLIGHTNING\b(?:\.(\w+(?:\.\w+)*))?/ig,
     "SELECT": /SELECT\s+(.*?)(?=\bFROM\b|$)/ig,
     "FROM": /FROM\s+([\w]+(?:\.[\w]+)*)(?:\s+AS\s+(\w+))?/ig,
-    "WHERE": /WHERE\s+([^FROM]+)/ig,
+    // "WHERE": /WHERE\s+([^FROM]+)/ig,
+    "WHERE": /WHERE\s+([^\n]+)/ig,
+    // "WHERE": /WHERE\s+(.+)(?=\s+(?:SELECT|$))/ig,
     "GROUP BY": /GROUP\s+BY\s+([^FROM]+)/ig,
     "HAVING": /HAVING\s+([^FROM]+)/ig
   };
@@ -227,6 +229,8 @@ export const getContext = (editorInstance) => {
       matches.push({ type, match, row: matchRow, column: matchColumn, distance });
     }
   }
+
+  // console.log(matches)
 
   for (const [type, regex] of Object.entries(patterns)) {
     let match;
@@ -566,7 +570,11 @@ export const editorOptions = {
   enableLiveAutocompletion: true,
   enableSnippets: false,
   showLineNumbers: true,
+  wrap: true,
+  wrapBehavioursEnabled: true,
+  behavioursEnabled: true,
   tabSize: 2,
+
 };
 
 export const tablePathSet = new Set();
