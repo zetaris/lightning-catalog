@@ -50,9 +50,8 @@ class LightningResource {
 
       new StreamingOutput() {
         override def write(output: OutputStream): Unit = {
-          //val itr = df.toJSON.toLocalIterator()
-          val itr = df.toLocalIterator()
           val writer = new BufferedWriter(new OutputStreamWriter(output))
+          val itr = df.toLocalIterator()
           writer.write("[")
           while(itr.hasNext) {
             val json = itr.next().json
