@@ -42,3 +42,21 @@ Assuming LIGT_HOME variable point the installation directory.
 * change LIGHTNING_SERVER_PORT(8080 by default) for API port, LIGHTNING_GUI_PORT(8081 by default) for web server port in ${LIGT_HOME}/bin/start-ligt.sh
 * run ${LIGT_HOME}/bin/start-ligt.sh
 * connect to http://localhost:LIGHTNING_GUI_PORT from web browser.
+
+## 6. Running Lightning on AWS S3 or Azure Blob
+* Open bin/start-light.sh file, and change wharehouse paramemters 
+  
+  AWS S3
+  ```bash
+  --conf "spark.sql.catalog.lightning.warehouse=s3a://s3_endpoint/model_dir/" \
+  --conf "spark.sql.catalog.lightning.fs.s3a.access.key=access_key" \
+  --conf "spark.sql.catalog.lightning.fs.s3a.secret.key=secret_key" \
+  ```
+  Azure blub
+  ```bash
+  --conf "spark.sql.catalog.lightning.warehouse=wasbs://azure_blob_endpoint/model_dir/" \
+  --conf "spark.hadoop.fs.azure.account.key.azureqastore.blob.core.windows.net=your_secret_key" \
+  
+  ```
+  
+

@@ -13,7 +13,7 @@ statement
 
 ddlStatement
     : registerDataSource | registerCatalog | createTable | compileUSL | activateUSLTable | loadUSL | updateUSL |
-      registerDQ | listDQ | runDQ | removeDQ | showNamespacesOrTables | showDQResult
+      removeUSL | registerDQ | listDQ | runDQ | removeDQ | showNamespacesOrTables | showDQResult
     ;
 
 showNamespacesOrTables
@@ -46,6 +46,10 @@ loadUSL
 
 updateUSL
     : UPDATE USL dbName = identifier NAMESPACE namespace=multipartIdentifier AS json = restOfInput
+    ;
+
+removeUSL
+    : REMOVE USL dbName = identifier NAMESPACE namespace=multipartIdentifier
     ;
 
 activateUSLTable

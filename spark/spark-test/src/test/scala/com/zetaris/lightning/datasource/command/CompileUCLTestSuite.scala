@@ -22,7 +22,7 @@
 package com.zetaris.lightning.datasource.command
 
 import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
-import com.zetaris.lightning.model.{NamespaceNotFoundException, TableNotActivatedException}
+import com.zetaris.lightning.model.{NamespaceNotFoundException, TableNotActivatedException, UnifiedSemanticLayerFoundException}
 import com.zetaris.lightning.spark.SparkExtensionsTestBase
 import org.apache.spark.sql.Row
 import org.junit.runner.RunWith
@@ -36,7 +36,7 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
   }
 
   override def beforeEach(): Unit = {
-    sparkSession.sql(s"DROP NAMESPACE IF EXISTS lightning.metastore.crm")
+    sparkSession.sql(s"DROP NAMESPACE IF EXISTS lightning.metastore.crm CASCADE")
   }
 
   test("throw InvalidNamespaceException if no namespace is defined") {
@@ -232,4 +232,30 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
     }
 
   }
+
+  test("should remove USL") {
+    sparkSession.sql(s"CREATE NAMESPACE lightning.metastore.crm")
+
+    val df = sparkSession.sql(
+      s"""
+         |COMPILE USL IF NOT EXISTS crmdb DEPLOY NAMESPACE lightning.metastore.crm DDL
+         |-- create table customer
+         |CREATE TABLE IF NOT EXISTS customer (
+         | id int NOT NULL PRIMARY KEY,
+         | name varchar(200),
+         | /*+@AccessControl(accessType="REGEX", regex="ss", users = "*", groups = "*")*/
+         | uid int UNIQUE,
+         | address varchar(200)
+         |);
+         |""".stripMargin)
+
+    sparkSession.sql("LOAD USL crmdb NAMESPACE lightning.metastore.crm").collect()(0).getString(0)
+
+    sparkSession.sql("REMOVE USL crmdb NAMESPACE lightning.metastore.crm").collect()(0).getBoolean(0)
+    intercept[UnifiedSemanticLayerFoundException] {
+      sparkSession.sql("LOAD USL crmdb NAMESPACE lightning.metastore.crm").collect()(0).getString(0)
+    }
+
+  }
+
 }

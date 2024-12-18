@@ -142,6 +142,7 @@ path "/home/zetaris/data/orc/customer.orc"
 REGISTER OR REPLACE JSON DATASOURCE customers OPTIONS (
 header "true",
 inferSchema "true",
+multiline "true"
 path "/home/zetaris/data/json/customer.json"
 ) NAMESPACE lightning.datasource.file.json
 ```

@@ -22,11 +22,13 @@
 package com.zetaris.lightning.execution.command
 
 import com.zetaris.lightning.catalog.LightningSource
-import com.zetaris.lightning.model.LightningModelFactory
+import com.zetaris.lightning.model.{LightningModelFactory, UnifiedSemanticLayerFoundException}
 import com.zetaris.lightning.model.serde.UnifiedSemanticLayer
 import org.apache.spark.sql.{Row, SparkSession}
 import org.apache.spark.sql.catalyst.expressions.AttributeReference
-import org.apache.spark.sql.types.StringType
+import org.apache.spark.sql.types.{BooleanType, StringType}
+
+import scala.util.{Failure, Success, Try}
 
 case class LoadUSL(namespace: Seq[String], name: String) extends LightningCommandBase {
   override val output: Seq[AttributeReference] = Seq(
@@ -37,7 +39,13 @@ case class LoadUSL(namespace: Seq[String], name: String) extends LightningComman
     checkNamespaceLen(namespace)
 
     val model = LightningModelFactory(dataSourceConfigMap(sparkSession))
-    val usl = model.loadUnifiedSemanticLayer(namespace.drop(1), name)
+    val usl = Try {
+      model.loadUnifiedSemanticLayer(namespace.drop(1), name)
+    } match {
+      case Success(loaded) => loaded
+      case Failure(e: java.io.FileNotFoundException) => throw UnifiedSemanticLayerFoundException(s"${e.getMessage}")
+      case Failure(th) => throw th
+    }
     val json = UnifiedSemanticLayer.toJson(usl.namespace, usl.name, usl.tables)
 
     Row(json) :: Nil
@@ -62,3 +70,19 @@ case class UpdateUSL(namespace: Seq[String], name: String, json: String)
     Row(s"${toFqn(namespace)}.$name") :: Nil
   }
 }
+
+case class RemoveUSL(namespace: Seq[String], name: String) extends LightningCommandBase {
+  override val output: Seq[AttributeReference] = Seq(
+    AttributeReference("removed", BooleanType, false)()
+  )
+
+  override def runCommand(sparkSession: SparkSession): Seq[Row] = {
+    checkNamespaceLen(namespace)
+
+    val model = LightningModelFactory(dataSourceConfigMap(sparkSession))
+    model.removeUnifiedSemanticLayer(namespace.drop(1), name)
+
+    Row(true) :: Nil
+  }
+}
+

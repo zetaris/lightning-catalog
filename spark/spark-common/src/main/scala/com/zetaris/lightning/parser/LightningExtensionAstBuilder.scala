@@ -20,7 +20,7 @@
 package com.zetaris.lightning.parser
 
 import com.zetaris.lightning.execution.command.ReferenceControl.{Cascade, NoAction, ReferenceControl, Restrict, SetDefault, SetNull}
-import com.zetaris.lightning.execution.command.{AccessControl, ActivateUSLTableSpec, Annotation, AnnotationStatement, Assignment, ColumnSpec, CompileUSLSpec, CreateTableSpec, DataQuality, DataSourceType, ForeignKey, ListDataQualitySpec, LoadUSL, NotNullColumn, PrimaryKeyColumn, RegisterCatalogSpec, RegisterDataQualitySpec, RegisterDataSourceSpec, RemovedDataQualitySpec, RunDataQualitySpec, ShowDataQualityResult, ShowNamespacesOrTables, UniqueKeyColumn, UpdateUSL}
+import com.zetaris.lightning.execution.command.{AccessControl, ActivateUSLTableSpec, Annotation, AnnotationStatement, Assignment, ColumnSpec, CompileUSLSpec, CreateTableSpec, DataQuality, DataSourceType, ForeignKey, ListDataQualitySpec, LoadUSL, NotNullColumn, PrimaryKeyColumn, RegisterCatalogSpec, RegisterDataQualitySpec, RegisterDataSourceSpec, RemoveUSL, RemovedDataQualitySpec, RunDataQualitySpec, ShowDataQualityResult, ShowNamespacesOrTables, UniqueKeyColumn, UpdateUSL}
 import com.zetaris.lightning.model.{InvalidNamespaceException, LightningModelFactory}
 import com.zetaris.lightning.parser.LightningParserUtils.validateTableConstraints
 import org.antlr.v4.runtime.ParserRuleContext
@@ -457,6 +457,14 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
     validateNamespace(namespace)
 
     LoadUSL(namespace, tableName)
+  }
+
+  override def visitRemoveUSL(ctx: RemoveUSLContext): RemoveUSL = withOrigin(ctx) {
+    val tableName = ctx.dbName.getText()
+    val namespace = visitMultipartIdentifier(ctx.namespace)
+    validateNamespace(namespace)
+
+    RemoveUSL(namespace, tableName)
   }
 
   override def visitUpdateUSL(ctx: UpdateUSLContext): UpdateUSL = withOrigin(ctx) {

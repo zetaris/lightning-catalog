@@ -20,6 +20,9 @@ Some benefits of a unified semantic layer include: Accelerated time to insight, 
 In Lightning Catalog, a user should come up with DDLs, Create table statement, with context awareness name(table, column, constraints).
 And then, Lighting Catalog can compile DDLs into JSON representation, deploy it over underlying data source.
 
+## Create a new namespace
+![new namespace](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/usl-namespace.png)
+
 ## Compile DDLs
 ![Compile DDL](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/compile-ddl.png)
 
@@ -27,16 +30,16 @@ And then, Lighting Catalog can compile DDLs into JSON representation, deploy it 
 ![Load ERD](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/usl-main.png)
 
 ## Deploy(Activate) table
-![Load ERD](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/activate-table.png)
+![Deploy](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/activate-table.png)
 
 ## Run query over activated table
-![Load ERD](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/preview-table.png)
+![Running query](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/preview-table.png)
 
 ## Register Data Quality
-![Load ERD](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/register-dq.png)
+![Register DQ](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/register-dq.png)
 
 ## Run Data Quality
-![Load ERD](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/run-dq.png)
+![Run DQ](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/run-dq.png)
 
 ## Export Invalid(valid) records
-![Load ERD](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/export-invalid-records.png)
+![Export (in)valid records](https://github.com/zetaris/lightning-catalog/blob/master/doc/images/export-invalid-records.png)
