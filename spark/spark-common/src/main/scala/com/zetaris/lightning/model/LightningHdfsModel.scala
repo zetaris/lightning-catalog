@@ -420,6 +420,29 @@ class LightningHdfsModel(prop: CaseInsensitiveStringMap) extends LightningModel 
   }
 
   /**
+   * remove unified semantic layer
+   * @param namespace
+   * @param name
+   */
+  override def removeUnifiedSemanticLayer(namespace: Seq[String], name: String): Unit = {
+    val subDir = nameSpaceToDir(namespace)
+    var parentAndChild = HdfsFileSystem.toFolderUrl(s"$modelDir/$subDir")
+    var fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+
+    if (!fs.folderExist(parentAndChild._2)) {
+      throw NamespaceNotFoundException(s"$modelDir/$subDir")
+    }
+
+    fs.deleteDirectory(s"$modelDir/$subDir/.$name")
+
+    val fullPath = s"$modelDir/$subDir/${name}_usl.json"
+    parentAndChild = HdfsFileSystem.toFolderUrl(fullPath)
+    fs = new HdfsFileSystem(scalaMap, parentAndChild._1)
+    fs.deleteFile(fullPath)
+
+  }
+
+  /**
    * save mapping query for the given USL table
    * @param namespace
    * @param name

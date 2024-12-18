@@ -176,6 +176,7 @@ class LightningExtendedParser(delegate: ParserInterface) extends ParserInterface
       normalized.contains("activate usl") ||
       normalized.contains("load usl") ||
       normalized.contains("update usl") ||
+      normalized.contains("remove usl") ||
       normalized.contains("register dq") ||
       normalized.contains("list dq") ||
       normalized.contains("run dq") ||

@@ -130,6 +130,13 @@ trait LightningModel {
   def loadUnifiedSemanticLayer(namespace: Seq[String], name: String): UnifiedSemanticLayer
 
   /**
+   * remove unified semantic layer
+   * @param namespace
+   * @param name
+   */
+  def removeUnifiedSemanticLayer(namespace: Seq[String], name: String): Unit
+
+  /**
    * save mapping query for the given USL table
    * @param namespace
    * @param name

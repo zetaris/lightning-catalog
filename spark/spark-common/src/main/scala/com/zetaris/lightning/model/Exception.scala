@@ -38,3 +38,6 @@ case class DataQualityNotFoundException(message: String) extends RuntimeExceptio
 case class ReferenceTableFoundException(message: String) extends RuntimeException(message)
 
 case class ReferenceColumnFoundException(message: String) extends RuntimeException(message)
+
+case class UnifiedSemanticLayerFoundException(message: String) extends RuntimeException(message)
+
