@@ -74,6 +74,8 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading, navErro
             setEditors([{ id: 1, name: 'Editor 1', content: '' }]);
             setActiveEditor(1);
         }
+
+        setLoading(false);
     }, []);
 
     useEffect(() => {

@@ -18,7 +18,7 @@ import DataQualityPopup from './components/DataQualityPopup.js';
 import DataQualityListPopup from './components/DataQualityListPopup.js';
 import ActivePopup from './components/ActivatePopup.js';
 
-function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIsLoading, previewTableName, isMouseLoading, navErrorMsg, setNavErrorMsg, setPreviewableTables }) {
+function SemanticLayer({ selectedTable, semanticLayerInfo, setSemanticLayerInfo, uslNamebyClick, setIsLoading, previewTableName, isMouseLoading, navErrorMsg, setNavErrorMsg, setPreviewableTables }) {
     useEffect(() => {
         if (sessionStorage.getItem('selectedTab') === 'semanticLayer') {
             setViewMode('output');
@@ -463,36 +463,69 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         };
     }, []);
 
-    useEffect(() => {
-        setIsLoading(true);
-        if (semanticLayerInfo && semanticLayerInfo.length > 0) {
-            clearJsPlumbAndLocalStorage();
+    // useEffect(() => {
+    //     setIsLoading(true);
+    //     if (semanticLayerInfo && semanticLayerInfo.length > 0) {
+    //         clearJsPlumbAndLocalStorage();
 
-            const fetchAndParseDDL = async () => {
+    //         const fetchAndParseDDL = async () => {
+    //             try {
+    //                 const name = semanticLayerInfo[0].name;
+    //                 const ddl = semanticLayerInfo[0].ddl;
+    //                 const selectedUSLPath = semanticLayerInfo[0].selectedUSLPath;
+    //                 const parsedDDLResult = await compileUSL(name, ddl, selectedUSLPath, true);
+    //                 if (parsedDDLResult) {
+    //                     // window.location.reload();
+    //                     deleteAllTables();
+    //                     const { savedTables, savedConnections, rulesData } = getSettingDataFromJson(parsedDDLResult);
+    //                     reFreshScreen();
+    //                     handleOptimizeView(jsPlumbRef.current, zoomLevel, setZoomLevel, setOffset);
+    //                     // restoreFromTablesAndConnections(savedTables, savedConnections);
+    //                     // window.location.reload();
+    //                 }
+    //             } catch (error) {
+    //                 console.error("Error while parsing DDL:", error);
+    //             }
+    //         };
+
+    //         fetchAndParseDDL();
+    //         handleOptimizeView(jsPlumbRef.current, zoomLevel, setZoomLevel, setOffset);
+    //     }
+    //     setIsLoading(false);
+    // }, [semanticLayerInfo]);
+
+    useEffect(() => {
+        const runTask = async () => {
+            setIsLoading(true);
+    
+            if (semanticLayerInfo && semanticLayerInfo.length > 0) {
+                clearJsPlumbAndLocalStorage();
+    
                 try {
                     const name = semanticLayerInfo[0].name;
                     const ddl = semanticLayerInfo[0].ddl;
                     const selectedUSLPath = semanticLayerInfo[0].selectedUSLPath;
                     const parsedDDLResult = await compileUSL(name, ddl, selectedUSLPath, true);
+                    
                     if (parsedDDLResult) {
-                        // window.location.reload();
                         deleteAllTables();
                         const { savedTables, savedConnections, rulesData } = getSettingDataFromJson(parsedDDLResult);
                         reFreshScreen();
                         handleOptimizeView(jsPlumbRef.current, zoomLevel, setZoomLevel, setOffset);
                         // restoreFromTablesAndConnections(savedTables, savedConnections);
-                        // window.location.reload();
+                        
+                        setSemanticLayerInfo([]);
                     }
                 } catch (error) {
                     console.error("Error while parsing DDL:", error);
                 }
-            };
-
-            fetchAndParseDDL();
-            handleOptimizeView(jsPlumbRef.current, zoomLevel, setZoomLevel, setOffset);
-        }
-        setIsLoading(false);
-    }, [semanticLayerInfo]);
+            }
+    
+            setIsLoading(false);
+        };
+    
+        runTask();
+    }, [semanticLayerInfo]);    
 
     useEffect(() => {
         const runPreviewQuery = async () => {
@@ -1014,7 +1047,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, uslNamebyClick, setIs
         } catch (e) {
             // setPopupMessage();
             setViewMode('output');
-            setQueryResult({ error: `Invalid DDL JSON format: ${e}` });
+            setQueryResult({ error: `Invalid DDL JSON format: ${e.message}` });
             return null;
         }
 
