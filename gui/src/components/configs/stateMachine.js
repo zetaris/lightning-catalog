@@ -90,7 +90,7 @@ export class StateMachine {
             case 'SELECT':
             case 'WHERE':
                 const ignoreSelect = context.tablePath || context.path || context.tableAlias;
-                if (ignoreSelect.toUpperCase().includes('SELECT')) {
+                if (ignoreSelect?.toUpperCase().includes('SELECT')) {
                     break;
                 }
                 await this.fetchColumnsForContext(context);

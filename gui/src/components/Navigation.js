@@ -37,6 +37,9 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   const [popupMessage, setPopupMessage] = useState(null);
   const [loadingNodeIds, setLoadingNodeIds] = useState(new Set());
   const [selectedTreeItem, setSelectedTreeItem] = useState(null);
+  const [showConfirmPopup, setShowConfirmPopup] = useState(false);
+  const [uslToRemove, setUslToRemove] = useState(null);
+  const [isERDClicked, setIsERDClicked] = useState(false);
 
   const closePopup = () => setPopupMessage(null);
 
@@ -118,8 +121,29 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     let selectedUSLPath;
     if (selectedTreeItem) {
       selectedUSLPath = selectedTreeItem.fullPath;
-    }else{
+    } else {
       setNavErrorMsg(`Please select the correct namespace.`);
+    }
+
+    const checkDuplicateName = (nodes, parentPath) => {
+      for (const node of nodes) {
+        if (node.fullPath === parentPath) {
+          // Check if any child has the same name as ddlName
+          return (node.children || []).some((child) => child.name === ddlName);
+        }
+        if (node.children) {
+          if (checkDuplicateName(node.children, parentPath)) {
+            return true;
+          }
+        }
+      }
+      return false;
+    };
+
+    const isDuplicate = checkDuplicateName(semanticLayerFiles, selectedUSLPath);
+    if (isDuplicate) {
+      setPopupMessage(`A child with the name '${ddlName}' already exists in the selected namespace.`);
+      return;
     }
 
     onGenerateDDL(ddlName, ddlCode, selectedUSLPath);
@@ -132,30 +156,31 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       fullPath: newPath,
       type: 'usl',
       children: null,
-      uniqueId: `${newPath}-${Date.now()}`,
+      uniqueId: `${newPath}`,
     };
 
     setSemanticLayerFiles((prevData) => {
-      const updateNestedNode = (nodes, pathParts, index = 0) => {
+      const updateNestedNode = (nodes, parentPath) => {
+        // console.log(nodes)
         return nodes.map(node => {
-          if (node.name === pathParts[index]) {
-            if (index === pathParts.length - 1) {
-              return {
-                ...node,
-                children: [...(node.children || []), newNode]
-              };
-            }
+          if (node.fullPath === parentPath) {
             return {
               ...node,
-              children: updateNestedNode(node.children || [], pathParts, index + 1)
+              children: [...(node.children || []), newNode]
+            };
+          }
+
+          if (node.children) {
+            return {
+              ...node,
+              children: updateNestedNode(node.children, parentPath)
             };
           }
           return node;
         });
       };
 
-      const pathParts = basePath.split('.');
-      return updateNestedNode(prevData, pathParts);
+      return updateNestedNode(prevData, basePath);
     });
 
     setShowPopup(false);
@@ -248,7 +273,9 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       if (storedUSL) {
         const uslData = JSON.parse(storedUSL);
         const semanticLayerTree = renderTreeFromUSL(uslData);
-        setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, uslData.name, semanticLayerTree));
+        // setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, uslData.name, semanticLayerTree));
+        setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, uslData.fullPath || uslData.name, semanticLayerTree));
+
       }
     };
 
@@ -340,7 +367,6 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     return uniqueData;
   };
 
-
   const getTableDesc = async (fullPath) => {
     let query = `DESC ${fullPath}`;
     const result = await fetchApi(query);
@@ -361,6 +387,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       fullPath: `${namespace.join('.')}.${name}.${table.name}`,
       type: 'table',
       children: null, // Table columns are loaded dynamically
+      // uniqueId: `${namespace.join('.')}.${name}.${table.name}`
     }));
 
     // Process sub-USLs (store only name and namespace)
@@ -369,6 +396,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       fullPath: subUslItem.namespace,
       type: 'usl',
       children: null, // Sub-USL details are loaded dynamically
+      // uniqueId: subUslItem.namespace
     }));
 
     return [...tableItems, ...subUslItems];
@@ -376,7 +404,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
   const handleTreeItemClick = async (node, isSetSelectedTree = true) => {
 
-    if(isSetSelectedTree){
+    if (isSetSelectedTree) {
       setSelectedTreeItem({
         name: node.name,
         fullPath: node.fullPath,
@@ -401,6 +429,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
     try {
       if (node.type === 'table') {
+
         if (node.fullPath.toLowerCase().includes('datasource')) {
           setPreviewableTables((prev) => new Set(prev).add(node.fullPath));
         }
@@ -411,14 +440,21 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
         if (node.fullPath.toLowerCase().includes('metastore')) {
           // uslName = node.fullPath.match(/usldb\.([^.]+)/)[1];
           // uslName = node.fullPath.match(/default(?:\.[^.]+)*\.([^.]+)\.[^.]+$/)?.[1];
-          uslName = node.fullPath.split('.').slice(-2, -1)[0];
+          // uslName = node.fullPath.split('.').slice(-2, -1)[0];
+          uslName = node.fullPath.split('.').slice(0, -1).join('.');
         }
 
         if (uslName) {
           storedData = JSON.parse(localStorage.getItem(uslName));
         }
 
-        if (storedData?.name === uslName && uslName && node.type === 'table') {
+        let storedDataFullPath;
+
+        if(storedData){
+          storedDataFullPath = `lightning.${storedData.namespace.join('.')}.${storedData.name}`;
+        }
+         
+        if (storedDataFullPath === uslName && uslName && node.type === 'table') {
           const selectedTable = storedData.tables.find(table => table.name === node.name);
 
           if (selectedTable) {
@@ -459,7 +495,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
             });
 
             setSemanticLayerFiles((prevData) =>
-              updateNodeChildren(prevData, node.name, columnChildren)
+              updateNodeChildren(prevData, node.fullPath, columnChildren)
             );
           }
           return;
@@ -490,7 +526,8 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
         node.children = tableChildren;
 
         if (node.fullPath.toLowerCase().includes('metastore')) {
-          setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, tableChildren));
+          // setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, tableChildren));
+          setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.fullPath || node.name, tableChildren));
         } else {
           setDataSources((prevData) => updateNodeChildren(prevData, node.name, tableChildren));
         }
@@ -564,7 +601,10 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
             const combinedChildren = [...semanticLayerChildren, ...subUslChildren];
 
             // Update tree with combined children
-            setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, combinedChildren));
+            // setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, combinedChildren));
+            setSemanticLayerFiles((prevData) =>
+              updateNodeChildren(prevData, node.fullPath || node.name, combinedChildren)
+            );
 
             // Set previewable tables
             uslData.tables.forEach((table) => {
@@ -594,7 +634,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
               const result = await fetchApi(query);
               const uslData = JSON.parse(JSON.parse(result).json);
 
-              localStorage.setItem(node.name, JSON.stringify(uslData));
+              localStorage.setItem(node.fullPath, JSON.stringify(uslData));
 
               const semanticLayerChildren = uslData.tables.map((table) => ({
                 name: table.name,
@@ -612,7 +652,10 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 })),
               }));
 
-              setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, semanticLayerChildren));
+              // setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, semanticLayerChildren));
+              setSemanticLayerFiles((prevData) =>
+                updateNodeChildren(prevData, node.fullPath || node.name, semanticLayerChildren)
+              );
 
               uslData.tables.forEach((table) => {
                 if (table.activateQuery) {
@@ -624,7 +667,8 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 }
               });
             } catch (error) {
-              console.error(`Error loading USL for ${node.name}:`, error);
+              // console.error(`Error loading USL for ${node.name}:`, error.message);
+              setNavErrorMsg(`Error loading USL for ${node.name} : ${error.message}`);
             }
           }
         } else {
@@ -646,7 +690,10 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   const fetchChildNodes = async (node, isMetastore = false) => {
     const childNodes = await fetchDatasources(node.fullPath || node.name);
     if (isMetastore) {
-      setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, childNodes));
+      // setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, childNodes));
+      setSemanticLayerFiles((prevData) =>
+        updateNodeChildren(prevData, node.fullPath || node.name, childNodes)
+      );
     } else {
       setDataSources((prevData) => updateNodeChildren(prevData, node.name, childNodes));
     }
@@ -654,59 +701,40 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     return childNodes;
   };
 
-  // const updateNodeChildren = (nodes, nodeName, children) => {
-  //   return nodes.map((node) => {
-  //     if (node.name === nodeName) {
-  //       return { ...node, children, hasTableChild: children.some((child) => child.type === 'table') };
-  //     }
-  //     if (node.children) {
-  //       return { ...node, children: updateNodeChildren(node.children, nodeName, children) };
-  //     }
-  //     return node;
-  //   });
-  // };
-
-  const updateNodeChildren = (nodes, nodeName, newChildren) => {
+  const updateNodeChildren = (nodes, identifier, newChildren) => {
     return nodes.map((node) => {
-      if (node.name === nodeName) {
+
+      if (node.fullPath && node.fullPath === identifier) {
         if (node.type === 'table') {
           return { ...node, children: newChildren };
         }
         const combinedChildren = [...(node.children || []), ...newChildren];
-        const uniqueChildren = removeDuplicates(combinedChildren, (child) => `${child.name}-${child.type}`);
+        const uniqueChildren = removeDuplicates(combinedChildren, (child) =>
+          child.fullPath ? `${child.fullPath}-${child.type}` : `${child.name}-${child.type}`
+        );
         return { ...node, children: uniqueChildren };
       }
+
+      if (node.name === identifier) {
+        if (node.type === 'table') {
+          return { ...node, children: newChildren };
+        }
+        const combinedChildren = [...(node.children || []), ...newChildren];
+        const uniqueChildren = removeDuplicates(combinedChildren, (child) =>
+          child.fullPath ? `${child.fullPath}-${child.type}` : `${child.name}-${child.type}`
+        );
+        return { ...node, children: uniqueChildren };
+      }
+
       if (node.children) {
-        return { ...node, children: updateNodeChildren(node.children, nodeName, newChildren) };
+        return {
+          ...node,
+          children: updateNodeChildren(node.children, identifier, newChildren)
+        };
       }
       return node;
     });
   };
-
-  // const drawUSL = async (node) => {
-  //   sessionStorage.setItem('selectedTab', 'semanticLayer');
-  //   const fullPath = node.fullPath;
-  //   const dbname = fullPath.split('.').pop();
-  //   const path = fullPath.split('.').slice(0, -1).join('.');
-
-  //   let query = `LOAD USL ${dbname} NAMESPACE ${path}`;
-  //   try {
-  //     setIsLoading(true);
-  //     const result = await fetchApi(query);
-  //     const uslData = JSON.parse(JSON.parse(result).json);
-
-  //     setSelectedUSL(uslData.name)
-  //     localStorage.setItem(dbname, JSON.stringify(uslData));
-  //     // updateTreeViewAndActivateButtons(uslData);
-
-  //     setUslNamebyClick(result);
-  //     setIsLoading(true);
-  //     setView('semanticLayer');
-  //     setHasTableChild(true);
-  //   } catch (error) {
-  //     // console.error('Error fetching USL file content:', error);
-  //   }
-  // };
 
   const drawUSL = async (node) => {
     sessionStorage.setItem('selectedTab', 'semanticLayer');
@@ -750,15 +778,73 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       }
 
       setSelectedUSL(uslData.name);
-      localStorage.setItem(dbname, JSON.stringify(uslData));
+      localStorage.setItem(node.fullPath, JSON.stringify(uslData));
 
       setUslNamebyClick(result);
       setIsLoading(false);
       setView('semanticLayer');
       setHasTableChild(true);
     } catch (error) {
-      console.error('Error fetching USL file content:', error);
+      // console.error('Error fetching USL file content:', error);
+      setNavErrorMsg(`Error fetching USL file content: ${error.message}`);
       setIsLoading(false);
+    }
+  };
+
+  const removeUSL = async (node) => {
+    setUslToRemove(node);
+    setShowConfirmPopup(true);
+  };
+
+  const handleConfirmRemove = async () => {
+    if (!uslToRemove) return;
+
+    const node = uslToRemove;
+    const pathParts = node.fullPath.split('.');
+    const uslName = pathParts.pop();
+    const namespacePath = pathParts.join('.');
+
+    try {
+      setIsLoading(true);
+
+      const removeUslQuery = `REMOVE USL ${uslName} NAMESPACE ${namespacePath}`;
+      const uslResponse = await fetchApi(removeUslQuery);
+
+      if (uslResponse.error) {
+        setNavErrorMsg(`Error removing USL: ${uslResponse.message}`);
+        return;
+      }
+
+      const dropNamespaceQuery = `DROP NAMESPACE ${node.fullPath}`;
+      const namespaceResponse = await fetchApi(dropNamespaceQuery);
+
+      if (namespaceResponse.error) {
+        setNavErrorMsg(`Error dropping namespace: ${namespaceResponse.message}`);
+        return;
+      }
+
+      localStorage.removeItem(uslName);
+
+      setSemanticLayerFiles((prevData) =>
+        removeNode(prevData, node.name)
+      );
+
+      setPreviewableTables((prev) => {
+        const newSet = new Set(prev);
+        for (const table of newSet) {
+          if (table.startsWith(node.fullPath)) {
+            newSet.delete(table);
+          }
+        }
+        return newSet;
+      });
+
+    } catch (error) {
+      setNavErrorMsg(`Error during USL and namespace removal: ${error.message}`);
+    } finally {
+      setIsLoading(false);
+      setShowConfirmPopup(false);
+      setUslToRemove(null);
     }
   };
 
@@ -806,12 +892,12 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     } else if (fullPath.toLowerCase().includes('metastore')) {
       setView('semanticLayer');
       sessionStorage.setItem('selectedTab', 'semanticLayer');
-      if(fullPath.startsWith("metastore")){
+      if (fullPath.startsWith("metastore")) {
         setPreviewTableName("lightning." + fullPath);
-      }else{
+      } else {
         setPreviewTableName(fullPath);
       }
-      
+
     }
   };
 
@@ -834,8 +920,8 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       node.fullPath = node.name;
     }
 
-    if(node.fullPath.startsWith("metastore")){
-      node.fullPath = "lightning."+node.fullPath;
+    if (node.fullPath.startsWith("metastore")) {
+      node.fullPath = "lightning." + node.fullPath;
     }
 
     event.stopPropagation();
@@ -845,12 +931,18 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     try {
       const response = await fetchApi(query);
       if (response.error) {
-        console.error(`Error dropping namespace: ${response.message}`);
+        setNavErrorMsg(`Error dropping namespace: ${response.message}`);
       } else {
-        setDataSources((prev) => removeNode(prev, node.name));
+        // setDataSources((prev) => removeNode(prev, node.name));
+        if (node.fullPath.includes('metastore')) {
+          setSemanticLayerFiles((prev) => removeNode(prev, node.name));
+        } else if (node.fullPath.includes('datasource')) {
+          setDataSources((prev) => removeNode(prev, node.name));
+        }
       }
     } catch (error) {
-      console.error(`Error during API call: ${error.message}`);
+      // console.error(`Error during API call: ${error.message}`);
+      setNavErrorMsg(`Error during API call: ${error.message}`);
     }
   };
 
@@ -907,7 +999,10 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
           setActiveInputNode(null);
           const newChildNodes = await fetchDatasources(node.fullPath);
           setDataSources((prevData) => updateNodeChildren(prevData, node.name, newChildNodes));
-          setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, newChildNodes));
+          // setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, node.name, newChildNodes));
+          setSemanticLayerFiles((prevData) =>
+            updateNodeChildren(prevData, node.fullPath || node.name, newChildNodes)
+          );
           setExpandedNodeIds((prev) => [...new Set([...prev, node.uniqueId])]);
         }
       } catch (error) {
@@ -918,19 +1013,20 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
   };
 
   const renderTree = (nodes, parentPath = '', isSemanticLayer = false) => {
-    const uslDataKey = nodes[0]?.fullPath?.split('.')[1];
+    // const uslDataKey = nodes[0]?.fullPath?.split('.')[1];
+    const uslDataKey = nodes[0]?.fullPath?.split('.').slice(0,-1).join('.');
     const uslData = uslDataKey ? JSON.parse(localStorage.getItem(uslDataKey)) : null;
 
-    if (uslData) {
-      return renderTreeFromUSL(uslData, isSemanticLayer);
-    }
+    // if (uslData) {
+    //   return renderTreeFromUSL(uslData, isSemanticLayer);
+    // }
 
     return nodes.map((node, index) => {
       let currentPath = node.fullPath || (parentPath ? `${parentPath}.${node.name}` : node.name);
 
-      if (currentPath.startsWith('metastore')) {
-        currentPath = 'lightning.' + currentPath;
-      }
+      // if (currentPath.startsWith('metastore')) {
+      //   currentPath = 'lightning.' + currentPath;
+      // }
       const uniqueId = `${currentPath}`;
       const Icon = node.type === 'table' ? TableIcon : FolderIcon;
       const hasTableChildResult = Array.isArray(node.children)
@@ -973,7 +1069,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 </button>
               )}
 
-              {hasTableChildResult && isSemanticLayer && node.type !== 'table' && (
+              {hasTableChildResult && isSemanticLayer && node.type === 'usl' && (
                 <button
                   className="btn-table-add"
                   onClick={(event) => {
@@ -985,13 +1081,25 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 </button>
               )}
 
+              {hasTableChildResult && isSemanticLayer && node.type === 'usl' && (
+                <button
+                  className="btn-table-add"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    removeUSL(node);
+                  }}
+                >
+                  REMOVE
+                </button>
+              )}
+
               {(node.type === 'namespace' || node.name === 'lightning.datasource' || node.name === 'lightning.metastore') && (
-                <div style={{ marginLeft: '10px', display: 'flex', alignItems: 'center' }}>
+                <div style={{ marginLeft: '5px', display: 'flex', alignItems: 'center' }}>
                   <PlusIcon
                     onClick={(event) => handlePlusClick(event, node)}
                     style={{
-                      width: '25px',
-                      height: '25px',
+                      width: '20px',
+                      height: '20px',
                       cursor: 'pointer',
                       verticalAlign: 'middle',
                     }}
@@ -999,8 +1107,8 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                   <MinusIcon
                     onClick={(event) => handleMinusClick(event, node)}
                     style={{
-                      width: '25px',
-                      height: '25px',
+                      width: '20px',
+                      height: '20px',
                       cursor: 'pointer',
                       verticalAlign: 'middle',
                     }}
@@ -1148,6 +1256,29 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
           </div>
         )}
       </Resizable>
+
+      {/* Remove USL Confirm Popup */}
+      {showConfirmPopup && (
+        <div className="popup-overlay">
+          <div className="popup-message">
+            <p>{`Are you sure you want to remove '${uslToRemove?.name}'?`}</p>
+            <div className="popup-buttons">
+              <button
+                className="btn-secondary"
+                onClick={() => setShowConfirmPopup(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                onClick={handleConfirmRemove}
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </>
   );
