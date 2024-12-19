@@ -122,12 +122,6 @@ const saveConnectionToLocalStorage = (sourceId, targetId, relationship, relation
   }
 };
 
-// const removeConnectionFromLocalStorage = (sourceId, targetId) => {
-//   let connections = JSON.parse(localStorage.getItem('connections')) || [];
-//   connections = connections.filter(conn => !(conn.sourceId === sourceId && conn.targetId === targetId));
-//   localStorage.setItem('connections', JSON.stringify(connections));
-// };
-
 const removeConnectionFromLocalStorage = (sourceId, targetId) => {
   let connections = JSON.parse(localStorage.getItem('connections')) || [];
   connections = connections.filter((conn) => {
@@ -208,27 +202,6 @@ const removeConnectionFromLocalStorage = (sourceId, targetId) => {
     localStorage.setItem('savedTables', JSON.stringify(savedTables));
   }
 };
-
-// export function getRowInfo(sourceId, targetId) {
-//   const sourceTableId = sourceId.split('-col-')[0];
-//   const targetTableId = targetId.split('-col-')[0];
-//   const sourceColumnIndex = sourceId.match(/-col-(\d+)-/)[1];
-//   const targetColumnIndex = targetId.match(/-col-(\d+)-/)[1];
-
-//   const sourceTable = document.getElementById(sourceTableId);
-//   const targetTable = document.getElementById(targetTableId);
-
-//   const sourceColumn = sourceTable.querySelectorAll('tr')[sourceColumnIndex];
-//   const targetColumn = targetTable.querySelectorAll('tr')[targetColumnIndex];
-
-//   if (!sourceColumn || !targetColumn) {
-//     console.error('Source or target column not found:', sourceId, targetId);
-//     return {};
-//   }
-
-//   // Return as an object
-//   return { sourceColumnIndex, targetColumnIndex, sourceColumn, targetColumn };
-// }
 
 export function getRowInfo(sourceId, targetId) {
   try {
@@ -317,12 +290,12 @@ export function getColumnConstraint(fullPath) {
   }
 
   // Check for notNull constraint at column level
-  if (column.notNull) {
-    constraints.push({
-      type: 'not null',
-      details: column.notNull,
-    });
-  }
+  // if (column.notNull) {
+  //   constraints.push({
+  //     type: 'not null',
+  //     details: column.notNull,
+  //   });
+  // }
 
   // Check for foreignKey at table level (legacy handling)
   if (table.foreignKeys && table.foreignKeys.length > 0) {
@@ -499,15 +472,17 @@ export function addForeignKeyIconToColumn(columnElement, combinedTooltipData, to
               <div className="fk-only"></div>
             </div>
           );
-        } else if (combinedTooltipData.includes('not null')) {
-          iconContainer._root.render(
-            <div className="tooltip-container">
-              <NNIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />
-              <span className="tooltip-text">{combinedTooltipData}</span>
-              <div className="fk-only"></div>
-            </div>
-          );
-        } else {
+        } 
+        // else if (combinedTooltipData.includes('not null')) {
+        //   iconContainer._root.render(
+        //     <div className="tooltip-container">
+        //       <NNIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />
+        //       <span className="tooltip-text">{combinedTooltipData}</span>
+        //       <div className="fk-only"></div>
+        //     </div>
+        //   );
+        // } 
+        else {
           const tooltipElement = iconContainer.querySelector('.tooltip-text');
           if (tooltipElement) {
             // Update the existing tooltip text
@@ -552,6 +527,30 @@ export const connectEndpoints = (jsPlumbInstance, sourceId, targetId, relationsh
     return;
   }
 
+  // Normalize the endpoint IDs by removing right/left suffixes
+  const normalizedSourceId = sourceId.replace(/-(right|left)$/, '');
+  const normalizedTargetId = targetId.replace(/-(right|left)$/, '');
+
+  // Check for existing connections using normalized IDs
+  const existingConnections = jsPlumbInstance.getAllConnections().filter(conn => {
+    const connSourceId = conn.sourceId.replace(/-(right|left)$/, '');
+    const connTargetId = conn.targetId.replace(/-(right|left)$/, '');
+    return (connSourceId === normalizedSourceId && connTargetId === normalizedTargetId) ||
+           (connSourceId === normalizedTargetId && connTargetId === normalizedSourceId);
+  });
+
+  if (existingConnections.length > 0) {
+    return;
+  }
+
+  const sourceEndpoint = jsPlumbInstance.getEndpoints(sourceId)?.[0];
+  const targetEndpoint = jsPlumbInstance.getEndpoints(targetId)?.[0];
+
+  if (!sourceEndpoint || !targetEndpoint) {
+    console.error("Source or target endpoint not found.");
+    return;
+  }
+
   const sourceColumnClass = sourceColumn.children[0].classList[0];
   const targetColumnClass = targetColumn.children[0].classList[0];
   const sourceConstraints = getColumnConstraint(sourceColumnClass);
@@ -564,16 +563,16 @@ export const connectEndpoints = (jsPlumbInstance, sourceId, targetId, relationsh
     relationship_type = 'many_to_one';
   }
 
-  const existingConnections = jsPlumbInstance.getAllConnections().filter(
-    (conn) => conn.sourceId === sourceId && conn.targetId === targetId
-  );
+  // const existingConnections = jsPlumbInstance.getAllConnections().filter(
+  //   (conn) => conn.sourceId === sourceId && conn.targetId === targetId
+  // );
 
-  if (existingConnections.length > 0) {
-    return;
-  }
+  // if (existingConnections.length > 0) {
+  //   return;
+  // }
 
-  const sourceEndpoint = jsPlumbInstance.getEndpoints(sourceId)?.[0];
-  const targetEndpoint = jsPlumbInstance.getEndpoints(targetId)?.[0];
+  // const sourceEndpoint = jsPlumbInstance.getEndpoints(sourceId)?.[0];
+  // const targetEndpoint = jsPlumbInstance.getEndpoints(targetId)?.[0];
 
   if (sourceEndpoint && targetEndpoint) {
     let sourceIconComponent, targetIconComponent;
@@ -694,11 +693,11 @@ const addConstraintIconToColumn = (iconContainer, type, reference = '') => {
         titleText = 'primary key';
         iconClass = 'pk-icon';
         break;
-      case 'not-null':
-        IconComponent = <NNIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />;
-        titleText = 'not null';
-        iconClass = 'notnull-icon';
-        break;
+      // case 'not-null':
+      //   IconComponent = <NNIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />;
+      //   titleText = 'not null';
+      //   iconClass = 'notnull-icon';
+      //   break;
       case 'unique':
         IconComponent = <UniqueIcon style={{ height: '15px', width: '15px', fill: 'gray', cursor: 'pointer' }} />;
         titleText = 'unique';
@@ -1075,8 +1074,15 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
   dataTypeCell.innerText = 'data type';
   dataTypeCell.style.textAlign = 'left';
 
+  const nullableCell = document.createElement('td');
+  nullableCell.className = 'table-cell table-title';
+  nullableCell.innerText = 'nullable';
+  nullableCell.style.paddingRight = '20px';
+  nullableCell.style.textAlign = 'left';
+
   headerRow.appendChild(columnNameCell);
   headerRow.appendChild(dataTypeCell);
+  headerRow.appendChild(nullableCell);
   tbody.appendChild(headerRow);
 
   // Automatically add rows based on the selectedTable columns
@@ -1100,9 +1106,9 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
     if (column.primaryKey) {
       addConstraintIconToColumn(iconContainer, 'pk'); // Add Primary Key icon
     }
-    if (column.notNull) {
-      addConstraintIconToColumn(iconContainer, 'not-null'); // Add Not Null icon
-    }
+    // if (column.notNull) {
+    //   addConstraintIconToColumn(iconContainer, 'not-null'); // Add Not Null icon
+    // }
     if (column.unique) {
       addConstraintIconToColumn(iconContainer, 'unique'); // Add Unique Key icon
     }
@@ -1126,8 +1132,15 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
     typeCell.style.textAlign = 'left';
     typeCell.innerText = column.data_type.replace(/"/g, '');
 
+    const nullableValueCell = document.createElement('td');
+    nullableValueCell.className = 'table-cell';
+    nullableValueCell.style.textAlign = 'left';
+    nullableValueCell.style.paddingRight = "30px";
+    nullableValueCell.innerText = column.notNull ? 'NN' : '';
+
     row.appendChild(nameCell);
     row.appendChild(typeCell);
+    row.appendChild(nullableValueCell);
     tbody.appendChild(row);
 
     // Create endpoints for each cell (left for name, right for type)
@@ -1135,7 +1148,8 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
     const rightEndpointId = `${uniqueTableId}-col-${index + 1}-right`;
 
     nameCell.id = leftEndpointId;
-    typeCell.id = rightEndpointId;
+    // typeCell.id = rightEndpointId;
+    nullableValueCell.id = rightEndpointId;
 
     // Add endpoints to the left (name) and right (type) cells
     requestAnimationFrame(() => {
