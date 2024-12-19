@@ -145,36 +145,6 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading, navErro
         }
     };
 
-    // const runQuery = async () => {
-    //     const activeEditorInstance = editorInstances[activeEditor];
-    //     const selectedText = activeEditorInstance?.getSelectedText();
-
-    //     const activeEditorContent = editors.find((editor) => editor.id === activeEditor)?.content;
-    //     const cleanQuery = selectedText && selectedText.trim() !== ""
-    //         ? selectedText
-    //         : removeComments(activeEditorContent);
-
-    //     if (!cleanQuery || cleanQuery.trim() === "") {
-    //         dispatch(setQueryResult({ error: "Query is empty. Please provide a valid SQL query." }));
-    //         return;
-    //     }
-
-    //     setLoading(true);
-
-    //     // Update query history in Redux state
-    //     dispatch(addQueryToHistory({ query: cleanQuery, timestamp: new Date().toLocaleString() }));
-
-    //     const result = await fetchApi(cleanQuery);
-    //     setLoading(false);
-
-    //     if (result?.error) {
-    //         dispatch(setQueryResult({ error: result.message }));
-    //     } else {
-    //         const parsedResult = result.map((item) => JSON.parse(item));
-    //         dispatch(setQueryResult(parsedResult));
-    //     }
-    // };
-
     const expandDuplicateKeys = (jsonStringArray) => {
         return jsonStringArray.map((item) => {
             const matches = [];

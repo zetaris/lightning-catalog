@@ -205,11 +205,14 @@ export const getContext = (editorInstance) => {
     "LIGHTNING": /\bLIGHTNING\b(?:\.(\w+(?:\.\w+)*))?/ig,
     "SELECT": /SELECT\s+(.*?)(?=\bFROM\b|$)/ig,
     "FROM": /FROM\s+([\w]+(?:\.[\w]+)*)(?:\s+AS\s+(\w+))?/ig,
-    "WHERE": /WHERE\s+([^FROM]+)/ig,
+    // "WHERE": /WHERE\s+([^FROM]+)/ig,
     // "WHERE": /WHERE\s+([^\n]+)/ig,
-    // "WHERE": /WHERE\s+(.+)(?=\s+(?:SELECT|$))/ig,
-    "GROUP BY": /GROUP\s+BY\s+([^FROM]+)/ig,
-    "HAVING": /HAVING\s+([^FROM]+)/ig
+    "WHERE": /WHERE\s+([^;]*?)(?=\s+(?:SELECT|GROUP BY|HAVING|ORDER BY|LIMIT)|$)/ig,
+    "GROUP BY": /GROUP\s+BY\s+([^;]*?)(?=\s+(?:SELECT|WHERE|HAVING|ORDER BY|LIMIT)|$)/ig,
+    "HAVING": /HAVING\s+([^;]*?)(?=\s+(?:SELECT|WHERE|GROUP BY|ORDER BY|LIMIT)|$)/ig,
+    "LIMIT": /LIMIT\s+([^;]*?)(?=\s+(?:SELECT|WHERE|GROUP BY|HAVING|ORDER BY)|$)/ig
+    // "GROUP BY": /GROUP\s+BY\s+([^FROM]+)/ig,
+    // "HAVING": /HAVING\s+([^FROM]+)/ig
   };
 
   const matches = [];
@@ -296,6 +299,7 @@ export const getContext = (editorInstance) => {
     case "WHERE":
     case "GROUP BY":
     case "HAVING":
+    case "LIMIT":
       context.type = "WHERE";
       const whereConditions = closestMatch.match[1];
 
@@ -303,7 +307,7 @@ export const getContext = (editorInstance) => {
       // console.log(whereConditions)
 
       const cleanedConditions = whereConditions
-        .split(/\s*(GROUP\s+BY|HAVING|WHERE)\s+/i)[0]
+        .split(/\s*(GROUP\s+BY|HAVING|LIMIT|WHERE)\s+/i)[0]
         .trim();
 
       const whereAliasMatches = [...cleanedConditions.matchAll(/(\w+)\./g)];
