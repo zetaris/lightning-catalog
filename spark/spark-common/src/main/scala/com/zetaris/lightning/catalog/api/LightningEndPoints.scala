@@ -47,11 +47,11 @@ class LightningResource {
     Try {
       LOGGER.info(s"query : $query")
       val df = spark().sql(query)
+      val itr = df.toLocalIterator()
 
       new StreamingOutput() {
         override def write(output: OutputStream): Unit = {
           val writer = new BufferedWriter(new OutputStreamWriter(output))
-          val itr = df.toLocalIterator()
           writer.write("[")
           while(itr.hasNext) {
             val json = itr.next().json
@@ -68,13 +68,7 @@ class LightningResource {
       }
     } match {
       case Failure(e) => buildErrorMessage(e)
-      case Success(stream) =>
-        Try {
-          Response.ok(stream).build()
-        } match {
-          case Failure(e) => buildErrorMessage(e)
-          case Success(stream) => stream
-        }
+      case Success(stream) => Response.ok(stream).build()
     }
   }
 
@@ -90,10 +84,10 @@ class LightningResource {
       LOGGER.info(s"qdq : $name on $table")
       val dq = ShowDataQualityResult(name, table.split("\\."), validRecord, limit)
       val df = dq.runQuery(spark())
+      val itr = df.toLocalIterator()
       var recCount = 0
       new StreamingOutput() {
         override def write(output: OutputStream): Unit = {
-          val itr = df.toLocalIterator()
           val writer = new BufferedWriter(new OutputStreamWriter(output))
           var keepGoing = true
           writer.write("[")
@@ -117,13 +111,7 @@ class LightningResource {
       }
     } match {
       case Failure(e) => buildErrorMessage(e)
-      case Success(stream) =>
-        Try {
-          Response.ok(stream).build()
-        } match {
-          case Failure(e) => buildErrorMessage(e)
-          case Success(stream) => stream
-        }
+      case Success(stream) => Response.ok(stream).build()
     }
   }
 
@@ -138,10 +126,10 @@ class LightningResource {
       LOGGER.info(s"edq : $name on $table")
       val dq = ShowDataQualityResult(name, table.split("\\."), validRecord)
       val df = dq.runQuery(spark())
+      val itr = df.toLocalIterator()
       var recCount = 0
       new StreamingOutput() {
         override def write(output: OutputStream): Unit = {
-          val itr = df.toLocalIterator()
           val writer = new BufferedWriter(new OutputStreamWriter(output))
           while(itr.hasNext) {
             val json = itr.next().json
@@ -158,13 +146,7 @@ class LightningResource {
       }
     } match {
       case Failure(e) => buildErrorMessage(e)
-      case Success(stream) =>
-        Try {
-          Response.ok(stream).build()
-        } match {
-          case Failure(e) => buildErrorMessage(e)
-          case Success(stream) => stream
-        }
+      case Success(stream) => Response.ok(stream).build()
     }
   }
 
