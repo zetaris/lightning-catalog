@@ -184,4 +184,92 @@ NAMESPACE lightning.metastore.h2
 ```
 This will ingest all tables from $testschema schema under lightning.metastore.h2.$testschema
 
+## Unified Semantic Layer(USL)
+### compile & deploy DDL
+```bash
+COMPILE USL (IF NOT EXISTS)? dbName (DEPLOY)? NAMESPACE DDL ddls
+ 
+(example)
+COMPILE USL IF NOT EXISTS catalog DEPLOY NAMESPACE lightning.metastore.crm DDL
+CREATE TABLE IF NOT EXISTS customer (
+ id int NOT NULL PRIMARY KEY,
+ full_name varchar(200),
+ uid int UNIQUE,
+ address varchar(200),
+ part_id int FOREIGN KEY REFERENCES department(id) ON DELETE RESTRICT ON UPDATE CASCADE
+);
 
+CREATE TABLE IF NOT EXISTS department (
+ id int NOT NULL,
+ name varchar(200),
+ CONSTRAINT pk_id PRIMARY KEY(id)
+)
+  
+If DEPLOY is provided, then it will be deployed under the given namespace.
+Once deployed, user can drill down to schema level.
+```
+
+### Activate table
+```bash
+ACTIVATE USL TABLE lightning.metastore.crm.catalog.customer AS
+SELECT id, concat(first_name, ' ', last_name), uid, address, part_id
+FROM lightning.datasource.rdbms.postgres.crm.customer
+
+To make column cotext awareness, user can use any ANSI SQL, SPARK build in function.
+[Spark Built-in Function]https://spark.apache.org/docs/3.5.1/api/sql/index.html).
+
+downcast is not allowed from data type from the the query to data type of actual column. 
+```
+
+### Load USL
+it loads entire USL as json format. it is used to render ERD in UI.
+```bash
+LOAD USL catalog NAMESPACE lightning.metastore.crm
+```
+
+### Remove USL
+```bash
+REMOVE USL catalog NAMESPACE lightning.metastore.crm
+```
+
+### Register DQ
+```bash
+REGISTER DQ check_customer_name TABLE lightning.metastore.crm.catalog.customer AS
+full_name is not null and length(full_name) > 0
+```
+
+### LIST DQ
+```bash
+LIST DQ USL lightning.metastore.crm.catalog
+```
+
+### Run DQ
+```bash
+(database constraints check)
+--check primary constraints
+RUN DQ id TABLE lightning.metastore.crm.catalog.customer
+
+(business data quality)
+RUN DQ check_customer_name TABLE lightning.metastore.crm.catalog.customer
+
+In case of composite key, for example,
+
+create table lineitem (id BIGINT,
+name String,
+price decimal,
+PRIMARY KEY (id, name));
+
+RUN DQ `id,name` TABLE lightning.metastore.crm.ordermart.lineitem
+```
+
+### Remove DQ
+```bash
+REMOVE DQ check_customer_name TABLE lightning.metastore.crm.catalog.customer
+```
+
+### Show DQ Result
+```bash
+ SHOW DQ (VALID | INVALID) RECORD check_customer_name TABLE lightning.metastore.crm.catalog.customer
+ 
+ This will show valid/invalid records by running DQ
+ ```

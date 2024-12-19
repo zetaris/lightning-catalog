@@ -47,11 +47,10 @@ class LightningResource {
     Try {
       LOGGER.info(s"query : $query")
       val df = spark().sql(query)
+      val itr = df.toLocalIterator()
 
       new StreamingOutput() {
         override def write(output: OutputStream): Unit = {
-          //val itr = df.toJSON.toLocalIterator()
-          val itr = df.toLocalIterator()
           val writer = new BufferedWriter(new OutputStreamWriter(output))
           writer.write("[")
           while(itr.hasNext) {
@@ -68,22 +67,8 @@ class LightningResource {
         }
       }
     } match {
-      case Failure(e) =>
-        LOGGER.error("Spark error occurred", e)
-        val sw = new StringWriter()
-        val pw = new PrintWriter(sw)
-        e.printStackTrace(pw)
-
-        val errorResponse = s"""{
-          "error": "Spark execution error",
-          "message": "${sw.toString}"
-        }"""
-
-        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-          .entity(errorResponse)
-          .build()
-      case Success(stream) =>
-        Response.ok(stream).build()
+      case Failure(e) => buildErrorMessage(e)
+      case Success(stream) => Response.ok(stream).build()
     }
   }
 
@@ -99,10 +84,10 @@ class LightningResource {
       LOGGER.info(s"qdq : $name on $table")
       val dq = ShowDataQualityResult(name, table.split("\\."), validRecord, limit)
       val df = dq.runQuery(spark())
+      val itr = df.toLocalIterator()
       var recCount = 0
       new StreamingOutput() {
         override def write(output: OutputStream): Unit = {
-          val itr = df.toLocalIterator()
           val writer = new BufferedWriter(new OutputStreamWriter(output))
           var keepGoing = true
           writer.write("[")
@@ -125,22 +110,8 @@ class LightningResource {
         }
       }
     } match {
-      case Failure(e) =>
-        LOGGER.error("Spark error occurred", e)
-        val sw = new StringWriter()
-        val pw = new PrintWriter(sw)
-        e.printStackTrace(pw)
-
-        val errorResponse = s"""{
-          "error": "Spark execution error",
-          "message": "${sw.toString}"
-        }"""
-
-        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-          .entity(errorResponse)
-          .build()
-      case Success(stream) =>
-        Response.ok(stream).build()
+      case Failure(e) => buildErrorMessage(e)
+      case Success(stream) => Response.ok(stream).build()
     }
   }
 
@@ -155,10 +126,10 @@ class LightningResource {
       LOGGER.info(s"edq : $name on $table")
       val dq = ShowDataQualityResult(name, table.split("\\."), validRecord)
       val df = dq.runQuery(spark())
+      val itr = df.toLocalIterator()
       var recCount = 0
       new StreamingOutput() {
         override def write(output: OutputStream): Unit = {
-          val itr = df.toLocalIterator()
           val writer = new BufferedWriter(new OutputStreamWriter(output))
           while(itr.hasNext) {
             val json = itr.next().json
@@ -174,23 +145,25 @@ class LightningResource {
         }
       }
     } match {
-      case Failure(e) =>
-        LOGGER.error("Spark error occurred", e)
-        val sw = new StringWriter()
-        val pw = new PrintWriter(sw)
-        e.printStackTrace(pw)
+      case Failure(e) => buildErrorMessage(e)
+      case Success(stream) => Response.ok(stream).build()
+    }
+  }
 
-        val errorResponse = s"""{
+  def buildErrorMessage(th: Throwable): Response = {
+    val sw = new StringWriter()
+    val pw = new PrintWriter(sw)
+    th.printStackTrace(pw)
+
+    val errorResponse = s"""{
           "error": "Spark execution error",
           "message": "${sw.toString}"
         }"""
 
-        Response.status(Response.Status.INTERNAL_SERVER_ERROR)
-          .entity(errorResponse)
-          .build()
-      case Success(stream) =>
-        Response.ok(stream).build()
-    }
+    Response.status(Response.Status.INTERNAL_SERVER_ERROR)
+      .entity(errorResponse)
+      .build()
+
   }
 
 }
