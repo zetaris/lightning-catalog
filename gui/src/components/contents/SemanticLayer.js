@@ -569,7 +569,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, setSemanticLayerInfo,
             // window.location.reload();
             deleteAllTables();
             const { savedTables, savedConnections, rulesData } = getSettingDataFromJson(uslNamebyClick);
-            reFreshScreen()
+            reFreshScreen(true)
             // restoreFromTablesAndConnections(savedTables, savedConnections);
 
             if (savedTables && savedTables.length > 0) {
@@ -711,7 +711,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, setSemanticLayerInfo,
     }
 
 
-    const reFreshScreen = () => {
+    const reFreshScreen = (isERD = false) => {
         const savedTables = JSON.parse(localStorage.getItem('savedTables')) || [];
         const savedConnections = JSON.parse(localStorage.getItem('connections')) || [];
 
@@ -724,7 +724,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, setSemanticLayerInfo,
             }
         }
 
-        if (!jsPlumbInstanceRef.current && jsPlumbRef.current) {
+        if ((!jsPlumbInstanceRef.current && jsPlumbRef.current) || isERD) {
             jsPlumbInstanceRef.current = initializeJsPlumb(
                 jsPlumbRef.current,
                 [],
