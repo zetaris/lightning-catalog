@@ -450,10 +450,10 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
         let storedDataFullPath;
 
-        if(storedData){
+        if (storedData) {
           storedDataFullPath = `lightning.${storedData.namespace.join('.')}.${storedData.name}`;
         }
-         
+
         if (storedDataFullPath === uslName && uslName && node.type === 'table') {
           const selectedTable = storedData.tables.find(table => table.name === node.name);
 
@@ -859,7 +859,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
         name: column.name,
         fullPath: `${uslData.namespace.join('.')}.${uslData.name}.${table.name}.${column.name}`,
         type: 'column',
-        isActivate: !!table.activateQuery,
+        isActivate: !table.activateQuery,
         dataTypeElement: (
           <span style={{ fontSize: '0.8em', color: '#888', marginLeft: '10px' }}>
             ({column.dataType.replace(/\"/g, '')})
@@ -1014,7 +1014,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
   const renderTree = (nodes, parentPath = '', isSemanticLayer = false) => {
     // const uslDataKey = nodes[0]?.fullPath?.split('.')[1];
-    const uslDataKey = nodes[0]?.fullPath?.split('.').slice(0,-1).join('.');
+    const uslDataKey = nodes[0]?.fullPath?.split('.').slice(0, -1).join('.');
     const uslData = uslDataKey ? JSON.parse(localStorage.getItem(uslDataKey)) : null;
 
     // if (uslData) {
@@ -1036,6 +1036,19 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       setHasTableChild(hasTableChildResult);
       node.uniqueId = uniqueId;
 
+      const savedTables = JSON.parse(localStorage.getItem('savedTables')) || [];
+      if (node.type === 'table') {
+        const namespace = node.fullPath.split('.').slice(0, -1).join('.');
+        const namespaceData = JSON.parse(localStorage.getItem(namespace)) || null;
+    
+        if (namespaceData && Array.isArray(namespaceData.tables)) {
+            const matchingTable = namespaceData.tables.find(table => table.name === node.name);
+            node.isActivated = matchingTable && matchingTable.activateQuery ? true : false;
+        } else {
+            node.isActivated = false;
+        }
+    }
+
       return (
         <TreeItem
           key={uniqueId}
@@ -1050,7 +1063,7 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
               {node.type === 'table' && (
                 <button
-                  className={`preview-button ${node.fullPath.toLowerCase().includes('metastore') && !previewableTables.has(node.fullPath) ? 'hidden' : ''
+                  className={`preview-button ${node.fullPath.toLowerCase().includes('metastore') && !(previewableTables.has(node.fullPath) || node.isActivated) ? 'hidden' : ''
                     }`}
                   onClick={(event) => {
                     event.stopPropagation();
@@ -1083,13 +1096,13 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
               {hasTableChildResult && isSemanticLayer && node.type === 'usl' && (
                 <button
-                  className="btn-table-add"
+                  className="btn-usl-del"
                   onClick={(event) => {
                     event.stopPropagation();
                     removeUSL(node);
                   }}
                 >
-                  REMOVE
+                  DEL
                 </button>
               )}
 

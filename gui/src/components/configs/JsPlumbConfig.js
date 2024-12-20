@@ -763,36 +763,32 @@ function calculateTablePositions(container) {
   // Calculate the number of tables
   if (savedTables) {
     const parsedTables = JSON.parse(savedTables);
-    tableCount = parsedTables.length + 1; // Including the new table to be added
+    tableCount = parsedTables.length + 1;
   } else {
     const tableContainers = container.querySelectorAll('.table-container');
-    tableCount = tableContainers.length + 1; // Including the new table to be added
+    tableCount = tableContainers.length + 1;
   }
 
   const positions = [];
   const gridSize = Math.ceil(Math.sqrt(tableCount));
-  let currentY = 1500; // Initialize the Y position for the first row
+  let currentY = 1500;
 
-  // Iterate through the tables and position them based on right and bottom offsets
+  // Fixed spacing constant
+  const HORIZONTAL_SPACING = 600;
+
   for (let i = 0; i < tableCount; i++) {
     const row = Math.floor(i / gridSize);
     const col = i % gridSize;
 
-    let x = 1500;
+    let x = 1500 + (col * HORIZONTAL_SPACING);
     let y = currentY;
-
-    // Calculate x position based on the previous table in the row, if available
-    if (col > 0 && positions[i - 1]) {
-      const previousTablePosition = positions[i - 1];
-      x = previousTablePosition.x + 500; // Fixed horizontal offset for spacing
-    }
 
     // Calculate y position based on the table directly above, if available
     if (row > 0 && positions[i - gridSize]) {
       const aboveTablePosition = positions[i - gridSize];
       const aboveTableContainer = container.querySelectorAll('.table-container')[i - gridSize];
       const dynamicOffsetY = aboveTableContainer ? aboveTableContainer.offsetHeight + 100 : 600;
-      y = aboveTablePosition.y + dynamicOffsetY; // Dynamic vertical offset based on actual table height
+      y = aboveTablePosition.y + dynamicOffsetY;
     }
 
     positions.push({ x, y });
@@ -1009,7 +1005,7 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
 
     if (popupMenu.classList.contains('hidden')) {
       popupMenu.style.top = `${ellipsisButtonContainer.offsetTop + ellipsisButtonContainer.offsetHeight - 35}px`;
-      popupMenu.style.left = `${ellipsisButtonContainer.offsetLeft + 35}px`;
+      popupMenu.style.left = `${ellipsisButtonContainer.offsetLeft + 40}px`;
       popupMenu.classList.remove('hidden');
       document.addEventListener('click', handleClickOutside, true);
     } else {
@@ -1555,6 +1551,7 @@ const adjustOffsetForZoom = (container, scaleFactor, setOffset) => {
       const newOffsetY = centerY - (centerY - prevOffset.y) * scaleFactor;
       return { x: newOffsetX, y: newOffsetY };
     });
+    console.log("test")
   }
 };
 
