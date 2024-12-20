@@ -67,7 +67,9 @@ class LightningResource {
         }
       }
     } match {
-      case Failure(e) => buildErrorMessage(e)
+      case Failure(e) =>
+        LOGGER.error(e.getMessage, e)
+        buildErrorMessage(e)
       case Success(stream) => Response.ok(stream).build()
     }
   }
@@ -110,7 +112,9 @@ class LightningResource {
         }
       }
     } match {
-      case Failure(e) => buildErrorMessage(e)
+      case Failure(e) =>
+        LOGGER.error(e.getMessage, e)
+        buildErrorMessage(e)
       case Success(stream) => Response.ok(stream).build()
     }
   }
@@ -145,7 +149,9 @@ class LightningResource {
         }
       }
     } match {
-      case Failure(e) => buildErrorMessage(e)
+      case Failure(e) =>
+        LOGGER.error(e.getMessage, e)
+        buildErrorMessage(e)
       case Success(stream) => Response.ok(stream).build()
     }
   }
