@@ -32,6 +32,21 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading, navErro
     };
 
     useEffect(() => {
+        const storedQueryHistory = localStorage.getItem('queryHistory');
+        if (storedQueryHistory) {
+            const parsedHistory = JSON.parse(storedQueryHistory);
+            parsedHistory.forEach((historyItem) =>
+                dispatch(addQueryToHistory(historyItem))
+            );
+        }
+    }, [dispatch]);
+
+    // Save queryHistory to localStorage whenever it changes
+    useEffect(() => {
+        localStorage.setItem('queryHistory', JSON.stringify(queryHistory));
+    }, [queryHistory]);
+
+    useEffect(() => {
         const runPreviewQuery = async () => {
             if (!previewTableName || !previewTableName.startsWith('lightning.datasource')) return;
 

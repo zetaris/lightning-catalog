@@ -43,6 +43,8 @@ export const initializeJsPlumb = (container, tables = [], openModal, handlePreVi
       const targetId = typeof info.targetId === 'string' ? info.targetId : info.targetId.toString();
       const optimalEndpoints = getOptimalEndpointPosition(sourceId, targetId);
 
+      console.log("test")
+
       connectEndpoints(
         jsPlumbInstance,
         // info.sourceId,
@@ -914,6 +916,7 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
 
   // Toggle popup menu visibility
   const togglePopupMenu = (event) => {
+    
     const tableElement = document.getElementById(`table-${selectedTable.uuid}`);
     const isActive = tableElement && tableElement.classList.contains('activated-table');
 
@@ -1003,15 +1006,35 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
       popupMenu.appendChild(deleteOption);
     }
 
+    // if (popupMenu.classList.contains('hidden')) {
+    //   popupMenu.style.top = `${ellipsisButtonContainer.offsetTop + ellipsisButtonContainer.offsetHeight - 35}px`;
+    //   popupMenu.style.left = `${ellipsisButtonContainer.offsetLeft + 40}px`;
+    //   popupMenu.classList.remove('hidden');
+    //   document.addEventListener('click', handleClickOutside, true);
+    // } else {
+    //   popupMenu.classList.add('hidden');
+    //   document.removeEventListener('click', handleClickOutside, true);
+    // }
+
     if (popupMenu.classList.contains('hidden')) {
-      popupMenu.style.top = `${ellipsisButtonContainer.offsetTop + ellipsisButtonContainer.offsetHeight - 35}px`;
-      popupMenu.style.left = `${ellipsisButtonContainer.offsetLeft + 40}px`;
+      const rect = ellipsisButtonContainer.getBoundingClientRect();
+      const zoomLevel = parseFloat(localStorage.getItem('zoomLevel')) || 1;
+    
+      popupMenu.style.top = `${(window.scrollY + rect.bottom)}px`;
+      popupMenu.style.left = `${(window.scrollX + rect.left)+10}px`;
+    
+      popupMenu.style.transform = `scale(${zoomLevel})`;
+      popupMenu.style.transformOrigin = "top left";
+    
+      popupMenu.style.width = '50px';
+      popupMenu.style.height = 'auto';
       popupMenu.classList.remove('hidden');
       document.addEventListener('click', handleClickOutside, true);
     } else {
       popupMenu.classList.add('hidden');
       document.removeEventListener('click', handleClickOutside, true);
     }
+    
   };
 
   // Handle clicks outside of the popup menu to close it
@@ -1047,7 +1070,8 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
   // Append ellipsis button container and popup menu to the caption
   caption.appendChild(captionText);
   caption.appendChild(ellipsisButtonContainer);
-  caption.appendChild(popupMenu);
+  document.body.appendChild(popupMenu)
+  // caption.appendChild(popupMenu);
 
   // Append caption to table element
   tableElement.appendChild(caption);
@@ -1132,7 +1156,7 @@ export const setupTableForSelectedTable = (container, selectedTable, jsPlumbInst
     nullableValueCell.className = 'table-cell';
     nullableValueCell.style.textAlign = 'left';
     nullableValueCell.style.paddingRight = "30px";
-    nullableValueCell.innerText = column.notNull ? 'NN' : '';
+    nullableValueCell.innerText = (column.notNull || column.primaryKey) ? 'NN' : '';
 
     row.appendChild(nameCell);
     row.appendChild(typeCell);
@@ -1551,7 +1575,6 @@ const adjustOffsetForZoom = (container, scaleFactor, setOffset) => {
       const newOffsetY = centerY - (centerY - prevOffset.y) * scaleFactor;
       return { x: newOffsetX, y: newOffsetY };
     });
-    console.log("test")
   }
 };
 
