@@ -1985,7 +1985,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, setSemanticLayerInfo,
                         </div>
                         <div className="zoom-controls">
                             <PlusIcon onClick={() => handleZoomIn(jsPlumbRef.current, setZoomLevel, setOffset, jsPlumbInstanceRef.current)} style={{ width: '30px', height: '30px', cursor: 'pointer' }} />
-                            {/* <div className="zoom-level">{Math.round(zoomLevel * 100)}%</div> */}
+                            <div className="zoom-level">{Math.round(zoomLevel * 100)}%</div>
                             <MinusIcon onClick={() => handleZoomOut(jsPlumbRef.current, setZoomLevel, setOffset, jsPlumbInstanceRef.current)} style={{ width: '30px', height: '30px', cursor: 'pointer' }} />
                             <LocationIcon onClick={() => handleOptimizeView(jsPlumbRef.current, zoomLevel, setZoomLevel, setOffset)} style={{ width: '30px', height: '30px', cursor: 'pointer' }} />
                             <button className="btn-primary" style={{ padding: '10px' }} onClick={(loadDQ)}>DQ</button>
