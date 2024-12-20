@@ -33,8 +33,24 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
+.btn-usl-del {
+    margin-left: 10px;
+    padding: 5px 10px;
+    font-size: 12px;
+    background-color: #e13030;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
 .btn-table-add:hover {
     background-color: #1e8fb5;
+}
+
+.btn-usl-del:hover {
+    background-color: #a62727;
 }
 
 div.navigation::after {

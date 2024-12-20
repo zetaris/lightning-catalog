@@ -66,6 +66,8 @@
   align-items: center;
   gap: 10px;
   background-color: rgba(255, 255, 255, 0.9);
+  border: solid 1px grey;
+  border-radius: 4px;
   padding: 8px;
   z-index: 100;
 }

@@ -72,9 +72,12 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, setSemanticLayerInfo,
         pageSize: 30,
     });
     const [sorting, setSorting] = useState([]);
-    const [columnFilters, setColumnFilters] = useState([]);
-    const [globalFilter, setGlobalFilter] = useState('');
     const [outputTabInfo, setOutputTabInfo] = useState(null);
+    const offsetRef = useRef(offset);
+
+    useEffect(() => {
+        offsetRef.current = offset;
+    }, [offset]);
 
     const reSizingOffset = 80;
 
@@ -313,19 +316,13 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, setSemanticLayerInfo,
     const handleActivateQueryClick = async (table) => {
         setActivateTargetTable(table);
         setactivateTable(true);
-
-        if (!activateTable) {
-            setShowActivePopup(true);
-        }
+        setShowActivePopup(true);
     }
 
     const handleActivateTableClick = (table) => {
         setActivateTargetTable(table);
         setactivateTable(true);
-
-        if (!activateTable) {
-            setShowActivePopup(true);
-        }
+        setShowActivePopup(true);
     };
 
     const handleSubmitActivateQuery = async (query) => {
@@ -425,8 +422,11 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, setSemanticLayerInfo,
     const handleMouseUpForDrag = () => {
         setIsDragging(false);
 
-        localStorage.setItem('offsetX', offset.x);
-        localStorage.setItem('offsetY', offset.y);
+        // localStorage.setItem('offsetX', offset.x);
+        // localStorage.setItem('offsetY', offset.y);
+
+        localStorage.setItem('offsetX', offsetRef.current.x);
+        localStorage.setItem('offsetY', offsetRef.current.y);
     };
 
     const handleMouseMoveForDrag = (e) => {
@@ -497,35 +497,35 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, setSemanticLayerInfo,
     useEffect(() => {
         const runTask = async () => {
             setIsLoading(true);
-    
+
             if (semanticLayerInfo && semanticLayerInfo.length > 0) {
                 clearJsPlumbAndLocalStorage();
-    
+
                 try {
                     const name = semanticLayerInfo[0].name;
                     const ddl = semanticLayerInfo[0].ddl;
                     const selectedUSLPath = semanticLayerInfo[0].selectedUSLPath;
                     const parsedDDLResult = await compileUSL(name, ddl, selectedUSLPath, true);
-                    
+
                     if (parsedDDLResult) {
                         deleteAllTables();
                         const { savedTables, savedConnections, rulesData } = getSettingDataFromJson(parsedDDLResult);
                         reFreshScreen();
                         handleOptimizeView(jsPlumbRef.current, zoomLevel, setZoomLevel, setOffset);
                         // restoreFromTablesAndConnections(savedTables, savedConnections);
-                        
+
                         setSemanticLayerInfo([]);
                     }
                 } catch (error) {
                     console.error("Error while parsing DDL:", error);
                 }
             }
-    
+
             setIsLoading(false);
         };
-    
+
         runTask();
-    }, [semanticLayerInfo]);    
+    }, [semanticLayerInfo]);
 
     useEffect(() => {
         const runPreviewQuery = async () => {
