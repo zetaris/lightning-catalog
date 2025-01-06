@@ -11,6 +11,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { setQueryResult, addQueryToHistory } from '../../store/querySlice';
 
 function SqlEditor({ toggleRefreshNav, previewTableName, setPreviewTableName, isMouseLoading, navErrorMsg, setNavErrorMsg }) {
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
     const dispatch = useDispatch();
     const queryResult = useSelector((state) => state.query.queryResult);
     const queryHistory = useSelector((state) => state.query.queryHistory);
@@ -507,8 +508,8 @@ function SqlEditor({ toggleRefreshNav, previewTableName, setPreviewTableName, is
                         </div>
                         <div
                             {...separatorProps}
+                            className={`separator-bottom ${isSafari ? 'safari' : ''}`}
                             style={{
-                                height: '1px',
                                 backgroundColor: '#ccc',
                                 cursor: 'row-resize',
                                 display: 'flex',

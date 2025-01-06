@@ -26,3 +26,11 @@
     max-width: 400px;
     font-family: 'PlusJakartaSans', sans-serif;
 }
+
+.separator-bottom {
+    height: 1px;
+}
+
+.separator-bottom.safari {
+    height: 1.5px;
+}
