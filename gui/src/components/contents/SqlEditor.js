@@ -10,7 +10,7 @@ import { queryBookContents, queryBookColumns } from '../configs/editorConfig';
 import { useDispatch, useSelector } from 'react-redux';
 import { setQueryResult, addQueryToHistory } from '../../store/querySlice';
 
-function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading, navErrorMsg, setNavErrorMsg }) {
+function SqlEditor({ toggleRefreshNav, previewTableName, setPreviewTableName, isMouseLoading, navErrorMsg, setNavErrorMsg }) {
     const dispatch = useDispatch();
     const queryResult = useSelector((state) => state.query.queryResult);
     const queryHistory = useSelector((state) => state.query.queryHistory);
@@ -54,17 +54,19 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading, navErro
             const query = `SELECT * FROM ${previewTableName} LIMIT 100`;
             const result = await fetchApi(query);
 
-            setLoading(false);
-
             if (result?.error) {
                 dispatch(setQueryResult({ error: result.message }));
             } else {
                 const parsedResult = result.map((item) => JSON.parse(item));
                 dispatch(setQueryResult(parsedResult));
             }
+            setLoading(false);
         };
 
         runPreviewQuery();
+        // return () => {
+        //     setPreviewTableName(null);
+        // };
     }, [previewTableName, dispatch]);
 
     useEffect(() => {
@@ -90,7 +92,7 @@ function SqlEditor({ toggleRefreshNav, previewTableName, isMouseLoading, navErro
             setActiveEditor(1);
         }
 
-        setLoading(false);
+        // setLoading(false);
     }, []);
 
     useEffect(() => {
