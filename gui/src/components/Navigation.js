@@ -234,14 +234,24 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
 
   useEffect(() => {
     const expandNodes = async () => {
-      for (const nodeId of expandedNodeIds) {
-        const node = findNodeById(dataSources, nodeId) || findNodeById(semanticLayerFiles, nodeId);
-        if (node && !node.children) {
-          await handleTreeItemClick(node, false);
+      try {
+        for (const nodeId of expandedNodeIds) {
+          try {
+            const node = findNodeById(dataSources, nodeId) || findNodeById(semanticLayerFiles, nodeId);
+            if (node && !node.children) {
+              await handleTreeItemClick(node, false);
+            }
+          } catch (nodeError) {
+            console.error(`Error processing node ${nodeId}:`, nodeError);
+            continue;
+          }
         }
+      } catch (error) {
+        console.error('Error expanding nodes:', error);
+        // setNavErrorMsg('Error loading tree structure. Some items may not be visible.');
       }
     };
-
+  
     expandNodes();
   }, [dataSources, semanticLayerFiles, expandedNodeIds]);
 

@@ -18,14 +18,26 @@ const ActivatePopup = ({ onClose, onSubmit, table }) => {
     useEffect(() => {
         const savedTableData = JSON.parse(localStorage.getItem("savedTables")) || [];
         const matchedTable = savedTableData.find((t) => t.name === table.name);
-
+    
         if (matchedTable && matchedTable.activateQuery) {
-            const parsed = JSON.parse(matchedTable.activateQuery)
-            setDataSource(parsed.query);
+            try {
+                if (matchedTable.activateQuery.startsWith('{')) {
+                    const parsed = JSON.parse(matchedTable.activateQuery);
+                    setDataSource(parsed.query);
+                } else {
+                    setDataSource(matchedTable.activateQuery);
+                }
+            } catch (error) {
+                setDataSource(matchedTable.activateQuery);
+            }
         } else if (table.activateQuery) {
             try {
-                const parsed = JSON.parse(table.activateQuery);
-                setDataSource(parsed.query || table.activateQuery);
+                if (table.activateQuery.startsWith('{')) {
+                    const parsed = JSON.parse(table.activateQuery);
+                    setDataSource(parsed.query || table.activateQuery);
+                } else {
+                    setDataSource(table.activateQuery);
+                }
             } catch (error) {
                 setDataSource(table.activateQuery);
             }
@@ -34,8 +46,6 @@ const ActivatePopup = ({ onClose, onSubmit, table }) => {
         }
     }, []);
     
-    
-
     const handleSubmit = () => {
         const expression = `ACTIVATE USL TABLE ${table.name} AS ${dataSource};`;
 

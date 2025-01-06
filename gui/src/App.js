@@ -144,6 +144,7 @@ function App() {
                   uslNamebyClick={uslNamebyClick}
                   setIsLoading={setIsLoading}
                   previewTableName={previewTableName}
+                  setPreviewTableName={setPreviewTableName}
                   isMouseLoading={isMouseLoading}
                   navErrorMsg={navErrorMsg}
                   setNavErrorMsg={setNavErrorMsg}
