@@ -47,3 +47,7 @@ button {
 .cursor-wait {
   cursor: wait !important;
 }
+
+.ace_editor {
+  font-family: monospace !important;
+}

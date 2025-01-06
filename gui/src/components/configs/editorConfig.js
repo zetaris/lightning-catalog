@@ -12,6 +12,7 @@ export const defineCustomTheme = () => {
       /* Background and Gutter */
       .ace-myCustomTheme .ace_gutter {
         color: #A3C0CE;
+        letter-spacing: normal !important;
       }
       .ace-myCustomTheme {
         background-color: #FFFFFF;
@@ -577,8 +578,10 @@ export const editorOptions = {
   wrap: true,
   wrapBehavioursEnabled: true,
   behavioursEnabled: true,
-  tabSize: 2,
-
+  // tabSize: 2,
+  tabSize: 4,
+  useSoftTabs: true,
+  cursorStyle: 'ace',
 };
 
 export const tablePathSet = new Set();

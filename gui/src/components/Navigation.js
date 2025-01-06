@@ -17,6 +17,7 @@ import { ReactComponent as NNIcon } from '../assets/images/notnull-icon.svg';
 import { ReactComponent as LinkIcon } from '../assets/images/link-solid.svg';
 import SetSemanticLayerModal from './SetSemanticLayerModal';
 import Resizable from 'react-resizable-layout';
+import { v4 as uuidv4 } from 'uuid';
 
 const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, setPreviewTableName, setIsLoading, setIsMouseLoading, setNavErrorMsg, previewableTables, setPreviewableTables }) => {
 
@@ -266,7 +267,6 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     return null;
   };
 
-
   useEffect(() => {
     localStorage.setItem('expandedNodeIds', JSON.stringify(expandedNodeIds));
   }, [expandedNodeIds]);
@@ -285,7 +285,6 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
         const semanticLayerTree = renderTreeFromUSL(uslData);
         // setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, uslData.name, semanticLayerTree));
         setSemanticLayerFiles((prevData) => updateNodeChildren(prevData, uslData.fullPath || uslData.name, semanticLayerTree));
-
       }
     };
 
@@ -1022,10 +1021,29 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
     }
   };
 
+  const usedPaths = new Set();
+
   const renderTree = (nodes, parentPath = '', isSemanticLayer = false) => {
     // const uslDataKey = nodes[0]?.fullPath?.split('.')[1];
     const uslDataKey = nodes[0]?.fullPath?.split('.').slice(0, -1).join('.');
     const uslData = uslDataKey ? JSON.parse(localStorage.getItem(uslDataKey)) : null;
+
+    const getUniquePath = (path) => {
+      if (!usedPaths.has(path)) {
+        usedPaths.add(path);
+        return path;
+      }
+      let counter = 1;
+      let newPath = `${path}_${counter}`;
+      while (usedPaths.has(newPath)) {
+        counter++;
+        newPath = `${path}_${counter}`;
+      }
+      console.error(path);
+      console.error(newPath);
+      usedPaths.add(newPath);
+      return newPath;
+    };
 
     // if (uslData) {
     //   return renderTreeFromUSL(uslData, isSemanticLayer);
@@ -1037,7 +1055,8 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
       // if (currentPath.startsWith('metastore')) {
       //   currentPath = 'lightning.' + currentPath;
       // }
-      const uniqueId = `${currentPath}`;
+      const baseId = `${currentPath}`;
+      const uniqueId = getUniquePath(baseId);
       const Icon = node.type === 'table' ? TableIcon : FolderIcon;
       const hasTableChildResult = Array.isArray(node.children)
         ? node.children.some((child) => child.type === 'table')
@@ -1203,6 +1222,9 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 onExpandedItemsChange={(event, newExpanded) => {
                   setExpandedNodeIds(newExpanded);
                 }}
+                // getItemId={(node) => `${node.fullPath}`}
+                getItemId={(node) => node.uniqueId}
+                // getItemId={() => uuidv4()}
               >
                 {memoizedTreeData}
                 {/* {renderTree(dataSources, '', false)} */}
@@ -1253,6 +1275,9 @@ const Navigation = ({ refreshNav, onGenerateDDL, setView, setUslNamebyClick, set
                 onExpandedItemsChange={(event, newExpanded) => {
                   setExpandedNodeIds(newExpanded);
                 }}
+                // getItemId={(node) => `${node.fullPath}`}
+                getItemId={(node) => node.uniqueId}
+                // getItemId={() => uuidv4()}
               >
                 {memoizedSemanticLayerTree}
               </SimpleTreeView>
