@@ -23,7 +23,7 @@ function Content({ view, toggleRefreshNav, selectedTable, semanticLayerInfo, set
         <SqlEditor toggleRefreshNav={toggleRefreshNav} previewTableName={previewTableName} setPreviewTableName={setPreviewTableName} isMouseLoading={isMouseLoading} navErrorMsg={navErrorMsg} setNavErrorMsg={setNavErrorMsg} />
       )}
       {view === 'semanticLayer' && (
-        <SemanticLayer selectedTable={selectedTable} semanticLayerInfo={semanticLayerInfo} setSemanticLayerInfo={setSemanticLayerInfo} uslNamebyClick={uslNamebyClick} setIsLoading={setIsLoading} previewTableName={previewTableName} isMouseLoading={isMouseLoading} navErrorMsg={navErrorMsg} setNavErrorMsg={setNavErrorMsg} setPreviewableTables={setPreviewableTables} />
+        <SemanticLayer selectedTable={selectedTable} semanticLayerInfo={semanticLayerInfo} setSemanticLayerInfo={setSemanticLayerInfo} uslNamebyClick={uslNamebyClick} setIsLoading={setIsLoading} previewTableName={previewTableName} setPreviewTableName={setPreviewTableName} isMouseLoading={isMouseLoading} navErrorMsg={navErrorMsg} setNavErrorMsg={setNavErrorMsg} setPreviewableTables={setPreviewableTables} />
       )}
       {view === 'documentation' && window.open('https://github.com/zetaris/lightning-catalog/tree/master/doc', '_blank')}
     </div>
