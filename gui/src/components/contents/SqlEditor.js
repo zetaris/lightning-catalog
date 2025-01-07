@@ -43,9 +43,22 @@ function SqlEditor({ toggleRefreshNav, previewTableName, setPreviewTableName, is
     }, [dispatch]);
 
     // Save queryHistory to localStorage whenever it changes
+    // useEffect(() => {
+    //     localStorage.setItem('queryHistory', JSON.stringify(queryHistory));
+    // }, [queryHistory]);
+
     useEffect(() => {
-        localStorage.setItem('queryHistory', JSON.stringify(queryHistory));
-    }, [queryHistory]);
+        const storedQueryResult = sessionStorage.getItem('queryResult');
+        if (storedQueryResult) {
+            dispatch(setQueryResult(JSON.parse(storedQueryResult)));
+        }
+    }, [dispatch]);
+
+    useEffect(() => {
+        if (queryResult) {
+            sessionStorage.setItem('queryResult', JSON.stringify(queryResult));
+        }
+    }, [queryResult]);
 
     useEffect(() => {
         const runPreviewQuery = async () => {
@@ -65,9 +78,9 @@ function SqlEditor({ toggleRefreshNav, previewTableName, setPreviewTableName, is
         };
 
         runPreviewQuery();
-        // return () => {
-        //     setPreviewTableName(null);
-        // };
+        return () => {
+            setPreviewTableName(null);
+        };
     }, [previewTableName, dispatch]);
 
     useEffect(() => {
@@ -76,7 +89,9 @@ function SqlEditor({ toggleRefreshNav, previewTableName, setPreviewTableName, is
 
     useEffect(() => {
         if(sessionStorage.getItem('selectedTab')==='sqlEditor'){
-            dispatch(setQueryResult({ error: navErrorMsg }));
+            if(navErrorMsg !== ''){
+                dispatch(setQueryResult({ error: navErrorMsg }));
+            }
         }
     }, [navErrorMsg])
 

@@ -18,7 +18,7 @@ import DataQualityPopup from './components/DataQualityPopup.js';
 import DataQualityListPopup from './components/DataQualityListPopup.js';
 import ActivePopup from './components/ActivatePopup.js';
 
-function SemanticLayer({ selectedTable, semanticLayerInfo, setSemanticLayerInfo, uslNamebyClick, setIsLoading, previewTableName, isMouseLoading, navErrorMsg, setNavErrorMsg, setPreviewableTables }) {
+function SemanticLayer({ selectedTable, semanticLayerInfo, setSemanticLayerInfo, uslNamebyClick, setIsLoading, previewTableName, setPreviewTableName, isMouseLoading, navErrorMsg, setNavErrorMsg, setPreviewableTables }) {
     useEffect(() => {
         if (sessionStorage.getItem('selectedTab') === 'semanticLayer') {
             setViewMode('output');
@@ -113,7 +113,7 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, setSemanticLayerInfo,
 
     const loadDQ = async () => {
         setCondition('');
-        setQueryResult(null);
+        // setQueryResult(null);
 
         const savedTables = JSON.parse(localStorage.getItem("savedTables"));
         const processedNamespaces = new Set();
@@ -556,6 +556,8 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, setSemanticLayerInfo,
             } catch (error) {
                 setLoading(false);
                 setQueryResult({ error: 'Failed to run query or received empty response.' });
+            } finally {
+                setPreviewTableName('');
             }
 
         };
@@ -1926,17 +1928,17 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, setSemanticLayerInfo,
         updateActivatedTables(false);
     };
 
-    const handleOutputButton = () => {
-        setViewMode('output')
-        setCondition('preview')
-    }
-
     const clickDQTab = () => {
         setViewMode('dq');
         if (queryResult?.error === navErrorMsg) {
             setQueryResult('');
         }
     };
+
+    const clickOutputTab = () => {
+        setViewMode('output');
+        setCondition('preview');
+    }
 
     return (
         <Resizable
@@ -2029,8 +2031,8 @@ function SemanticLayer({ selectedTable, semanticLayerInfo, setSemanticLayerInfo,
                             </button>
                             <button
                                 className={`tab-button ${viewMode === 'output' ? 'active' : ''}`}
-                                onClick={() => setViewMode('output')}
-                            // onClick={() => clickOutputTab()}
+                                // onClick={() => setViewMode('output')}
+                                onClick={() => clickOutputTab()}
                             >
                                 Output
                             </button>
