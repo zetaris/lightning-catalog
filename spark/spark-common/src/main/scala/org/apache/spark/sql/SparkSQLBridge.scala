@@ -26,12 +26,9 @@ import org.apache.hadoop.fs.Path
 import org.apache.spark.sql.avro.AvroFileFormat
 import org.apache.spark.sql.catalyst.QueryPlanningTracker
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
-import org.apache.spark.sql.catalyst.util.UDTUtils
-import org.apache.spark.sql.catalyst.util.UDTUtils.delegate
 import org.apache.spark.sql.errors.QueryCompilationErrors
-import org.apache.spark.sql.execution.datasources.DataSource
-import org.apache.spark.sql.execution.datasources.FileFormat
-import org.apache.spark.sql.types.{DataType, StructField, StructType, UserDefinedType}
+import org.apache.spark.sql.execution.datasources.{DataSource, FileFormat}
+import org.apache.spark.sql.types.{DataType, StructField, StructType}
 import org.apache.spark.sql.util.SchemaUtils
 
 object SparkSQLBridge {
@@ -73,7 +70,5 @@ object SparkSQLBridge {
   def ofRows(sparkSession: SparkSession, plan: LogicalPlan, tracker: QueryPlanningTracker): DataFrame = {
     Dataset.ofRows(sparkSession, plan, tracker)
   }
-
-  def UDTUtils_toRow(value: Any, udt: UserDefinedType[Any]): Any = UDTUtils.toRow(value, udt)
 
 }

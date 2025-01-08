@@ -23,18 +23,16 @@ package com.zetaris.lightning.catalog.api
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.zetaris.lightning.execution.command.ShowDataQualityResult
-import org.apache.spark.sql.catalyst.util.{DateFormatter, DefaultUDTUtils, SparkDateTimeUtils, TimestampFormatter, UDTUtils}
-import org.apache.spark.sql.internal.SqlApiConf
-import org.apache.spark.sql.types.{ArrayType, BinaryType, DataType, Decimal, MapType, StringType, StructType, UserDefinedType}
-import org.apache.spark.sql.{Row, SparkSQLBridge, SparkSession}
+import org.apache.spark.sql.catalyst.util.{DateFormatter, TimestampFormatter}
+import org.apache.spark.sql.types._
+import org.apache.spark.sql.{Row, SparkDateTimeUtils, SparkSession, UDTUtils}
 import org.apache.spark.unsafe.types.CalendarInterval
-import org.apache.spark.util.SparkClassUtils
 import org.json4s.JsonAST.JValue
 import org.json4s.jackson.JsonMethods.compact
 import org.json4s.{JArray, JBool, JDecimal, JDouble, JField, JLong, JNull, JObject, JString}
 import org.slf4j.LoggerFactory
 
-import java.io.{BufferedWriter, OutputStream, OutputStreamWriter, PrintWriter, StringWriter}
+import java.io._
 import java.sql.{Date, Timestamp}
 import java.time.{Instant, LocalDate, LocalDateTime}
 import java.util
@@ -42,7 +40,6 @@ import java.util.Base64
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import scala.collection.mutable
-import scala.util.control.NonFatal
 import scala.util.{Failure, Success, Try}
 
 // SparkSession Init
@@ -247,7 +244,7 @@ class LightningResource {
         }
         new JObject(elements.toList)
       case (v: Any, udt: UserDefinedType[Any @unchecked]) =>
-        toJson(SparkSQLBridge.UDTUtils_toRow(v, udt), udt.sqlType)
+        toJson(UDTUtils.toRow(v, udt), udt.sqlType)
       case _ =>
         throw new IllegalArgumentException(s"Failed to convert value $value " +
           s"(class of ${value.getClass}}) with the type of $dataType to JSON.")
