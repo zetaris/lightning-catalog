@@ -60,7 +60,7 @@ Json
 Avro
 ```
 
-## ver 0.2, December 18, 2024
+## ver 0.2, January 9, 2024
 ### Introduction:
 Welcome to the latest release of our software! Version 0.2 brings more features for data engineers, scientist and developers to run data catalog on top of Apache Spark.
 

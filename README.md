@@ -25,13 +25,13 @@ It leverages Apache Spark as the primary compute engine.
 
 ## Key Capabilities
 
-* Lightning Catalog manages endpoints of source systems, providing unified access to them through SQL and the Apache Spark API, making data discovery easy.
-* Lightning Catalog allows you to run ad-hoc SQL queries over underlying heterogeneous source systems in a federated manner (e.g., joins between multiple source systems without moving data).
-* Lightning Catalog simplifies the lifecycle of data engineering pipelines, from build and test to deployment, by leveraging Data Flow Tables. For example, you can load data into a lake house by fetching deltas and transforming data through SQL operations.
-* Lightning Catalog alleviates the burden of data preparation for ML engineers, enabling them to focus on building models. It also supports access to unstructured data.
-* Lightning Catalog allows you to ingest unstructured files and query both their metadata and actual contents. It leverages Spark's parallel processing capabilities.
-* Lightning Catalog enables the creation of a unified semantic layer in a top-down manner, allowing users to upload DDL and map table definitions to underlying data sources.
-* Lightning Catalog brings data quality capabilities, including checking database constraints (PK, Unique, FK) over non-RDBMS tables, such as Parquet, Iceberg, Delta, and more.
+* Management of endpoints of diverse data assets in enterprise, providing unified access to them through SQL and the Apache Spark API.
+* Ad-hoc analytics through SQL queries over underlying data assets in a federated manner (e.g., joins between multiple source systems without moving data).
+* Simplifies the lifecycle of data engineering pipelines, from build and test to deployment, by leveraging Data Flow Tables. For example, user can load data into a lake house by fetching deltas and transforming data through SQL operations.
+* Alleviates the burden of data preparation for ML engineers, enabling them to focus on building models. It also supports access to unstructured data.
+* Ingest unstructured files and query both their metadata and actual contents. It leverages Spark's parallel processing capabilities.
+* Creation of a unified semantic layer in top-down manner, allowing users to upload DDL and map table definitions to underlying data sources.
+* Business data quality check including checking database constraints (PK, Unique, FK) over non-RDBMS tables, such as Parquet, Iceberg, Delta, and more.
 
 ## Online Documentation
 
@@ -39,7 +39,7 @@ It leverages Apache Spark as the primary compute engine.
 
 ## Collaboration
 
-Lightning tracks issues on GitHub and encourages contributions via pull requests.
+Lightning tracks issues on GitHub and encourages contributions via pull requests([github pull request](https://github.com/apache/spark/pulls))
 
 ### Building - Backend
 
@@ -71,7 +71,6 @@ Lightning provides `build.sh` to build both the frontend and backend.
 * Ability to run data pipelines at any scale by leveraging Apache Spark.
 * Support for running ANSI SQL and HiveQL queries over underlying source systems.
 * Support for multiple namespaces.
-* Data quality support via integration with Amazon Deequ.
 * Data flow tables, a declarative ETL framework that defines transformations on data.
 * Processing unstructured data, recursively accessing all files and their metadata from an endpoint.
 * Unified semantic layer (USL) by compiling and deploying DDL.
