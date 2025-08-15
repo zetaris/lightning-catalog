@@ -118,4 +118,8 @@ class RegisterJDBCDataSourceSuite extends SparkExtensionsTestBase with H2TestBas
     checkAnswer(sparkSession.sql(s"select * from lightning.datasource.h2.${dbName}.${schema}.test_users"),
       Seq(Row(1, 1), Row(2, 2), Row(3, 3), Row(4, 4), Row(5, 5)))
   }
+
+  test("should show erd") {
+    sparkSession.sql(s"show erd in lightning.datasource.h2.$dbName.nyc").show()
+  }
 }

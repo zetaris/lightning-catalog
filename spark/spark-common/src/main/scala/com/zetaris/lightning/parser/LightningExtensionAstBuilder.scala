@@ -20,7 +20,7 @@
 package com.zetaris.lightning.parser
 
 import com.zetaris.lightning.execution.command.ReferenceControl.{Cascade, NoAction, ReferenceControl, Restrict, SetDefault, SetNull}
-import com.zetaris.lightning.execution.command.{AccessControl, ActivateUSLTableSpec, Annotation, AnnotationStatement, Assignment, ColumnSpec, CompileUSLSpec, CreateTableSpec, DataQuality, DataSourceType, ForeignKey, ListDataQualitySpec, LoadUSL, NotNullColumn, PrimaryKeyColumn, RegisterCatalogSpec, RegisterDataQualitySpec, RegisterDataSourceSpec, RemoveUSL, RemovedDataQualitySpec, RunDataQualitySpec, ShowDataQualityResult, ShowNamespacesOrTables, UniqueKeyColumn, UpdateUSL}
+import com.zetaris.lightning.execution.command.{AccessControl, ActivateUSLTableSpec, Annotation, AnnotationStatement, Assignment, ColumnSpec, CompileUSLSpec, CreateTableSpec, DataQuality, DataSourceType, ForeignKey, ListDataQualitySpec, LoadUSL, NotNullColumn, PrimaryKeyColumn, RegisterCatalogSpec, RegisterDataQualitySpec, RegisterDataSourceSpec, RemoveUSL, RemovedDataQualitySpec, RunDataQualitySpec, ShowDataQualityResult, ShowERDSpec, ShowNamespacesOrTables, UniqueKeyColumn, UpdateUSL}
 import com.zetaris.lightning.model.{InvalidNamespaceException, LightningModelFactory}
 import com.zetaris.lightning.parser.LightningParserUtils.validateTableConstraints
 import org.antlr.v4.runtime.ParserRuleContext
@@ -528,6 +528,14 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
 
     ShowDataQualityResult(name, table, validRecord)
   }
+
+  override def visitShowERD(ctx: ShowERDContext): ShowERDSpec = withOrigin(ctx) {
+    val dataSource = visitMultipartIdentifier(ctx.datasource)
+    ShowERDSpec(dataSource)
+  }
+
+
+
 
 }
 

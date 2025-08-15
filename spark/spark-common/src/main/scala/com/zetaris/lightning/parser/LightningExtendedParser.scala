@@ -182,7 +182,8 @@ class LightningExtendedParser(delegate: ParserInterface) extends ParserInterface
       normalized.contains("run dq") ||
       normalized.contains("remove dq") ||
       normalized.contains("show namespaces or tables") ||
-      normalized.contains("show dq")
+      normalized.contains("show dq") ||
+      normalized.contains("show erd")
   }
 
   def parseLightning(sqlText: String): LogicalPlan = {

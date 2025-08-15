@@ -13,7 +13,11 @@ statement
 
 ddlStatement
     : registerDataSource | registerCatalog | createTable | compileUSL | activateUSLTable | loadUSL | updateUSL |
-      removeUSL | registerDQ | listDQ | runDQ | removeDQ | showNamespacesOrTables | showDQResult
+      removeUSL | registerDQ | listDQ | runDQ | removeDQ | showNamespacesOrTables | showDQResult | showERD
+    ;
+
+showERD
+    : SHOW ERD IN datasource=multipartIdentifier
     ;
 
 showNamespacesOrTables
