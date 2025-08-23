@@ -70,11 +70,14 @@ case class ForeignKey(columns: Seq[String],
                       onDelete: Option[ReferenceControl],
                       onUpdate: Option[ReferenceControl])
 
+case class ColumnDefault(defaultValue: String)
+
 case class ColumnSpec(name: String,
                       dataType: DataType,
                       primaryKey: Option[PrimaryKeyColumn],
                       notNull: Option[NotNullColumn],
                       unique: Option[UniqueKeyColumn],
+                      columnDefault: Option[ColumnDefault],
                       foreignKey: Option[ForeignKey],
                       accessControl: Option[AccessControl] = None)
 

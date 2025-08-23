@@ -24,7 +24,7 @@ package com.zetaris.lightning.execution.command
 
 object DataSourceType {
   val allTypes = Seq("JDBC", "ICEBERG", "DELTA", "ORC", "PARQUET", "CSV", "JSON", "XML", "REST",
-    "PDF", "IMAGE", "VIDEO", "AUDIO")
+    "PDF", "TXT", "IMAGE", "VIDEO", "AUDIO")
 
   def apply(value: String): DataSourceType = {
     value.toUpperCase match {
@@ -39,7 +39,7 @@ object DataSourceType {
       case "XML" => XML
       case "REST" => REST
       case "PDF" => PDF
-      case "TEXT" => TEXT
+      case "TXT" => TEXT
       case "IMAGE" => IMAGE
       case "VIDEO" => VIDEO
       case "AUDIO" => AUDIO

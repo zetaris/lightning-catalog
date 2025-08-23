@@ -84,9 +84,9 @@ case class CompileUSLSpec(name: String,
         fk.copy(refTable = fqnParentTable)
       }
 
-      val tableSpecWithFqn = tableSpec.copy(foreignKeys = fkWithFqn)
+      //val tableSpecWithFqn = tableSpec.copy(foreignKeys = fkWithFqn)
 
-      val columnSpecWithFqn = tableSpecWithFqn.columnSpecs.map { cs =>
+      val columnSpecWithFqn = tableSpec.columnSpecs.map { cs =>
         if (cs.foreignKey.isDefined) {
           checkReferenceTableColumn(createTableSpecs, cs.foreignKey.get)
           val fk = cs.foreignKey.get
@@ -94,11 +94,17 @@ case class CompileUSLSpec(name: String,
           val fkWithFqn = fk.copy(refTable = fqnParentTable)
           cs.copy(foreignKey = Some(fkWithFqn))
         } else {
-          cs
+          val tableLevelFk = fkWithFqn.find(fk => fk.columns.contains(cs.name))
+          if (tableLevelFk.isDefined) {
+            cs.copy(foreignKey = tableLevelFk)
+          } else {
+            cs
+          }
         }
       }
 
-      tableSpecWithFqn.copy(columnSpecs = columnSpecWithFqn)
+      //tableSpecWithFqn.copy(columnSpecs = columnSpecWithFqn)
+      tableSpec.copy(columnSpecs = columnSpecWithFqn)
     }
 
 

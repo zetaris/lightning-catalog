@@ -20,7 +20,7 @@
 package com.zetaris.lightning.parser
 
 import com.zetaris.lightning.execution.command.ReferenceControl.{Cascade, NoAction, ReferenceControl, Restrict, SetDefault, SetNull}
-import com.zetaris.lightning.execution.command.{AccessControl, ActivateUSLTableSpec, Annotation, AnnotationStatement, Assignment, ColumnSpec, CompileUSLSpec, CreateTableSpec, DataQuality, DataSourceType, ForeignKey, ListDataQualitySpec, LoadUSL, NotNullColumn, PrimaryKeyColumn, RegisterCatalogSpec, RegisterDataQualitySpec, RegisterDataSourceSpec, RemoveUSL, RemovedDataQualitySpec, RunDataQualitySpec, ShowDataQualityResult, ShowERDSpec, ShowNamespacesOrTables, UniqueKeyColumn, UpdateUSL}
+import com.zetaris.lightning.execution.command.{AccessControl, ActivateUSLTableSpec, Annotation, AnnotationStatement, Assignment, ColumnDefault, ColumnSpec, CompileUSLSpec, CreateTableSpec, DataQuality, DataSourceType, ForeignKey, ListDataQualitySpec, LoadUSL, NotNullColumn, PrimaryKeyColumn, RegisterCatalogSpec, RegisterDataQualitySpec, RegisterDataSourceSpec, RemoveUSL, RemovedDataQualitySpec, RunDataQualitySpec, ShowDataQualityResult, ShowERDSpec, ShowNamespacesOrTables, UniqueKeyColumn, UpdateUSL}
 import com.zetaris.lightning.model.{InvalidNamespaceException, LightningModelFactory}
 import com.zetaris.lightning.parser.LightningParserUtils.validateTableConstraints
 import org.antlr.v4.runtime.ParserRuleContext
@@ -102,16 +102,18 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
     var notNull: Option[NotNullColumn] = None
     var unique: Option[UniqueKeyColumn] = None
     var foreignKey: Option[ForeignKey] = None
+    var columnDefault: Option[ColumnDefault] = None
 
     constraints.foreach {
       case pk: PrimaryKeyColumn => primaryKey = Some(pk)
       case nn: NotNullColumn => notNull = Some(nn)
       case un: UniqueKeyColumn => unique = Some(un)
       case fk: ForeignKey => foreignKey = Some(fk)
+      case df: ColumnDefault => columnDefault = Some(df)
       case _ =>
     }
 
-    ColumnSpec(columnName, dataType, primaryKey, notNull, unique, foreignKey, accessControlHint)
+    ColumnSpec(columnName, dataType, primaryKey, notNull, unique, columnDefault, foreignKey, accessControlHint)
   }
 
   override def visitFullColumnName(ctx: FullColumnNameContext): String = withOrigin(ctx) {
@@ -400,6 +402,7 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
       case ("string", Nil) => StringType
       case ("character" | "char", length :: Nil) => CharType(length.getText.toInt)
       case ("varchar", length :: Nil) => VarcharType(length.getText.toInt)
+      case ("text", Nil) => StringType
       case ("binary", Nil) => BinaryType
       case ("decimal" | "dec" | "numeric", Nil) => DecimalType.USER_DEFAULT
       case ("decimal" | "dec" | "numeric", precision :: Nil) =>
@@ -408,6 +411,7 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
         DecimalType(precision.getText.toInt, scale.getText.toInt)
       case ("void", Nil) => NullType
       case ("interval", Nil) => CalendarIntervalType
+      case ("jsonb", Nil) => StringType
       case (dt@("character" | "char" | "varchar"), Nil) =>
         throw new ParseException("PARSE_CHAR_MISSING_LENGTH", ctx)
       case (dt, params) =>
@@ -532,6 +536,10 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
   override def visitShowERD(ctx: ShowERDContext): ShowERDSpec = withOrigin(ctx) {
     val dataSource = visitMultipartIdentifier(ctx.datasource)
     ShowERDSpec(dataSource)
+  }
+
+  override def visitDefaultConstraint(ctx: DefaultConstraintContext): ColumnDefault = withOrigin(ctx) {
+    ColumnDefault(ctx.defaultValue.getText)
   }
 
 

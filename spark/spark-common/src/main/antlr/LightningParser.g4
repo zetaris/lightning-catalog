@@ -65,7 +65,7 @@ compileUSL
     ;
 
 registerDataSource
-    : REGISTER (OR REPLACE)? dataSourceType = (JDBC | ICEBERG | ORC | PARQUET | DELTA | AVRO | CSV | XML | JSON | PDF | TEXT | IMAGE | VIDEO | AUDIO)
+    : REGISTER (OR REPLACE)? dataSourceType = (JDBC | ICEBERG | ORC | PARQUET | DELTA | AVRO | CSV | XML | JSON | PDF | TXT | IMAGE | VIDEO | AUDIO)
       DATASOURCE identifier (OPTIONS options=propertyList)?
       NAMESPACE multipartIdentifier
       (TAG tagDefinitions)?
@@ -195,6 +195,7 @@ columnConstraint
     | PRIMARY KEY                                                              #primaryKeyColumnConstraint
     | UNIQUE                                                                   #uniqueKeyColumnConstraint
     | FOREIGN KEY referenceDefinition                                          #foreignKeyColumnConstraint
+    | DEFAULT (defaultValue= identifier | propertyValue)                        #defaultConstraint
     ;
 
 tableConstraint
