@@ -179,6 +179,14 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
     }
   }
 
+  override def visitJsonType(ctx: JsonTypeContext): DataType = withOrigin(ctx) {
+    StringType
+  }
+
+  override def visitSerialType(ctx: SerialTypeContext): DataType = withOrigin(ctx) {
+    LongType
+  }
+
   override def visitComplexColType(ctx: ComplexColTypeContext): StructField = withOrigin(ctx) {
     StructField(
       name = ctx.identifier.getText,
@@ -267,6 +275,11 @@ class LightningExtensionAstBuilder(delegate: ParserInterface) extends LightningP
   }
 
   override def visitForeignKeyColumnConstraint(ctx: ForeignKeyColumnConstraintContext): ForeignKey = withOrigin(ctx) {
+    val refDef = visitReferenceDefinition(ctx.referenceDefinition())
+    ForeignKey(Seq.empty, None, refDef._1, refDef._2, refDef._3, refDef._4)
+  }
+
+  override def visitInlineReferenceConstraint(ctx: InlineReferenceConstraintContext): ForeignKey = withOrigin(ctx) {
     val refDef = visitReferenceDefinition(ctx.referenceDefinition())
     ForeignKey(Seq.empty, None, refDef._1, refDef._2, refDef._3, refDef._4)
   }

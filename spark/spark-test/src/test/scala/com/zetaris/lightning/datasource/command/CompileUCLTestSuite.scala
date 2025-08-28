@@ -238,32 +238,67 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
 
     sparkSession.sql(
       s"""
-         |COMPILE USL IF NOT EXISTS customer_sales DEPLOY NAMESPACE lightning.metastore.usldb DDL -- Reference/Master Data Tables
+         |COMPILE USL IF NOT EXISTS crmdb DEPLOY NAMESPACE lightning.metastore.crm DDL
+         |-- create table customer
+         |CREATE TABLE IF NOT EXISTS customer (
+         | id int NOT NULL PRIMARY KEY,
+         | name varchar(200),
+         | /*+@AccessControl(accessType="REGEX", regex="ss", users = "*", groups = "*")*/
+         | uid int UNIQUE,
+         | address TEXT,
+         | createAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         | balance DECIMAL(3,2) DEFAULT 1.00,
+         | is_weekend BOOLEAN DEFAULT FALSE,
+         | is_active BOOLEAN DEFAULT TRUE,
+         | quantity_on_hand INT DEFAULT 0,
+         | processing_status VARCHAR(20) DEFAULT 'pending',
+         | address2 TEXT
+         |)
+         |""".stripMargin)
+
+  }
+
+  test("should compile real example") {
+    sparkSession.sql(s"CREATE NAMESPACE lightning.metastore.crm")
+
+    sparkSession.sql(
+      s"""
+         |COMPILE USL IF NOT EXISTS new_web_sales DEPLOY NAMESPACE lightning.metastore.crm DDL -- =============================================
+         |-- DIMENSIONAL MODELING & DATA WAREHOUSING
+         |-- =============================================
+         |
+         |-- Time dimension table
          |CREATE TABLE dim_time (
          |    time_key INT PRIMARY KEY,
-         |    date_value DATE NOT NULL,
-         |    year_number INT NOT NULL,
-         |    quarter_number INT NOT NULL,
-         |    month_number INT NOT NULL,
-         |    day_of_week INT NOT NULL,
-         |    is_weekend BOOLEAN DEFAULT FALSE,
-         |    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+         |    date_actual DATE NOT NULL,
+         |    day_of_week INT,
+         |    day_name VARCHAR(10),
+         |    month_number INT,
+         |    month_name VARCHAR(15),
+         |    quarter_number INT,
+         |    year_number INT,
+         |    is_weekend BOOLEAN,
+         |    is_holiday BOOLEAN,
+         |    fiscal_year INT,
+         |    fiscal_quarter INT
          |);
          |
+         |-- Customer dimension table
          |CREATE TABLE dim_customer (
          |    customer_key INT PRIMARY KEY,
          |    customer_id VARCHAR(50) UNIQUE NOT NULL,
          |    customer_name VARCHAR(255) NOT NULL,
-         |    email VARCHAR(255),
-         |    phone VARCHAR(50),
-         |    address TEXT,
-         |    customer_segment VARCHAR(50),
+         |    customer_type VARCHAR(50),
+         |    segment VARCHAR(50),
+         |    region VARCHAR(100),
+         |    country VARCHAR(100),
          |    registration_date DATE,
-         |    is_active BOOLEAN DEFAULT TRUE,
-         |    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-         |    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+         |    status VARCHAR(20),
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
          |);
          |
+         |-- Product dimension table
          |CREATE TABLE dim_product (
          |    product_key INT PRIMARY KEY,
          |    product_id VARCHAR(50) UNIQUE NOT NULL,
@@ -271,233 +306,474 @@ class CompileUCLTestSuite extends SparkExtensionsTestBase {
          |    category VARCHAR(100),
          |    subcategory VARCHAR(100),
          |    brand VARCHAR(100),
-         |    unit_price DECIMAL(10,2),
-         |    cost DECIMAL(10,2),
-         |    is_active BOOLEAN DEFAULT TRUE,
-         |    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-         |    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+         |    manufacturer VARCHAR(100),
+         |    unit_cost DECIMAL(10,2),
+         |    list_price DECIMAL(10,2),
+         |    status VARCHAR(20),
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
          |);
          |
-         |CREATE TABLE warehouses (
-         |    warehouse_id INT PRIMARY KEY,
-         |    warehouse_code VARCHAR(20) UNIQUE NOT NULL,
-         |    warehouse_name VARCHAR(255) NOT NULL,
-         |    location VARCHAR(255),
-         |    manager_name VARCHAR(255),
-         |    capacity_units INT,
-         |    is_active BOOLEAN DEFAULT TRUE,
-         |    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+         |-- Sales fact table
+         |CREATE TABLE fact_sales (
+         |    sales_key BIGINT PRIMARY KEY,
+         |    time_key INT NOT NULL,
+         |    customer_key INT NOT NULL,
+         |    product_key INT NOT NULL,
+         |    transaction_id VARCHAR(100) NOT NULL,
+         |    quantity INT NOT NULL,
+         |    unit_price DECIMAL(10,2) NOT NULL,
+         |    discount_amount DECIMAL(10,2) DEFAULT 0,
+         |    tax_amount DECIMAL(10,2) DEFAULT 0,
+         |    total_amount DECIMAL(12,2) NOT NULL,
+         |    cost_amount DECIMAL(10,2),
+         |    profit_amount DECIMAL(10,2),
+         |    sales_channel VARCHAR(50),
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |
+         |    FOREIGN KEY (time_key) REFERENCES dim_time(time_key),
+         |    FOREIGN KEY (customer_key) REFERENCES dim_customer(customer_key),
+         |    FOREIGN KEY (product_key) REFERENCES dim_product(product_key)
          |);
          |
-         |-- Transactional Tables
+         |-- =============================================
+         |-- MICROSERVICES ARCHITECTURE
+         |-- =============================================
+         |
+         |-- Users service
          |CREATE TABLE users (
-         |    user_id INT PRIMARY KEY,
+         |    user_id BIGINT PRIMARY KEY,
          |    username VARCHAR(100) UNIQUE NOT NULL,
          |    email VARCHAR(255) UNIQUE NOT NULL,
          |    password_hash VARCHAR(255) NOT NULL,
          |    first_name VARCHAR(100),
          |    last_name VARCHAR(100),
-         |    role VARCHAR(50) DEFAULT 'user',
+         |    phone VARCHAR(20),
+         |    status VARCHAR(20) DEFAULT 'ACTIVE',
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+         |);
+         |
+         |CREATE TABLE user_preferences (
+         |    preference_id BIGINT PRIMARY KEY,
+         |    user_id BIGINT NOT NULL,
+         |    preference_key VARCHAR(100) NOT NULL,
+         |    preference_value TEXT,
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |
+         |    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+         |    UNIQUE(user_id, preference_key)
+         |);
+         |
+         |CREATE TABLE user_sessions (
+         |    session_id VARCHAR(255) PRIMARY KEY,
+         |    user_id BIGINT NOT NULL,
+         |    session_data TEXT,
+         |    ip_address VARCHAR(45),
+         |    user_agent TEXT,
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    expires_date TIMESTAMP NOT NULL,
          |    is_active BOOLEAN DEFAULT TRUE,
-         |    last_login TIMESTAMP,
-         |    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-         |    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+         |
+         |    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
          |);
          |
-         |CREATE TABLE orders (
-         |    order_id INT PRIMARY KEY,
-         |    order_number VARCHAR(50) UNIQUE NOT NULL,
-         |    customer_key INT NOT NULL,
-         |    user_id INT,
-         |    order_date DATE NOT NULL,
-         |    order_status VARCHAR(50) DEFAULT 'pending',
-         |    total_amount DECIMAL(12,2),
-         |    tax_amount DECIMAL(10,2),
-         |    shipping_amount DECIMAL(10,2),
-         |    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-         |    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-         |    FOREIGN KEY (customer_key) REFERENCES dim_customer(customer_key),
-         |    FOREIGN KEY (user_id) REFERENCES users(user_id)
+         |-- Warehouses for inventory service
+         |CREATE TABLE warehouses (
+         |    warehouse_id BIGINT PRIMARY KEY,
+         |    warehouse_code VARCHAR(20) UNIQUE NOT NULL,
+         |    warehouse_name VARCHAR(255) NOT NULL,
+         |    address TEXT,
+         |    city VARCHAR(100),
+         |    state VARCHAR(100),
+         |    country VARCHAR(100),
+         |    postal_code VARCHAR(20),
+         |    manager_name VARCHAR(255),
+         |    capacity INT,
+         |    status VARCHAR(20) DEFAULT 'ACTIVE',
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
          |);
          |
-         |CREATE TABLE order_items (
-         |    order_item_id INT PRIMARY KEY,
-         |    order_id INT NOT NULL,
-         |    product_key INT NOT NULL,
-         |    quantity INT NOT NULL CHECK (quantity > 0),
-         |    unit_price DECIMAL(10,2) NOT NULL,
-         |    line_total DECIMAL(12,2) NOT NULL,
-         |    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-         |    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
-         |    FOREIGN KEY (product_key) REFERENCES dim_product(product_key)
+         |-- Products for inventory service
+         |CREATE TABLE products (
+         |    product_id BIGINT PRIMARY KEY,
+         |    sku VARCHAR(100) UNIQUE NOT NULL,
+         |    product_name VARCHAR(255) NOT NULL,
+         |    description TEXT,
+         |    category_id INT,
+         |    brand VARCHAR(100),
+         |    unit_cost DECIMAL(10,2),
+         |    selling_price DECIMAL(10,2),
+         |    weight DECIMAL(8,3),
+         |    dimensions VARCHAR(50),
+         |    status VARCHAR(20) DEFAULT 'ACTIVE',
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
          |);
          |
+         |-- Stock levels
          |CREATE TABLE stock_levels (
-         |    stock_id INT PRIMARY KEY,
-         |    product_key INT NOT NULL,
-         |    warehouse_id INT NOT NULL,
-         |    quantity_on_hand INT DEFAULT 0,
-         |    reserved_quantity INT DEFAULT 0,
-         |    reorder_level INT DEFAULT 0,
-         |    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-         |    FOREIGN KEY (product_key) REFERENCES dim_product(product_key),
+         |    stock_id BIGINT PRIMARY KEY,
+         |    product_id BIGINT NOT NULL,
+         |    warehouse_id BIGINT NOT NULL,
+         |    quantity_on_hand INT NOT NULL DEFAULT 0,
+         |    quantity_reserved INT NOT NULL DEFAULT 0,
+         |    quantity_available INT ,
+         |    reorder_point INT,
+         |    max_stock_level INT,
+         |    last_stock_check TIMESTAMP,
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |
+         |    FOREIGN KEY (product_id) REFERENCES products(product_id),
          |    FOREIGN KEY (warehouse_id) REFERENCES warehouses(warehouse_id),
-         |    UNIQUE (product_key, warehouse_id)
+         |    UNIQUE(product_id, warehouse_id)
          |);
          |
-         |-- Fact Tables
-         |CREATE TABLE fact_sales (
-         |    sale_id INT PRIMARY KEY,
-         |    order_id INT NOT NULL,
-         |    customer_key INT NOT NULL,
-         |    product_key INT NOT NULL,
-         |    time_key INT NOT NULL,
-         |    quantity_sold INT NOT NULL,
+         |-- Order status lookup
+         |CREATE TABLE order_status (
+         |    status_id INT PRIMARY KEY,
+         |    status_code VARCHAR(20) UNIQUE NOT NULL,
+         |    status_name VARCHAR(50) NOT NULL,
+         |    description TEXT,
+         |    is_active BOOLEAN DEFAULT TRUE
+         |);
+         |
+         |-- Orders
+         |CREATE TABLE orders (
+         |    order_id BIGINT PRIMARY KEY,
+         |    order_number VARCHAR(50) UNIQUE NOT NULL,
+         |    user_id BIGINT NOT NULL,
+         |    status_id INT NOT NULL,
+         |    order_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    required_date DATE,
+         |    shipped_date DATE,
+         |    subtotal DECIMAL(12,2) NOT NULL,
+         |    tax_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+         |    shipping_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+         |    total_amount DECIMAL(12,2) NOT NULL,
+         |    shipping_address TEXT,
+         |    billing_address TEXT,
+         |    payment_method VARCHAR(50),
+         |    notes TEXT,
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |
+         |    FOREIGN KEY (user_id) REFERENCES users(user_id),
+         |    FOREIGN KEY (status_id) REFERENCES order_status(status_id)
+         |);
+         |
+         |-- Order items
+         |CREATE TABLE order_items (
+         |    order_item_id BIGINT PRIMARY KEY,
+         |    order_id BIGINT NOT NULL,
+         |    product_id BIGINT NOT NULL,
+         |    quantity INT NOT NULL,
          |    unit_price DECIMAL(10,2) NOT NULL,
-         |    total_sales_amount DECIMAL(12,2) NOT NULL,
-         |    cost_amount DECIMAL(12,2),
-         |    profit_amount DECIMAL(12,2),
-         |    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-         |    FOREIGN KEY (order_id) REFERENCES orders(order_id),
-         |    FOREIGN KEY (customer_key) REFERENCES dim_customer(customer_key),
-         |    FOREIGN KEY (product_key) REFERENCES dim_product(product_key),
-         |    FOREIGN KEY (time_key) REFERENCES dim_time(time_key)
+         |    discount_amount DECIMAL(10,2) DEFAULT 0,
+         |    line_total DECIMAL(12,2) NOT NULL,
+         |    warehouse_id BIGINT,
+         |
+         |    FOREIGN KEY (order_id) REFERENCES orders(order_id) ON DELETE CASCADE,
+         |    FOREIGN KEY (product_id) REFERENCES products(product_id),
+         |    FOREIGN KEY (warehouse_id) REFERENCES warehouses(warehouse_id)
          |);
          |
-         |-- Configuration and Management Tables
+         |-- =============================================
+         |-- CONFIGURATION MANAGEMENT
+         |-- =============================================
+         |
          |CREATE TABLE feature_flags (
-         |    flag_id INT PRIMARY KEY,
-         |    flag_name VARCHAR(100) UNIQUE NOT NULL,
-         |    flag_description TEXT,
+         |    flag_id BIGINT PRIMARY KEY,
+         |    flag_key VARCHAR(100) UNIQUE NOT NULL,
+         |    flag_name VARCHAR(255) NOT NULL,
+         |    description TEXT,
          |    is_enabled BOOLEAN DEFAULT FALSE,
-         |    environment VARCHAR(50) DEFAULT 'production',
-         |    created_by INT,
-         |    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-         |    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    environment VARCHAR(50),
+         |    target_audience VARCHAR(100),
+         |    start_date TIMESTAMP,
+         |    end_date TIMESTAMP,
+         |    created_by BIGINT,
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |
          |    FOREIGN KEY (created_by) REFERENCES users(user_id)
          |);
          |
-         |CREATE TABLE user_permissions (
-         |    permission_id INT PRIMARY KEY,
-         |    user_id INT NOT NULL,
-         |    permission_name VARCHAR(100) NOT NULL,
-         |    resource_type VARCHAR(100),
-         |    resource_id VARCHAR(100),
-         |    granted_by INT,
-         |    granted_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-         |    expires_at TIMESTAMP,
+         |CREATE TABLE app_configurations (
+         |    config_id BIGINT PRIMARY KEY,
+         |    config_key VARCHAR(100) NOT NULL,
+         |    config_value TEXT,
+         |    environment VARCHAR(50) NOT NULL,
+         |    data_type VARCHAR(20) DEFAULT 'STRING',
+         |    description TEXT,
+         |    is_encrypted BOOLEAN DEFAULT FALSE,
          |    is_active BOOLEAN DEFAULT TRUE,
-         |    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-         |    FOREIGN KEY (granted_by) REFERENCES users(user_id)
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    updated_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |
+         |    UNIQUE(config_key, environment)
          |);
          |
-         |-- Audit and Logging Tables
+         |-- =============================================
+         |-- AUDIT AND LOGGING
+         |-- =============================================
+         |
          |CREATE TABLE audit_logs (
-         |    log_id INT PRIMARY KEY,
-         |    user_id INT,
-         |    action_type VARCHAR(100) NOT NULL,
+         |    audit_id BIGINT PRIMARY KEY,
+         |    user_id BIGINT,
+         |    action VARCHAR(100) NOT NULL,
          |    table_name VARCHAR(100),
          |    record_id VARCHAR(100),
-         |    old_values TEXT,
-         |    new_values TEXT,
+         |    old_values JSON,
+         |    new_values JSON,
          |    ip_address VARCHAR(45),
          |    user_agent TEXT,
+         |    session_id VARCHAR(255),
          |    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |
          |    FOREIGN KEY (user_id) REFERENCES users(user_id)
          |);
          |
-         |-- Data Quality and Governance Tables
+         |CREATE TABLE error_logs (
+         |    error_id BIGINT PRIMARY KEY,
+         |    error_code VARCHAR(50),
+         |    error_message TEXT NOT NULL,
+         |    stack_trace TEXT,
+         |    severity VARCHAR(20) DEFAULT 'ERROR',
+         |    source_system VARCHAR(100),
+         |    user_id BIGINT,
+         |    session_id VARCHAR(255),
+         |    request_url TEXT,
+         |    request_method VARCHAR(10),
+         |    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    resolved BOOLEAN DEFAULT FALSE,
+         |
+         |    FOREIGN KEY (user_id) REFERENCES users(user_id)
+         |);
+         |
+         |-- =============================================
+         |-- ETL AND DATA INTEGRATION
+         |-- =============================================
+         |
+         |CREATE TABLE staging_customer_data (
+         |    staging_id BIGINT PRIMARY KEY,
+         |    customer_external_id VARCHAR(100),
+         |    customer_name VARCHAR(255),
+         |    email VARCHAR(255),
+         |    phone VARCHAR(20),
+         |    address TEXT,
+         |    city VARCHAR(100),
+         |    state VARCHAR(100),
+         |    country VARCHAR(100),
+         |    postal_code VARCHAR(20),
+         |    source_system VARCHAR(50),
+         |    batch_id VARCHAR(100),
+         |    load_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    processed_flag BOOLEAN DEFAULT FALSE,
+         |    error_message TEXT
+         |);
+         |
          |CREATE TABLE data_quality_rules (
-         |    rule_id INT PRIMARY KEY,
+         |    rule_id BIGINT PRIMARY KEY,
          |    rule_name VARCHAR(255) NOT NULL,
+         |    rule_description TEXT,
          |    table_name VARCHAR(100) NOT NULL,
          |    column_name VARCHAR(100),
          |    rule_type VARCHAR(50) NOT NULL,
-         |    rule_definition TEXT NOT NULL,
-         |    severity_level VARCHAR(20) DEFAULT 'medium',
+         |    rule_expression TEXT NOT NULL,
+         |    severity VARCHAR(20) DEFAULT 'ERROR',
          |    is_active BOOLEAN DEFAULT TRUE,
-         |    created_by INT,
-         |    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    created_by BIGINT,
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |
          |    FOREIGN KEY (created_by) REFERENCES users(user_id)
          |);
          |
          |CREATE TABLE data_quality_results (
-         |    result_id INT PRIMARY KEY,
-         |    rule_id INT NOT NULL,
-         |    execution_date DATE NOT NULL,
-         |    records_checked INT DEFAULT 0,
-         |    records_failed INT DEFAULT 0,
+         |    result_id BIGINT PRIMARY KEY,
+         |    rule_id BIGINT NOT NULL,
+         |    batch_id VARCHAR(100),
+         |    execution_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    total_records_checked INT,
+         |    failed_records INT,
          |    success_rate DECIMAL(5,2),
          |    execution_time_ms INT,
-         |    error_details TEXT,
-         |    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    status VARCHAR(20),
+         |
          |    FOREIGN KEY (rule_id) REFERENCES data_quality_rules(rule_id)
          |);
          |
-         |-- Customer Analytics Tables
-         |CREATE TABLE customer_segments (
-         |    segment_id INT PRIMARY KEY,
-         |    segment_name VARCHAR(100) NOT NULL,
-         |    segment_description TEXT,
-         |    segment_criteria TEXT,
-         |    is_active BOOLEAN DEFAULT TRUE,
-         |    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+         |-- =============================================
+         |-- COMPLIANCE AND GOVERNANCE
+         |-- =============================================
+         |
+         |CREATE TABLE consent_management (
+         |    consent_id BIGINT PRIMARY KEY,
+         |    user_id BIGINT NOT NULL,
+         |    consent_type VARCHAR(100) NOT NULL,
+         |    purpose VARCHAR(255),
+         |    is_granted BOOLEAN NOT NULL,
+         |    consent_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    expiry_date DATE,
+         |    withdrawal_date TIMESTAMP,
+         |    source_channel VARCHAR(50),
+         |    legal_basis VARCHAR(100),
+         |
+         |    FOREIGN KEY (user_id) REFERENCES users(user_id),
+         |    UNIQUE(user_id, consent_type)
          |);
          |
-         |CREATE TABLE customer_360 (
-         |    customer_360_id INT PRIMARY KEY,
-         |    customer_key INT NOT NULL,
-         |    segment_id INT,
-         |    total_orders INT DEFAULT 0,
-         |    total_spent DECIMAL(12,2) DEFAULT 0,
-         |    avg_order_value DECIMAL(10,2),
-         |    last_order_date DATE,
-         |    customer_lifetime_value DECIMAL(12,2),
-         |    churn_probability DECIMAL(5,4),
-         |    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-         |    FOREIGN KEY (customer_key) REFERENCES dim_customer(customer_key),
-         |    FOREIGN KEY (segment_id) REFERENCES customer_segments(segment_id)
+         |CREATE TABLE data_subject_requests (
+         |    request_id BIGINT PRIMARY KEY,
+         |    user_id BIGINT NOT NULL,
+         |    request_type VARCHAR(50) NOT NULL, -- DELETE, EXPORT, RECTIFY
+         |    request_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    status VARCHAR(50) DEFAULT 'PENDING',
+         |    completed_date TIMESTAMP,
+         |    processed_by BIGINT,
+         |    notes TEXT,
+         |    verification_method VARCHAR(50),
+         |
+         |    FOREIGN KEY (user_id) REFERENCES users(user_id),
+         |    FOREIGN KEY (processed_by) REFERENCES users(user_id)
          |);
          |
-         |-- Performance and Monitoring Tables
+         |-- =============================================
+         |-- PERFORMANCE AND MONITORING
+         |-- =============================================
+         |
          |CREATE TABLE performance_metrics (
-         |    metric_id INT PRIMARY KEY,
+         |    metric_id BIGINT PRIMARY KEY,
          |    metric_name VARCHAR(100) NOT NULL,
-         |    metric_category VARCHAR(50),
-         |    metric_value DECIMAL(15,6),
-         |    unit_of_measure VARCHAR(20),
-         |    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    metric_value DECIMAL(15,4),
+         |    metric_unit VARCHAR(20),
          |    system_component VARCHAR(100),
-         |    environment VARCHAR(50)
+         |    server_name VARCHAR(100),
+         |    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    tags JSON
          |);
          |
-         |-- ETL and Data Integration Tables
-         |CREATE TABLE staging_customer_data (
-         |    staging_id INT PRIMARY KEY,
-         |    source_system VARCHAR(50) NOT NULL,
-         |    batch_id VARCHAR(100),
-         |    customer_external_id VARCHAR(100),
-         |    raw_data TEXT,
-         |    processing_status VARCHAR(20) DEFAULT 'pending',
-         |    error_message TEXT,
-         |    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-         |    processed_at TIMESTAMP
+         |CREATE TABLE real_time_metrics (
+         |    metric_id BIGINT PRIMARY KEY,
+         |    metric_key VARCHAR(100) NOT NULL,
+         |    metric_value DECIMAL(15,4) NOT NULL,
+         |    metric_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    dimension_1 VARCHAR(100),
+         |    dimension_2 VARCHAR(100),
+         |    dimension_3 VARCHAR(100),
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
          |);
          |
-         |-- Master Data Management
-         |CREATE TABLE master_customer (
-         |    master_customer_id INT PRIMARY KEY,
-         |    customer_key INT NOT NULL,
-         |    source_system VARCHAR(50) NOT NULL,
-         |    external_customer_id VARCHAR(100),
-         |    confidence_score DECIMAL(3,2) DEFAULT 1.00,
-         |    is_golden_record BOOLEAN DEFAULT FALSE,
-         |    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-         |    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-         |    FOREIGN KEY (customer_key) REFERENCES dim_customer(customer_key)
+         |-- =============================================
+         |-- AGGREGATION AND REPORTING TABLES
+         |-- =============================================
+         |
+         |CREATE TABLE daily_sales_summary (
+         |    summary_id BIGINT PRIMARY KEY,
+         |    summary_date DATE NOT NULL,
+         |    product_key INT,
+         |    customer_key INT,
+         |    total_quantity INT,
+         |    total_revenue DECIMAL(15,2),
+         |    total_cost DECIMAL(15,2),
+         |    total_profit DECIMAL(15,2),
+         |    order_count INT,
+         |    unique_customers INT,
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |
+         |    FOREIGN KEY (product_key) REFERENCES dim_product(product_key),
+         |    FOREIGN KEY (customer_key) REFERENCES dim_customer(customer_key),
+         |    UNIQUE(summary_date, product_key, customer_key)
          |);
+         |
+         |-- =============================================
+         |-- IOT AND DEVICE MANAGEMENT
+         |-- =============================================
+         |
+         |CREATE TABLE device_registry (
+         |    device_id BIGINT PRIMARY KEY,
+         |    device_serial VARCHAR(100) UNIQUE NOT NULL,
+         |    device_type VARCHAR(50) NOT NULL,
+         |    device_model VARCHAR(100),
+         |    manufacturer VARCHAR(100),
+         |    location VARCHAR(255),
+         |    installation_date DATE,
+         |    last_maintenance DATE,
+         |    status VARCHAR(20) DEFAULT 'ACTIVE',
+         |    firmware_version VARCHAR(50),
+         |    configuration JSON,
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+         |);
+         |
+         |CREATE TABLE sensor_readings (
+         |    reading_id BIGINT PRIMARY KEY,
+         |    device_id BIGINT NOT NULL,
+         |    sensor_type VARCHAR(50) NOT NULL,
+         |    reading_value DECIMAL(15,6) NOT NULL,
+         |    reading_unit VARCHAR(20),
+         |    reading_timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+         |    quality_score DECIMAL(3,2),
+         |    is_anomaly BOOLEAN DEFAULT FALSE,
+         |
+         |    FOREIGN KEY (device_id) REFERENCES device_registry(device_id)
+         |);
+         |
          |
          |""".stripMargin)
+
+  }
+
+  test("should parse fk with only reference") {
+    sparkSession.sql(s"CREATE NAMESPACE lightning.metastore.crm")
+
+    sparkSession.sql(
+      s"""
+         |COMPILE USL IF NOT EXISTS testdb DEPLOY NAMESPACE lightning.metastore.crm DDL
+         |CREATE TABLE dim_time (
+         |    time_key SERIAL PRIMARY KEY,
+         |    date_actual DATE NOT NULL,
+         |    day_name VARCHAR(10),
+         |    month_name VARCHAR(10),
+         |    quarter_number INT,
+         |    year_number INT,
+         |    is_weekend BOOLEAN,
+         |    is_holiday BOOLEAN
+         |);
+         |
+         |CREATE TABLE dim_customer (
+         |    customer_key SERIAL PRIMARY KEY,
+         |    customer_id VARCHAR(50) UNIQUE,
+         |    customer_name VARCHAR(100),
+         |    email VARCHAR(100),
+         |    segment VARCHAR(50),
+         |    region VARCHAR(50),
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+         |);
+         |
+         |CREATE TABLE dim_product (
+         |    product_key SERIAL PRIMARY KEY,
+         |    product_id VARCHAR(50) UNIQUE,
+         |    product_name VARCHAR(100),
+         |    category VARCHAR(50),
+         |    subcategory VARCHAR(50),
+         |    unit_price DECIMAL(10,2),
+         |    created_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+         |);
+         |
+         |CREATE TABLE fact_sales (
+         |    sale_key SERIAL PRIMARY KEY,
+         |    time_key INT REFERENCES dim_time(time_key),
+         |    customer_key INT REFERENCES dim_customer(customer_key),
+         |    product_key INT REFERENCES dim_product(product_key),
+         |    quantity INT,
+         |    unit_price DECIMAL(10,2),
+         |    total_amount DECIMAL(10,2),
+         |    transaction_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+         |);
+         |""".stripMargin)
+
 
   }
 

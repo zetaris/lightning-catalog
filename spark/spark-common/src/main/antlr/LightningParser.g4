@@ -83,6 +83,8 @@ dataType
     : complex=ARRAY LT dataType GT                         #complexDataType
     | complex=MAP LT dataType COMMA dataType GT            #complexDataType
     | complex=STRUCT (LT complexColTypeList? GT | NEQ)     #complexDataType
+    | JSON                                                 #jsonType
+    | SERIAL                                               #serialType
     | INTERVAL from=(YEAR | MONTH) (TO to=MONTH)?          #yearMonthIntervalDataType
     | INTERVAL from=(DAY | HOUR | MINUTE | SECOND)
       (TO to=(HOUR | MINUTE | SECOND))?                    #dayTimeIntervalDataType
@@ -195,7 +197,13 @@ columnConstraint
     | PRIMARY KEY                                                              #primaryKeyColumnConstraint
     | UNIQUE                                                                   #uniqueKeyColumnConstraint
     | FOREIGN KEY referenceDefinition                                          #foreignKeyColumnConstraint
-    | DEFAULT (defaultValue= identifier | propertyValue)                        #defaultConstraint
+    | referenceDefinition                                                      #inlineReferenceConstraint
+    | DEFAULT defaultValue                                                     #defaultConstraint
+    ;
+
+defaultValue
+    : propertyValue
+    | identifier
     ;
 
 tableConstraint
@@ -236,5 +244,5 @@ fullColumnName
 nonReserved
     : ACTION | ARRAY  | ARRAY | AVRO | BUILD | CATALOG | CSV | DATASOURCE | DAY | DELTA | DQ | EXISTS  | HOUR |
     | ICEBERG | INTERVAL | INVALID | JDBC | JSON | LAKEHOUSE | MAP | MINUTE | MONTH | NAME | NAMESPACE | NAMESPACES | NO | OPTIONS
-    | ORC | PARQUET | RECORD | REGISTER | REMOVE | SECOND | SET | STRUCT | TO | USL | VALID | XML | YEAR
+    | ORC | PARQUET | RECORD | REGISTER | REMOVE | SECOND | SERIAL | SET | STRUCT | TO | USL | VALID | XML | YEAR
     ;
