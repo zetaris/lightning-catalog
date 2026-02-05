@@ -1,0 +1,125 @@
+replicaCount: 1
+
+image:
+  repository: your-registry.com/lightning-catalog
+  tag: latest
+  pullPolicy: Always
+
+imagePullSecrets: []
+  # - name: registry-secret
+nameOverride: ""
+fullnameOverride: ""
+
+# Namespace (used in NOTES.txt)
+namespace: default
+
+# Lightning Catalog configuration
+lightning:
+  serverPort: 8080
+  guiPort: 8081
+  # API URL for the GUI frontend (IMPORTANT: set this to your external API URL)
+  apiUrl: "http://localhost:8080"
+  spark:
+    driverMemory: "4g"
+    executorMemory: "8g"
+
+# Service configuration
+service:
+  type: ClusterIP
+  apiPort: 8080
+  guiPort: 8081
+
+# Ingress configuration for GUI
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # cert-manager.io/cluster-issuer: letsencrypt
+  hosts:
+    - host: catalog.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          port: 8081  # GUI
+  tls: []
+    # - secretName: catalog-tls
+    #   hosts:
+    #     - catalog.example.com
+
+# Ingress configuration for API (separate ingress)
+ingressApi:
+  enabled: false
+  className: ""
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # cert-manager.io/cluster-issuer: letsencrypt
+  hosts:
+    - host: catalog-api.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+          port: 8080  # API
+  tls: []
+    # - secretName: catalog-api-tls
+    #   hosts:
+    #     - catalog-api.example.com
+
+# Resource limits
+resources:
+  requests:
+    memory: "2Gi"
+    cpu: "500m"
+  limits:
+    memory: "4Gi"
+    cpu: "2000m"
+
+# Persistence for model data
+persistence:
+  enabled: false
+  existingClaim: ""  # Use existing PVC, or leave empty to create new one
+  subPath: ""  # Subdirectory within the volume (optional)
+  storageClass: ""  # Storage class for new PVC
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  mountPath: /opt/lightning-catalog/model
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 1000
+
+# Container security context
+securityContext:
+  runAsUser: 1000
+  runAsNonRoot: true
+
+# Liveness and readiness probes
+# Disabled by default - configure based on your health endpoint
+livenessProbe: {}
+  # httpGet:
+  #   path: /api/health
+  #   port: 8080
+  # initialDelaySeconds: 60
+  # periodSeconds: 10
+
+readinessProbe: {}
+  # httpGet:
+  #   path: /api/health
+  #   port: 8080
+  # initialDelaySeconds: 30
+  # periodSeconds: 5
+
+# Service account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""

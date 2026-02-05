@@ -1,0 +1,26 @@
+Lightning Catalog has been deployed!
+
+{{- if .Values.ingress.enabled }}
+Access the application at:
+{{- range $host := .Values.ingress.hosts }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+Get the application URLs by running:
+  export NODE_PORT_API=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "lightning-catalog.fullname" . }})
+  export NODE_PORT_GUI=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[1].nodePort}" services {{ include "lightning-catalog.fullname" . }})
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo "API: http://$NODE_IP:$NODE_PORT_API"
+  echo "GUI: http://$NODE_IP:$NODE_PORT_GUI"
+{{- else if contains "LoadBalancer" .Values.service.type }}
+Get the application URLs by running:
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+  kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "lightning-catalog.fullname" . }}
+{{- else if contains "ClusterIP" .Values.service.type }}
+Access the application by running:
+  kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "lightning-catalog.fullname" . }} 8080:{{ .Values.service.apiPort }} 8081:{{ .Values.service.guiPort }}
+
+Then access:
+  API: http://localhost:8080
+  GUI: http://localhost:8081
+{{- end }}

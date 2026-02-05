@@ -1,8 +1,11 @@
+// API base URL - configurable via runtime config (injected by container) or environment variable
+const API_BASE_URL = window.RUNTIME_CONFIG?.API_URL || process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
 // Generalized API function using the /q endpoint for query execution
 const executeQueryApi = async (query) => {
   try {
     document.body.classList.add('cursor-wait');
-    const response = await fetch('http://localhost:8080/api/q', {
+    const response = await fetch(`${API_BASE_URL}/api/q`, {
       method: 'POST',
       headers: {
         'Content-Type': 'text/plain',
@@ -36,7 +39,7 @@ const executeQueryApi = async (query) => {
 
 export const qdqApi = async (name, table, validRecord, limit) => {
   try {
-    const url = new URL('http://localhost:8080/api/qdq');
+    const url = new URL(`${API_BASE_URL}/api/qdq`);
     url.searchParams.append('name', name);
     url.searchParams.append('table', table);
     url.searchParams.append('validRecord', validRecord);
@@ -78,7 +81,7 @@ export const qdqApi = async (name, table, validRecord, limit) => {
 
 export const edqApi = async (name, table, validRecord) => {
   try {
-    const url = new URL('http://localhost:8080/api/edq');
+    const url = new URL(`${API_BASE_URL}/api/edq`);
     url.searchParams.append('name', name);
     url.searchParams.append('table', table);
     url.searchParams.append('validRecord', validRecord);

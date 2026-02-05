@@ -65,3 +65,7 @@ python/coverage.xml
 
 # node related
 **/node_modules/
+spark-3.5.2-bin-hadoop3.tgz
+/.metals/metals.log
+/.metals/metals.mv.db
+/.vscode/settings.json

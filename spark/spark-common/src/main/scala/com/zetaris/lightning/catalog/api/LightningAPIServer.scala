@@ -112,7 +112,8 @@ object LightningAPIServer {
     val guiContext = new ContextHandler()
     guiContext.setContextPath("/")
     guiContext.setHandler(staticHandler)
-    guiContext.setVirtualHosts(Array("localhost", "0.0.0.0"))
+    // Allow all hosts for Kubernetes/external access
+    // guiContext.setVirtualHosts(Array("localhost", "0.0.0.0"))
     
     guiServer.setHandler(guiContext)
     guiServer.start()

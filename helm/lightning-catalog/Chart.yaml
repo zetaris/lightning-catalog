@@ -1,0 +1,12 @@
+apiVersion: v2
+name: lightning-catalog
+description: A Helm chart for Lightning Catalog - Data Catalog with Spark runtime
+type: application
+version: 0.1.0
+appVersion: "0.2"
+keywords:
+  - data-catalog
+  - spark
+  - metadata
+maintainers:
+  - name: Zetaris
